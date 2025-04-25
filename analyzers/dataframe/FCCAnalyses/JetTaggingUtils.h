@@ -5,6 +5,7 @@
 #include "ROOT/RVec.hxx"
 #include "TRandom3.h"
 #include "edm4hep/MCParticleData.h"
+#include "edm4hep/ReconstructedParticleData.h"
 #include "fastjet/JetDefinition.hh"
 #include <vector>
 
@@ -21,6 +22,12 @@ namespace JetTaggingUtils {
 ROOT::VecOps::RVec<int>
 get_flavour(ROOT::VecOps::RVec<fastjet::PseudoJet> in,
             ROOT::VecOps::RVec<edm4hep::MCParticleData> MCin);
+
+// Get flavour association of jet (but from reco particle jets)
+ROOT::VecOps::RVec<int>
+get_flavour(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,
+            ROOT::VecOps::RVec<edm4hep::MCParticleData> MCin, int maxPdg = 5);
+
 // Get b-tags with an efficiency applied
 ROOT::VecOps::RVec<int> get_btag(ROOT::VecOps::RVec<int> in, float efficiency,
                                  float mistag_c = 0., float mistag_l = 0.,
@@ -37,6 +44,23 @@ ROOT::VecOps::RVec<int> get_ltag(ROOT::VecOps::RVec<int> in, float efficiency,
 ROOT::VecOps::RVec<int> get_gtag(ROOT::VecOps::RVec<int> in, float efficiency,
                                  float mistag_b = 0., float mistag_c = 0.,
                                  float mistag_l = 0.);
+
+// Generalized b-tagging function (with pt, eta dependent formula for tagging and mistag rates)
+ROOT::VecOps::RVec<int> get_btag(
+      const ROOT::VecOps::RVec<int>& flavors,
+      const ROOT::VecOps::RVec<float>& pts,
+      const ROOT::VecOps::RVec<float>& etas,
+      const std::string& b_formula_str,
+      const std::string& c_formula_str,
+      const std::string& l_formula_str,
+      const std::string& g_formula_str);
+
+ROOT::VecOps::RVec<int> get_toptag(
+      const ROOT::VecOps::RVec<int>& flavors,
+      const ROOT::VecOps::RVec<float>& pts,
+      const ROOT::VecOps::RVec<float>& etas,
+      const std::string& top_formula_str,
+      const std::string& qcd_formula_str);
 
 /// select a list of jets depending on the status of a certain boolean flag
 /// (corresponding to its tagging state)
