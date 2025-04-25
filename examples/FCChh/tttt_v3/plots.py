@@ -8,11 +8,11 @@ intLumiLabel = f"L = {L} ab^{{-1}}"
 ana_tex = ""
 delphesVersion = "3.4.2"
 collider = "FCC-hh"
-formats = ["pdf"]
+formats = ["pdf","png"]
 
 # outdir         = './outputs/plots/recoil/'
-outdir = "/eos/user/s/selvaggi/www/analysis/tttt_v3/"
-inputDir = "/eos/user/s/selvaggi/analysis/tttt_v3/"
+outdir = "/eos/user/m/mdefranc/www/FCC-hh/4t/"
+inputDir = "/eos/user/m/mdefranc/FCC-hh/4t/"
 
 plotStatUnc = True
 
