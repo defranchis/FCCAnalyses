@@ -528,6 +528,18 @@ ROOT::VecOps::RVec<T> get(const ROOT::VecOps::RVec<int> &index,
   return result;
 }
 
+float get_weight_emugamma(float pt, float weight);
+float get_weight_top(float pt, float weight);
+
+float get_fake_rate(float pt);
+
+bool find_of_ss_sf(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> reco_ele,
+                  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> reco_mu);
+
+ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> findOppositeFlavorSameSign(
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> reco_elecs,
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> reco_muons);
+
 } // namespace AnalysisFCChh
 
 #endif

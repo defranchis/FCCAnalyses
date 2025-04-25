@@ -1629,7 +1629,7 @@ ROOT::VecOps::RVec<int> AnalysisFCChh::get_4l_flavour_flag(
 
       return results_vector;
 
-    }
+}
 
 // build all possible emu OS combinations, for eg tautau and ww analysis
 ROOT::VecOps::RVec<RecoParticlePair> AnalysisFCChh::getDFOSPairs(
@@ -4011,3 +4011,212 @@ ROOT::VecOps::RVec<int> AnalysisFCChh::find_truth_to_reco_matches_indices(
 // 	return out_vector;
 
 // }
+
+
+// // Corrected function returning pT-dependent uncertainty
+// float AnalysisFCChh::get_weight(float pt, float weight) {
+//     // pT in TeV
+//     float ptt = pt / 1000.;
+
+//     // Cubic polynomial fitted parameters for muons
+//     float a = 0.2908;
+//     float b = -1.5698;
+//     float c = 2.4135;
+//     float d = 0.3816;
+
+//     // Calculate the uncertainty using cubic polynomial
+//     float delta = (a * pow(ptt, 3) + b * pow(ptt, 2) + c * ptt + d);
+
+//     // Return the scaled uncertainty
+//     // std::cout << "PT: "<< pt << " Weight: " << weight << " SF: " << weight * delta / 100. << std::endl;
+//     return weight * delta / 100.;
+// }
+
+float AnalysisFCChh::get_weight_emugamma(float pt, float weight) {
+
+    // weight = 1 , muons
+    // weight = 2, electrons gamma
+
+    // Original data points
+    std::vector<double> pts = {1, 5, 10, 50, 200, 1000, 2000, 3000, 5000, 10000};
+    std::vector<double> vals = {50, 3, 1.5, 0.5, 0.25, 0.3, 0.35, 0.8, 4, 30};
+
+    // Convert to log scale
+    std::vector<double> log_pts, log_vals;
+    for (size_t i = 0; i < pts.size(); ++i) {
+        log_pts.push_back(std::log(pts[i]));
+        log_vals.push_back(std::log(vals[i]));
+    }
+
+    double log_pt = std::log(pt);
+
+    // Extrapolation for pt beyond the last known data point
+    if (pt > pts.back()) {
+        double log_slope = (log_vals.back() - log_vals[log_vals.size() - 2]) / 
+                           (log_pts.back() - log_pts[log_pts.size() - 2]);
+        double log_f_extrapolated = log_vals.back() + log_slope * (log_pt - log_pts.back());
+        return std::exp(log_f_extrapolated);
+    }
+
+    // Extrapolation below the first point
+    if (pt < pts.front()) return vals.front();
+
+    // Interpolation within known range
+    auto it = std::lower_bound(log_pts.begin(), log_pts.end(), log_pt);
+    size_t idx = std::distance(log_pts.begin(), it) - 1;
+
+    double t = (log_pt - log_pts[idx]) / (log_pts[idx + 1] - log_pts[idx]);
+    double log_f = log_vals[idx] + t * (log_vals[idx + 1] - log_vals[idx]);
+
+    return weight *  std::exp(log_f) / 100.;
+}
+
+float AnalysisFCChh::get_weight_top(float pt, float weight) {
+
+    // weight = 0.5 , aggressive
+    // weight = 1 , nominal
+    // weight = 2, conservative
+
+    // Original data points
+    std::vector<double> pts = {1, 250, 5000, 7000, 10000, 20000};
+    std::vector<double> vals = {2, 2, 2, 3, 10, 50};
+
+    // Convert to log scale
+    std::vector<double> log_pts, log_vals;
+    for (size_t i = 0; i < pts.size(); ++i) {
+        log_pts.push_back(std::log(pts[i]));
+        log_vals.push_back(std::log(vals[i]));
+    }
+
+    double log_pt = std::log(pt);
+
+    // Extrapolation for pt beyond the last known data point
+    if (pt > pts.back()) {
+        double log_slope = (log_vals.back() - log_vals[log_vals.size() - 2]) / 
+                           (log_pts.back() - log_pts[log_pts.size() - 2]);
+        double log_f_extrapolated = log_vals.back() + log_slope * (log_pt - log_pts.back());
+        return std::exp(log_f_extrapolated);
+    }
+
+    // Extrapolation below the first point
+    if (pt < pts.front()) return vals.front();
+
+    // Interpolation within known range
+    auto it = std::lower_bound(log_pts.begin(), log_pts.end(), log_pt);
+    size_t idx = std::distance(log_pts.begin(), it) - 1;
+
+    double t = (log_pt - log_pts[idx]) / (log_pts[idx + 1] - log_pts[idx]);
+    double log_f = log_vals[idx] + t * (log_vals[idx + 1] - log_vals[idx]);
+
+    return weight *  std::exp(log_f) / 100.;
+}
+
+
+
+float AnalysisFCChh::get_fake_rate(float pt) {
+    float ptt = pt / 1000.;  // Convert GeV to TeV
+    if (ptt < 1.0) {
+        return 0.001; // flat 0.1% for pT < 1 TeV
+    } else {
+        return 0.001 * ptt; // grows linearly above 1 TeV
+    }
+}
+
+
+bool AnalysisFCChh::find_of_ss_sf(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> reco_elecs, ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> reco_muons) {
+  // first look for e+ e+ mu- mu- and then e- e- mu+ mu+
+
+  bool found = false; 
+  int nepep = 0;
+  int nemem = 0;
+  for (int i = 0; i < reco_elecs.size(); i++) {
+    auto elec1 = reco_elecs[i];
+    for (int j = i + 1; j < reco_elecs.size(); j++) {
+      auto elec2 = reco_elecs[j];
+      if (elec1.charge == elec2.charge and elec1.charge == 1) {
+        nepep++;
+      }
+      if (elec1.charge == elec2.charge and elec1.charge == -1) {
+        nemem++;
+      }
+    }
+  }
+
+  int nmpmp = 0;
+  int nmmmm = 0;
+
+  for (int i = 0; i < reco_muons.size(); i++) {
+    auto muon1 = reco_muons[i];
+    for (int j = i + 1; j < reco_muons.size(); j++) {
+      auto muon2 = reco_muons[j];
+
+      if (muon1.charge == muon2.charge and muon1.charge == 1) {
+        nmpmp++;
+      }
+      if (muon1.charge == muon2.charge and muon1.charge == -1) {
+        nmmmm++;
+      }
+    }
+  }
+
+  if (nepep == 1 and nmmmm == 1) {
+    found = true;
+  }
+
+  if (nemem == 1 and nmpmp == 1) {
+    found = true;
+  }
+
+  return found;
+}
+
+
+ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>
+AnalysisFCChh::findOppositeFlavorSameSign(
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> reco_elecs,
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> reco_muons)
+{
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> result;
+
+  // Option 1: look for e+ e+ and mu- mu-
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> posElecs;
+  for (auto const& elec : reco_elecs) {
+    if (elec.charge == 1)
+      posElecs.push_back(elec);
+  }
+  
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> negMuons;
+  for (auto const& muon : reco_muons) {
+    if (muon.charge == -1)
+      negMuons.push_back(muon);
+  }
+  
+  if (posElecs.size() == 2 && negMuons.size() == 2) {
+    // Write first the two electrons then the muons.
+    result.insert(result.end(), posElecs.begin(), posElecs.end());
+    result.insert(result.end(), negMuons.begin(), negMuons.end());
+    return result;
+  }
+  
+  // Option 2: look for e- e- and mu+ mu+
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> negElecs;
+  for (auto const& elec : reco_elecs) {
+    if (elec.charge == -1)
+      negElecs.push_back(elec);
+  }
+  
+  ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> posMuons;
+  for (auto const& muon : reco_muons) {
+    if (muon.charge == 1)
+      posMuons.push_back(muon);
+  }
+  
+  if (negElecs.size() == 2 && posMuons.size() == 2) {
+    result.insert(result.end(), negElecs.begin(), negElecs.end());
+    result.insert(result.end(), posMuons.begin(), posMuons.end());
+    return result;
+  }
+  
+  // If neither combination is found, return an empty vector.
+  return result;
+}
