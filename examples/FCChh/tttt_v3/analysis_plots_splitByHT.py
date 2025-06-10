@@ -6,16 +6,16 @@ import ROOT
 intLumi = 30e06  # in pb-1
 ana_tex = "pp #rightarrow ttbar analysis "
 delphesVersion = "3.4.2"
-energy = 100
+energy = 84
 collider = "FCC-hh"
-inputDir = "/eos/user/s/selvaggi/analysis/ttbar_diff/final/"
+inputDir = "/eos/user/m/mdefranc/FCC-hh/4t_dilept/"
 formats = ["png"]
 # formats        = ['png','pdf']
 # yaxis          = ['log']
 yaxis = ["lin", "log"]
 # stacksig       = ['stack']
 stacksig = ["stack", "nostack"]
-outdir = "/eos/user/s/selvaggi/www/analysis/ttbar_diff"
+outdir = "/eos/user/m/mdefranc/www/FCC-hh/4t_dilept/"
 plotStatUnc = True
 
 
@@ -35,16 +35,16 @@ plotStatUnc = True
 
 variables = [
     "HT",
-    "pT_bjets",
-    "MET",
-    "genHT",
-    "tt_m",
-    "tt_pt",
-    "tt_eta",
-    "t1_pt",
-    "t1_eta",
-    "t2_pt",
-    "t2_eta",
+    # "pT_bjets",
+    # "MET",
+    # "genHT",
+    # "tt_m",
+    # "tt_pt",
+    # "tt_eta",
+    # "t1_pt",
+    # "t1_eta",
+    # "t2_pt",
+    # "t2_eta",
 ]
 
 
@@ -52,47 +52,138 @@ variables = [
 
 ### Dictionary with the analysis name as a key, and the list of selections to be plotted for this analysis. The name of the selections should be the same than in the final selection
 selections = {}
-selections["ttbar_diff_analysis"] = ["sel1_bjets"]
+selections["4t_diff_analysis"] = ["N_{bjets} #geq 3"]
 
 extralabel = {}
-extralabel["sel1_bjets"] = ">= 1 b-jet"
+extralabel["N_{bjets} #geq 3"] = "N_{bjets} #geq 3"
 
 colors = {}
-colors["ttbar_slice1"] = ROOT.kCyan
-colors["ttbar_slice2"] = ROOT.kCyan + 3
-colors["ttbar_slice3"] = ROOT.kBlue
-colors["ttbar_slice4"] = ROOT.kViolet + 5
-colors["ttbar_slice5"] = ROOT.kMagenta
-colors["ttbar_slice6"] = ROOT.kRed - 7
-colors["ttbar_slice7"] = ROOT.kOrange + 7
-colors["ttbar_slice8"] = ROOT.kYellow - 7
-colors["ttbar_slice9"] = ROOT.kGreen
-colors["ttbar_slice10"] = ROOT.kGray
 
-plots = {}
-plots["ttbar_diff_analysis"] = {
-    "backgrounds": {
-        "ttbar_slice1": ["mgp8_pp_tt012j_5f_HT_0_600"],
-        "ttbar_slice2": ["mgp8_pp_tt012j_5f_HT_600_1200"],
-        "ttbar_slice3": ["mgp8_pp_tt012j_5f_HT_1200_2100"],
-        "ttbar_slice4": ["mgp8_pp_tt012j_5f_HT_2100_3400"],
-        "ttbar_slice5": ["mgp8_pp_tt012j_5f_HT_3400_5300"],
-        "ttbar_slice6": ["mgp8_pp_tt012j_5f_HT_5300_8100"],
-        "ttbar_slice7": ["mgp8_pp_tt012j_5f_HT_8100_15000"],
-        "ttbar_slice8": ["mgp8_pp_tt012j_5f_HT_15000_25000"],
-        "ttbar_slice9": ["mgp8_pp_tt012j_5f_HT_25000_35000"],
-        "ttbar_slice10": ["mgp8_pp_tt012j_5f_HT_35000_100000"],
-    },
-}
+colors["4t_slice1"] = ROOT.kRed
+colors["4t_slice2"] = ROOT.kBlue
+colors["4t_slice3"] = ROOT.kGreen + 2
+colors["4t_slice4"] = ROOT.kOrange + 7
+
+
+
+procs = {}
+procs["signal"] = {
+        "4t_slice1": ["mgp8_pp_tttt_wmlep_Q_0_1000_5f_84TeV", 
+                      "mgp8_pp_tttt_wplep_Q_0_1000_5f_84TeV"],
+    }
+procs["backgrounds"] = {        
+        "4t_slice2": ["mgp8_pp_tttt_wmlep_Q_1000_3000_5f_84TeV",
+                      "mgp8_pp_tttt_wplep_Q_1000_3000_5f_84TeV"],   
+        "4t_slice3": ["mgp8_pp_tttt_wmlep_Q_3000_10000_5f_84TeV",
+                      "mgp8_pp_tttt_wplep_Q_3000_10000_5f_84TeV"],
+        "4t_slice4": ["mgp8_pp_tttt_wmlep_Q_10000_84000_5f_84TeV",
+                      "mgp8_pp_tttt_wplep_Q_10000_84000_5f_84TeV"],
+    }
 
 legend = {}
-legend["ttbar_slice1"] = "HT_0_600"
-legend["ttbar_slice2"] = "HT_600_1200"
-legend["ttbar_slice3"] = "HT_1200_2100"
-legend["ttbar_slice4"] = "HT_2100_3400"
-legend["ttbar_slice5"] = "HT_3400_5300"
-legend["ttbar_slice6"] = "HT_5300_8100"
-legend["ttbar_slice7"] = "HT_8100_15000"
-legend["ttbar_slice8"] = "HT_15000_25000"
-legend["ttbar_slice9"] = "HT_25000_35000"
-legend["ttbar_slice10"] = "HT_35000_100000"
+legend["4t_slice1"] = "4t Q 0 1000"
+legend["4t_slice2"] = "4t Q 1000 3000"
+legend["4t_slice3"] = "4t Q 3000 10000"
+legend["4t_slice4"] = "4t Q 10000 84000"
+
+
+
+
+# procs["signal"] = {
+#         "4t_slice1_wm": ["mgp8_pp_tttt_wmlep_Q_0_1000_5f_84TeV"],
+#     }
+# procs["backgrounds"] = {        
+#         "4t_slice2_wm": ["mgp8_pp_tttt_wmlep_Q_1000_3000_5f_84TeV"],
+#         "4t_slice3_wm": ["mgp8_pp_tttt_wmlep_Q_3000_10000_5f_84TeV"],
+#         "4t_slice4_wm": ["mgp8_pp_tttt_wmlep_Q_10000_84000_5f_84TeV"],
+#         "4t_slice1_wp": ["mgp8_pp_tttt_wplep_Q_0_1000_5f_84TeV"],
+#         "4t_slice2_wp": ["mgp8_pp_tttt_wplep_Q_1000_3000_5f_84TeV"],
+#         "4t_slice3_wp": ["mgp8_pp_tttt_wplep_Q_3000_10000_5f_84TeV"],
+#         "4t_slice4_wp": ["mgp8_pp_tttt_wplep_Q_10000_84000_5f_84TeV"],
+#     }
+
+# legend = {}
+# legend["4t_slice1_wm"] = "4t Q 0 1000 (wm)"
+# legend["4t_slice2_wm"] = "4t Q 1000 3000 (wm)"
+# legend["4t_slice3_wm"] = "4t Q 3000 10000 (wm)"
+# legend["4t_slice4_wm"] = "4t Q 10000 84000 (wm)"
+# legend["4t_slice1_wp"] = "4t Q 0 1000 (wp)"
+# legend["4t_slice2_wp"] = "4t Q 1000 3000 (wp)"
+# legend["4t_slice3_wp"] = "4t Q 3000 10000 (wp)"
+# legend["4t_slice4_wp"] = "4t Q 10000 84000 (wp)"
+
+
+hists = {}
+hists["HT_log"] = {
+    "input": "HT",
+    "output": "HT_log",
+    "logy": True,
+    "stack": True,
+    "xtitle": "H_{T} [TeV]",
+    "xmin": 0.5,
+    "xmax": 10,
+    "ymin": 1,
+    #"ymax": 1e10,
+    "rebin_last": True,
+    "store_csv": True,
+    #"yrange_syst": (-0.5,0.5),
+    "ytitle": "Events / TeV",
+    "processes": [
+        "4t_slice1",
+        "4t_slice2",
+        "4t_slice3",
+        "4t_slice4",
+    ],
+    "density": False,
+    "divideByBinWidth": True,
+}
+
+hists["HT_lin"] = {
+    "input": "HT",
+    "output": "HT_lin",
+    "logy": False,
+    "stack": True,
+    "xtitle": "H_{T} [TeV]",
+    "xmin": 0.5,
+    "xmax": 2.5,
+    #"ymin": 1,
+    #"ymax": 1e10,
+    "rebin_last": True,
+    "store_csv": True,
+    "yrange_syst": (-0.5,0.5),
+    "ytitle": "Events / TeV",
+    "processes": [
+        "4t_slice1",
+        "4t_slice2",
+        "4t_slice3",
+        "4t_slice4",
+    ],
+    "density": False,
+    "divideByBinWidth": True,
+}
+
+hists["HT_density"] = {
+    "input": "HT",
+    "output": "HT_density",
+    "logy": True,
+    "stack": False,
+    "xtitle": "H_{T} [TeV]",
+    "xmin": 0.5,
+    "xmax": 10,
+    "ymin": 1e-5,
+    "ymax": 1,
+    "rebin_last": True,
+    "store_csv": True,
+    "yrange_syst": (-0.5,0.5),
+    "ytitle": "Events / TeV",
+    "processes": [
+        "4t_slice1",
+        "4t_slice2",
+        "4t_slice3",
+        "4t_slice4",
+    ],
+    "density": True,
+    "divideByBinWidth": True,
+}
+
+hists2D = {}
