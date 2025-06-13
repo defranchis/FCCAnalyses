@@ -1346,11 +1346,13 @@ ROOT::VecOps::RVec<RecoParticlePair> AnalysisFCChh::getBestOSPair(
 
   // if only one pair in input, return that one:
   else if (electron_pairs.size() == 1 && muon_pairs.size() == 0) {
+    electron_pairs.at(0).flavour_flag = 2;
     best_pair.push_back(electron_pairs.at(0));
     return best_pair;
   }
 
   else if (electron_pairs.size() == 0 && muon_pairs.size() == 1) {
+    muon_pairs.at(0).flavour_flag = 1;
     best_pair.push_back(muon_pairs.at(0));
     return best_pair;
   }
@@ -1362,9 +1364,11 @@ ROOT::VecOps::RVec<RecoParticlePair> AnalysisFCChh::getBestOSPair(
   // make a vector with both electron and muons pairs in it:
   ROOT::VecOps::RVec<RecoParticlePair> all_pairs;
   for (auto &elec_pair : electron_pairs) {
+    elec_pair.flavour_flag = 2;
     all_pairs.push_back(elec_pair);
   }
   for (auto &muon_pair : muon_pairs) {
+    muon_pair.flavour_flag = 1;
     all_pairs.push_back(muon_pair);
   }
 
