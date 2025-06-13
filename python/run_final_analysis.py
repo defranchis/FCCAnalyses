@@ -301,8 +301,9 @@ def run(rdf_module, args) -> None:
             #reset the nevts/sow counters to avoid wrong counting in case a single file of same name (e.g. local test output) also exists in the same directory
             process_events[process_name] = 0
             events_ttree[process_name] = 0
-            sow_process[process_name] = 0.
-            sow_ttree[process_name] = 0.
+            if do_weighted:
+                sow_process[process_name] = 0.
+                sow_ttree[process_name] = 0.
 
             info_msg = f'Open directory {indirpath}'
             flist = glob.glob(indirpath + '/chunk*.root')
