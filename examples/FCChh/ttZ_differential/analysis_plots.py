@@ -20,7 +20,7 @@ plotStatUnc = True
 
 
 
-variables = ['Z_ll_mass', 'dR_ll', 'n_bjets', 'n_leptons', 'HT', 'MET']
+variables = ['Z_ll_mass', 'dR_ll', 'n_bjets', 'n_leptons', 'HT', 'MET', 'recoHT']
 
 
 # rebin = [1, 1, 1, 1, 2] # uniform rebin per variable (optional)

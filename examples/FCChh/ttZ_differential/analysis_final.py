@@ -74,6 +74,7 @@ histoList = {
     "dR_ll": {"name": "dR_ll", "title": "dR_{ll}", "bin": 50, "xmin": 0, "xmax": 10},
     "HT": {"name": "HT", "title": "H_{T} [TeV]", "bin": 50, "xmin": 0, "xmax": 2000},
     "MET": {"name": "MET", "title": "MET", "bin": 20, "xmin": 0, "xmax": 2000},
+    "recoHT": {"name": "recoHT", "title": "recoHT", "bin": 50, "xmin": 0, "xmax": 2000},
     #"HT_sel": {"name": "HT_sel", "title": "H_{T} [TeV]", "bin": 50, "xmin": 0, "xmax": 2000},
     #"MET_sel": {"name": "MET_sel", "title": "MET", "bin": 20, "xmin": 0, "xmax": 2000},
 }

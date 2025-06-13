@@ -50,7 +50,7 @@ class Analysis:
         self.run_batch = False
 
         # Optional: Use weighted events
-        self.do_weighted = True
+        self.do_weighted = False 
 
         # Optional: read the input files with podio::DataSource
         self.use_data_source = False  # explicitly use old way in this version
@@ -133,6 +133,7 @@ class Analysis:
             # calculate HT
             .Define("HT", "pT_leptons_sel[0] + pT_leptons_sel[1] + sel_bjets_pt[0] + sel_bjets_pt[1] + sel_bjets_pt[2]")
             .Define("ht_tev", "HT/1000.")
+            .Define("recoHT", "ScalarHT")
     
         )
         return dframe2
@@ -155,5 +156,7 @@ class Analysis:
             "Z_ll_pt",
             "Z_ll_eta",
             "dR_ll",
+            "recoHT",
+            
         ]
         return branch_list
