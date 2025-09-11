@@ -19,8 +19,7 @@ cd ..
 
 ### How to run
 Go into the `analysis` subfolder.
-Open `producetrees.py` and modify the settings according to your preferences.
-Run `python producetrees.py`.
+Run `python producetrees.py -h` to see a list of all available options.
 See more detailed instructions in the [analysis/README.md](analysis/README.md).
 
 ### References
