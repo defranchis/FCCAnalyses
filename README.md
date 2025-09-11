@@ -1,79 +1,28 @@
-# FCCAnalyses
+# ParticleNet ntuple branch of FCCAnalyses
 
-[![DOI](https://zenodo.org/badge/177151745.svg)](https://zenodo.org/doi/10.5281/zenodo.4767810)
+This is a special branch of FCCAnalyses, intended to prepare ntuples for ParticleNet training from EDM4HEP files.
 
-`master`: [![test](https://github.com/HEP-FCC/FCCAnalyses/actions/workflows/test.yml/badge.svg)](https://github.com/HEP-FCC/FCCAnalyses/actions/workflows/test.yml)
-[![docs](https://github.com/HEP-FCC/FCCAnalyses/actions/workflows/docs.yml/badge.svg)](https://github.com/HEP-FCC/FCCAnalyses/actions/workflows/docs.yml)
-[![bench](https://github.com/HEP-FCC/FCCAnalyses/actions/workflows/bench.yml/badge.svg)](https://github.com/HEP-FCC/FCCAnalyses/actions/workflows/bench.yml)
-
-`pre-edm4hep1`: [![test-pre-edm4hep1](https://github.com/HEP-FCC/FCCAnalyses/actions/workflows/test.yml/badge.svg?branch=pre-edm4hep1)](https://github.com/HEP-FCC/FCCAnalyses/actions/workflows/test.yml)
-
-Common framework for FCC related analyses. This framework allows one to write
-full analysis, taking [EDM4hep](https://github.com/key4hep/EDM4hep) input ROOT
-files and producing the plots.
-
-
-## Quick Start
-
-Running analysis script can be done using `fccanalysis` command which is
-shipped in Key4hep stack:
-
-```sh
-source /cvmfs/sw.hsf.org/key4hep/setup.sh
-fccanalysis run analysis_script.py
+### How to set up
+1. Clone this repository (and make sure to switch to this branch).
+2. Run the builtin setup script:
+```
+source ./setup.sh
+```
+3. Build and install (is this needed?)
+```
+mkdir build install
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=../install
+make install
+cd ..
 ```
 
+### How to run
+Go into the `analysis` subfolder.
+Open `producetrees.py` and modify the settings according to your preferences.
+Run `python producetrees.py`.
+See more detailed instructions in the [analysis/README.md](analysis/README.md).
 
-## Pre-generated Samples
-
-### Access
-
-To have read access to the FCC pre-generated samples, one needs to be subscribed to
-the following e-group (with owner approval): `fcc-eos-access`.
-
-
-### Winter 2023 and Spring 2021 Pre-generated Samples
-
-In order to run over pre-generated samples from `winter2023` or `spring2021`
-campaigns one needs to compile `pre-edm4hep1` branch of the FCCAnalyses in the
-`2024-03-10` release:
-
-   ```sh
-   source /cvmfs/sw.hsf.org/key4hep/setup.sh -r 2024-03-10
-   git clone --branch pre-edm4hep1 git@github.com:HEP-FCC/FCCAnalyses.git
-   cd FCCAnalyses
-   source ./setup.sh
-   fccanalysis build -j 8
-   ```
-
-
-### Sample Metadata
-
-All sample information, including Key4hep stack used for the campaign, is
-collected at the
-[FCC Physics Events](https://fcc-physics-events.web.cern.ch/)
-website.
-
-
-## Documentation
-
-Detailed documentation can be found at the
-[FCCAnalyses](https://hep-fcc.github.io/FCCAnalyses/) webpage.
-
-
-## Contributing
-
-As usual, if you aim at contributing to the repository, please fork it, develop
-your feature/analysis and submit a pull requests.
-
-
-### Code Formating
-
-The preferred style of the C++ code in the
-[FCCAnalyses](https://hep-fcc.github.io/FCCAnalyses/) is LLVM, which is checked
-by a CI job.
-
-To apply formatting to a file:
-```
-clang-format -i -style=file /path/to/file.cpp
-```
+### References
+- The main FCCAnalyses repo (from which this is a fork) is here: [HEP-FCC/FCCAnalyses](https://github.com/HEP-FCC/FCCAnalyses).
+- This branch is based on [this example](https://github.com/ADV99/ParticleNet_FCCSW/tree/main), but is updated to deal with newer versions of FCCAnalyses and with other samples.
