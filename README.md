@@ -3,6 +3,7 @@
 This is a special branch of FCCAnalyses, intended to prepare ntuples for ParticleNet training from EDM4HEP files.
 
 ### How to set up
+Note: these instructions are valid for `lxplus`, not necessarily for other environments.
 1. Clone this repository (and make sure to switch to this branch).
 2. Run the builtin setup script:
 ```
