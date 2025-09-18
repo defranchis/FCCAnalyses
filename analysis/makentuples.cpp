@@ -19,8 +19,17 @@ int main(int argc, char* argv[]) {
   std::cout << "Starting makentuples.cpp..." << std::endl;
 
   // check command line args
+  // note: use the following command line args:
+  //       - path to input file
+  //       - path to output file
+  //       - start entry
+  //       - stop entry
+  // note: start entry and stop entry can also be fractional numbers
+  //       instead of integer numbers, in which case the provided fractions
+  //       of the total number of events in the input file are used.
   if( argc!= 5 ) {
-    std::cerr << "USAGE: ./to_jetntuple [root_inFileName] [root_outFileName] N_i N_f" << std::endl;
+    std::cerr << "USAGE: ./makentuples [input root file] [output root file]";
+    std::cerr << " [start entry] [stop entry]" << std::endl;
     exit(1);
   }
 
@@ -329,14 +338,23 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("pfcand_isGamma", pfcand_isGamma, "pfcand_isGamma[nconst]/F");
   ntuple->Branch("pfcand_isNeutralHad", pfcand_isNeutralHad, "pfcand_isNeutralHad[nconst]/F");
 
-  int N_i = atoi(argv[3]);
-  int N_f = atoi(argv[4]);
+  // read the start entry and stop entry
+  // (and convert fractions to absolute numbers if needed)
+  float f_i = atof(argv[3]);
+  float f_f = atof(argv[4]);
+  int nentries = ev->GetEntries();
+  int N_i = 0;
+  int N_f = 0;
+  if( f_i > 1. ){ N_i = (int) f_i; }
+  else{ N_i = (int) (f_i*nentries); }
+  if( f_f > 1.){ N_f = (int) f_f; }
+  else{ N_f = (int) (f_f*nentries); }
   int Nevents_Max = N_f - N_i;
+  std::cout << "Number of events in input tree: " << nentries << std::endl;
+  std::cout << "Will run over event " << N_i << " to " << N_f << std::endl;
 
   // run over each entry in the tree
-  int nentries = ev->GetEntries(); 
-  std::cout << "Number of events in input tree: " << nentries << std::endl;
-  for(int i = N_i+1; i < nentries; ++i) {
+  for(int i = N_i; i < nentries; ++i) {
     
     // get the event
     ev->GetEntry(i);
@@ -447,7 +465,7 @@ int main(int argc, char* argv[]) {
     saved_events_counts += 1;
 
     // interrupt the loop if the maximum number of events has been reached
-    if (saved_events_counts == Nevents_Max) { break; }
+    if (saved_events_counts >= Nevents_Max) { break; }
   
   } // end of loop over events
 

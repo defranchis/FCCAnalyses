@@ -1,3 +1,6 @@
+# compiled analysis scripts
+analysis/makentuples
+
 # Byte-compiled / optimized / DLL files
 spack*
 __pycache__/

@@ -24,13 +24,15 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--input', required=True, nargs='+',
       help='Input .root files, OR path to a .txt file listing input .root files (one per line)')
     parser.add_argument('-o', '--outputfile', required=True,
-      help='Output file')
-    parser.add_argument('-n', '--nevents', type=int, default=100,
-      help='Number of events to process')
-      # todo: find out how the number of events is handled when multiple files are provided.
-      # todo: find out how to use all available events in the input file(s) as default.
+      help='Output .root file')
+    parser.add_argument('-n', '--nevents', type=int, default=-1,
+      help='Number of events to process (default: all available events)')
+      # note: when multiple files are provided, this number seems to be the total number of events,
+      #       not the number of events per file!
+      #       so some files may not be read at all if nevents is reached in an earlier file.
     parser.add_argument('--training_frac', type=float, default=0.9,
-      help='Fraction of events to put in training ntuple (rest will go in testing ntuple)')
+      help='Fraction of events to put in training ntuple (default: 0.9)'
+          +' (rest will go in testing ntuple)')
       # todo: find out if shuffling would be needed here.
     args = parser.parse_args()
 
@@ -42,7 +44,7 @@ if __name__ == '__main__':
             with open(el, 'r') as f:
                 lines = f.readlines()
             lines = [l.strip(' \t\n') for l in lines]
-            lines = [l for l in lines if l.endswith('.root')]
+            lines = [l for l in lines if (l.endswith('.root') and not l.startswith('#'))]
             input_files += lines[:]
     print(f'Found following input files ({len(input_files)}):')
     for f in input_files: print(f'  - {f}')
@@ -57,9 +59,6 @@ if __name__ == '__main__':
     outputdir = os.path.dirname(args.outputfile)
     if not os.path.exists(outputdir): os.makedirs(outputdir)
 
-    # set number of events used for training/testing
-    nevents_training = int(args.training_frac * args.nevents)
-
     # setup of the environment
     cmd_compile = "g++ -o makentuples makentuples.cpp `root-config --cflags --libs` -Wall"
     print('Compiling makentuples...')
@@ -68,7 +67,7 @@ if __name__ == '__main__':
     # make command for stage 1
     tempfile = args.outputfile.replace('.root', '_stage1.root')
     cmd_stage1 = 'fccanalysis run analysis.py'
-    cmd_stage1 += ' --nevents {}'.format(args.nevents)
+    if args.nevents > 0: cmd_stage1 += ' --nevents {}'.format(args.nevents)
     cmd_stage1 += ' --output {}'.format(tempfile)
     cmd_stage1 += ' --files-list {}'.format(' '.join(input_files))
 
@@ -90,9 +89,9 @@ if __name__ == '__main__':
     # run stage 2
     threads = []
     cmd_stagentuple_train = (cmd_stagentuple + ' ' + args.outputfile.replace('.root', '_train.root')
-                              + ' {} {} '.format(0, nevents_training))
+                              + ' {} {} '.format(0, args.training_frac))
     cmd_stagentuple_test = (cmd_stagentuple + ' ' + args.outputfile.replace('.root', '_test.root')
-                              + ' {} {} '.format(nevents_training, args.nevents))
+                              + ' {} {} '.format(args.training_frac, 1))
     print(f'Now running stage 2...')
     print(cmd_stagentuple_train)
     print(cmd_stagentuple_test)
