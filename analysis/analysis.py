@@ -5,16 +5,13 @@ class RDFanalysis():
         df2 = (
             df
 
-            #===== VERTEX
-            
-            # MC primary vertex
+            # get MC primary vertex
             # type 1: TVector3
             .Define("MC_PrimaryVertex", "FCCAnalyses::MCParticle::get_EventPrimaryVertex(21)( Particle )" )
             # type 2: TLorentzVector
             .Define("MC_PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()( Particle )" )
 
-            #===== CLUSTERING
-            #define the RP px, py, pz and e
+            # define the momentum, energy, mass and charge of all reconstructed particles
             .Define("RP_px",          "ReconstructedParticle::get_px(ReconstructedParticles)")
             .Define("RP_py",          "ReconstructedParticle::get_py(ReconstructedParticles)")
             .Define("RP_pz",          "ReconstructedParticle::get_pz(ReconstructedParticles)")
@@ -22,28 +19,32 @@ class RDFanalysis():
             .Define("RP_m",           "ReconstructedParticle::get_mass(ReconstructedParticles)")
             .Define("RP_q",           "ReconstructedParticle::get_charge(ReconstructedParticles)")
             
-            #build pseudo jets with the RP, using the interface that takes px,py,pz,E
+            # build "pseudo-jets", meaning each particle is converted to a jet
+            # consisting of only that one particle (which can then be clustered in the next step)
             .Define("pseudo_jets",    "JetClusteringUtils::set_pseudoJets(RP_px, RP_py, RP_pz, RP_e)")
-            #run jet clustering with all reconstructed particles. ee_genkt_algorithm, R=1.5, inclusive clustering, E-scheme
+            # run jet clustering with the following parameters:
+            # - use all reconstructed particles (in the form of the pseudo-jets defined earlier)
+            # - algorithm ee_genkt
+            # - R=1.5
+            # - inclusive clustering
+            # - E-scheme
             .Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(1.5, 0, 0, 0, 0, -1)(pseudo_jets)")
-            #get the jets out of the struct
+            # get the jets out of the struct
             .Define("jets_ee_genkt",           "JetClusteringUtils::get_pseudoJets(FCCAnalysesJets_ee_genkt)")
-            #get the jets constituents out of the struct
+            # get the jets constituents out of the struct
             .Define("jetconstituents_ee_genkt","JetClusteringUtils::get_constituents(FCCAnalysesJets_ee_genkt)")
 
+            # define jet-level observables
+            .Define("Jets_pt", "JetClusteringUtils::get_pt(jets_ee_genkt)")
+            .Define("Jets_e", "JetClusteringUtils::get_e(jets_ee_genkt)")
+            .Define("Jets_mass", "JetClusteringUtils::get_m(jets_ee_genkt)")
+            .Define("Jets_phi", "JetClusteringUtils::get_phi(jets_ee_genkt)")
+            .Define("Jets_theta", "JetClusteringUtils::get_theta(jets_ee_genkt)")
 
-            #===== OBSERVABLES
-            #JET LEVEL
-            .Define("Jets_pt",        "JetClusteringUtils::get_pt(jets_ee_genkt)")
-            .Define("Jets_e",        "JetClusteringUtils::get_e(jets_ee_genkt)")
-            .Define("Jets_mass",        "JetClusteringUtils::get_m(jets_ee_genkt)")
-            .Define("Jets_phi",        "JetClusteringUtils::get_phi(jets_ee_genkt)")
-            .Define("Jets_theta",        "JetClusteringUtils::get_theta(jets_ee_genkt)")
-
-            #CONSTITUENT LEVEL
-            .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(ReconstructedParticles, jetconstituents_ee_genkt)") #build jet constituents lists
+            # define constituent-level observables
+            .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(ReconstructedParticles, jetconstituents_ee_genkt)")
         
-            #getting the types of particles 
+            # get the types of particles 
             .Alias("MCRecoAssociations0", "MCRecoAssociations#0.index")
             .Alias("MCRecoAssociations1", "MCRecoAssociations#1.index")
             .Define("JetsConstituents_Pids", "JetConstituentsUtils::get_PIDs_cluster(MCRecoAssociations0, MCRecoAssociations1, ReconstructedParticles, Particle, jetconstituents_ee_genkt)")
@@ -53,7 +54,7 @@ class RDFanalysis():
             .Define("JetsConstituents_isGamma", "JetConstituentsUtils::get_isGamma(JetsConstituents_Pids)")
             .Define("JetsConstituents_isNeutralHad", "JetConstituentsUtils::get_isNeutralHad(JetsConstituents_Pids)")
 
-            #kinematics, displacement, PID
+            # kinematics, displacement, PID
             .Define("JetsConstituents_e", "JetConstituentsUtils::get_e(JetsConstituents)")
             .Define("JetsConstituents_pt", "JetConstituentsUtils::get_pt(JetsConstituents)")
             .Define("JetsConstituents_theta", "JetConstituentsUtils::get_theta(JetsConstituents)")
@@ -106,7 +107,7 @@ class RDFanalysis():
             .Define("JetsConstituents_JetDistVal", "JetConstituentsUtils::get_JetDistVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0, Bz)")
             .Define("JetsConstituents_JetDistSig", "JetConstituentsUtils::get_JetDistSig(JetsConstituents_JetDistVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
 
-            #counting the types of particles per jet
+            # counting the types of particles per jet
             .Define("njet", "JetConstituentsUtils::count_jets(JetsConstituents)")
             .Define("nconst", "JetConstituentsUtils::count_consts(JetsConstituents)")
             .Define("nmu", "JetConstituentsUtils::count_type(JetsConstituents_isMu)")
@@ -115,7 +116,10 @@ class RDFanalysis():
             .Define("nphoton", "JetConstituentsUtils::count_type(JetsConstituents_isGamma)")
             .Define("nneutralhad", "JetConstituentsUtils::count_type(JetsConstituents_isNeutralHad)")
         
-            #compute the residues jet-constituents on significant kinematic variables as a check
+            # compute the residues jet-constituents on significant kinematic variables as a check
+            # notes:
+            # - "tlv_jets" seems to mean: "the lorentz vectors of the jets, calculated directly from the jets"
+            # - "sum_tlv_jcs" seems to mean: "the lorentz vectors of the jets, but calculated by summing all constituents"
             .Define("tlv_jets", "JetConstituentsUtils::compute_tlv_jets(jets_ee_genkt)")
             .Define("sum_tlv_jcs", "JetConstituentsUtils::sum_tlv_constituents(JetsConstituents)")
             .Define("de", "JetConstituentsUtils::compute_residue_energy(tlv_jets, sum_tlv_jcs)")
@@ -129,8 +133,6 @@ class RDFanalysis():
 
     def output():
         branchList = [
-            #'RP_px', 'RP_py','RP_pz','RP_e', 'RP_m', 'RP_q',
-            #'Jets_px', 'Jets_py', 'Jets_pz',
             'Jets_e', 'Jets_mass', 'Jets_pt', 'Jets_phi', 'Jets_theta',
             'JetsConstituents_e', 'JetsConstituents_pt', 'JetsConstituents_theta', 'JetsConstituents_phi', 'JetsConstituents_charge',
             'JetsConstituents_erel', 'JetsConstituents_erel_log', 'JetsConstituents_thetarel', 'JetsConstituents_phirel', 
