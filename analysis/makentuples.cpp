@@ -33,10 +33,8 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-  // derive the flavour from the file name
+  // set input file from command-line args
   std::string infileName(argv[1]);
-  char flavour = infileName[infileName.length()-6];
-  std::cout << "Flavour (derived from input file name): " << flavour << std::endl;
 
   // open the input file
   TFile* infile = TFile::Open(infileName.c_str());
@@ -55,16 +53,25 @@ int main(int argc, char* argv[]) {
   std::cout << "Opened tree " << "events" << std::endl;
   
   // declare variables to be read from the tree
-  
-  //event properties
+
+  // event properties
+  int genEventType;
+  int nJets;
+
+  // jet properties
   ROOT::VecOps::RVec<float> *Jets_e=0;
   ROOT::VecOps::RVec<float> *Jets_mass=0;
   ROOT::VecOps::RVec<float> *Jets_pt = 0;
   ROOT::VecOps::RVec<float> *Jets_phi = 0;
   ROOT::VecOps::RVec<float> *Jets_theta = 0;
-  int nJets;
-  
-  //properties of constituents
+  ROOT::VecOps::RVec<int>* count_Const = 0;
+  ROOT::VecOps::RVec<int>* count_Mu = 0;
+  ROOT::VecOps::RVec<int>* count_El = 0;
+  ROOT::VecOps::RVec<int>* count_ChargedHad = 0;
+  ROOT::VecOps::RVec<int>* count_Photon = 0;
+  ROOT::VecOps::RVec<int>* count_NeutralHad = 0;
+ 
+  // jet constituent properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_e = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_pt = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_theta = 0;
@@ -112,20 +119,26 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_isGamma = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_isNeutralHad = 0;
 
-  ROOT::VecOps::RVec<int>* count_Const = 0;
-  ROOT::VecOps::RVec<int>* count_Mu = 0;
-  ROOT::VecOps::RVec<int>* count_El = 0;
-  ROOT::VecOps::RVec<int>* count_ChargedHad = 0;
-  ROOT::VecOps::RVec<int>* count_Photon = 0;
-  ROOT::VecOps::RVec<int>* count_NeutralHad = 0;
-
   // map variables to branches in the input tree 
+  
+  // event properties
+  ev->SetBranchAddress("genEventType", &genEventType);
+  ev->SetBranchAddress("njet", &nJets);
+
+  // jet properties
   ev->SetBranchAddress("Jets_e", &Jets_e);
   ev->SetBranchAddress("Jets_mass", &Jets_mass);
   ev->SetBranchAddress("Jets_pt", &Jets_pt);
   ev->SetBranchAddress("Jets_phi", &Jets_phi);
   ev->SetBranchAddress("Jets_theta", &Jets_theta);
+  ev->SetBranchAddress("nconst", &count_Const);
+  ev->SetBranchAddress("nmu", &count_Mu);
+  ev->SetBranchAddress("nel", &count_El);
+  ev->SetBranchAddress("nchargedhad", &count_ChargedHad);
+  ev->SetBranchAddress("nphoton", &count_Photon);
+  ev->SetBranchAddress("nneutralhad", &count_NeutralHad);
 
+  // jet constituent properties
   ev->SetBranchAddress("JetsConstituents_e", &JetsConstituents_e);
   ev->SetBranchAddress("JetsConstituents_pt", &JetsConstituents_pt);
   ev->SetBranchAddress("JetsConstituents_theta", &JetsConstituents_theta);
@@ -173,25 +186,36 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("JetsConstituents_isGamma", &JetsConstituents_isGamma);
   ev->SetBranchAddress("JetsConstituents_isNeutralHad", &JetsConstituents_isNeutralHad);
 
-  ev->SetBranchAddress("njet", &nJets);
-  ev->SetBranchAddress("nconst", &count_Const);
-  ev->SetBranchAddress("nmu", &count_Mu);
-  ev->SetBranchAddress("nel", &count_El);
-  ev->SetBranchAddress("nchargedhad", &count_ChargedHad);
-  ev->SetBranchAddress("nphoton", &count_Photon);
-  ev->SetBranchAddress("nneutralhad", &count_NeutralHad);
-
   // make output file and output tree
   std::string outfileName(argv[2]);
   TFile* outfile = new TFile(outfileName.c_str(), "recreate");
   std::cout << "Opened outfile " << std::endl;
   TTree* ntuple = new TTree("tree", "jets_Ntuple");
   std::cout << "Opened ntuple " << std::endl;
-
-  //define variables to write
+ 
+  // define variables to write
+  
+  // jet variables
   double recojet_e, recojet_mass, recojet_pt, recojet_phi, recojet_theta;
+  float flavour = -1;
+  float is_q = 0.;
+  float is_t = 0.;
+  float is_b = 0.;
+  float is_c = 0.;
+  float is_s = 0.;
+  float is_u = 0.;
+  float is_d = 0.;
+  float is_g = 0.;
+  float is_udsg = 0.;
+  int nconst = 0;
+  int nphotons = 0;
+  int ncharged = 0;
+  int nchargedhad = 0;
+  int nneutralhad = 0;
+  int nel = 0;
+  int nmu = 0;
 
-  // constituents
+  // jet constituent variables
   float pfcand_e[1000] = {0.};
   float pfcand_pt[1000] = {0.};
   float pfcand_charge[1000] = {0.};
@@ -239,49 +263,32 @@ int main(int argc, char* argv[]) {
   float pfcand_isGamma[1000] ={0.};
   float pfcand_isNeutralHad[1000] ={0.};
 
-  // counting species
+  // counting
   int njet = 0;
-  int nconst = 0;
   int anomaly_njets_counts_less = 0;
   int anomaly_njets_counts_more = 0;
   int anomaly_njets_counts = 0;
   int saved_events_counts = 0;                                                                                             
-  int nphotons = 0;
-  int ncharged = 0;
-  int nchargedhad = 0;
-  int nneutralhad = 0;
-  int nel = 0;
-  int nmu = 0;
 
-  // set flags
-  float is_q = 0.;
-  float is_b = 0.;
-  float is_c = 0.;
-  float is_s = 0.;
-  float is_g = 0.;
-  float is_t = 0.;
-  
-  if (flavour == 'q') {is_q = 1.;}
-  if (flavour == 'b') {is_b = 1.;}
-  if (flavour == 'c') {is_c = 1.;}
-  if (flavour == 's') {is_s = 1.;}
-  if (flavour == 'g') {is_g = 1.;}
-  if (flavour == 't') {is_t = 1.;}
-  
-  // define output branches 
+  // define output branches
+
+  // jet variables 
   ntuple->Branch("recojet_e", &recojet_e);
   ntuple->Branch("recojet_mass", &recojet_mass);
   ntuple->Branch("recojet_pt", &recojet_pt);
   ntuple->Branch("recojet_phi", &recojet_phi);
   ntuple->Branch("recojet_theta", &recojet_theta);
-  
-  
+ 
+  ntuple->Branch("flavour", &flavour);
   ntuple->Branch("recojet_isQ", &is_q);
+  ntuple->Branch("recojet_isT", &is_t);
   ntuple->Branch("recojet_isB", &is_b);
   ntuple->Branch("recojet_isC", &is_c);
   ntuple->Branch("recojet_isS", &is_s);
+  ntuple->Branch("recojet_isU", &is_u);
+  ntuple->Branch("recojet_isD", &is_d);
   ntuple->Branch("recojet_isG", &is_g);
-  ntuple->Branch("recojet_isT", &is_t);
+  ntuple->Branch("recojet_isUDSG", &is_udsg);
   
   ntuple->Branch("nconst", &nconst, "nconst/I");
   ntuple->Branch("nphotons", &nphotons, "nphotons/I");
@@ -291,6 +298,7 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("nel", &nel, "nel/I");
   ntuple->Branch("nmu", &nmu, "nmu/I");
 
+  // jet constituent variables
   ntuple->Branch("pfcand_e", pfcand_e, "pfcand_e[nconst]/F");
   ntuple->Branch("pfcand_pt", pfcand_pt, "pfcand_pt[nconst]/F");
   ntuple->Branch("pfcand_charge", pfcand_charge, "pfcand_charge[nconst]/F");
@@ -358,7 +366,10 @@ int main(int argc, char* argv[]) {
     
     // get the event
     ev->GetEntry(i);
+
+    // derive event level properties
     njet = nJets;
+    int eventFlavour = genEventType;
 
     // do some printouts to track progress
     if(i % 10000 == 0) {
@@ -383,6 +394,18 @@ int main(int argc, char* argv[]) {
     // note: we only take the first two jets (the ones having more energy, they're ordered in stage1);
     //       any more jets are because of inefficiencies in the clustering.
     for(int j=0; j < 2; ++j) {
+
+      // get jet type (from event type)
+      flavour = (float)eventFlavour;
+      is_q = (eventFlavour!=0);
+      is_t = (eventFlavour==6);
+      is_b = (eventFlavour==5);
+      is_c = (eventFlavour==4);
+      is_s = (eventFlavour==3);
+      is_u = (eventFlavour==2);
+      is_d = (eventFlavour==1);
+      is_g = (eventFlavour==0);
+      is_udsg = (eventFlavour>=0 && eventFlavour<=3);
 
       // get properties
       recojet_e = (*Jets_e)[j];
