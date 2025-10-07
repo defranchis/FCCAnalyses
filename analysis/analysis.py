@@ -94,6 +94,7 @@ class RDFanalysis():
             .Define("Jets_e", "JetClusteringUtils::get_e(jets_ee_genkt)")
             .Define("Jets_mass", "JetClusteringUtils::get_m(jets_ee_genkt)")
             .Define("Jets_phi", "JetClusteringUtils::get_phi(jets_ee_genkt)")
+            .Define("Jets_eta", "JetClusteringUtils::get_eta(jets_ee_genkt)")
             .Define("Jets_theta", "JetClusteringUtils::get_theta(jets_ee_genkt)")
 
             # define constituent-level observables
@@ -210,11 +211,14 @@ class RDFanalysis():
             'invariant_mass',
             
             # jet-level variables
-            'Jets_e', 'Jets_mass', 'Jets_pt', 'Jets_phi', 'Jets_theta',
+            'Jets_e', 'Jets_mass', 'Jets_pt', 'Jets_phi', 'Jets_eta', 'Jets_theta',
             
             # jet-constituent-level variables
-            'JetsConstituents_e', 'JetsConstituents_pt', 'JetsConstituents_theta', 'JetsConstituents_phi', 'JetsConstituents_charge',
-            'JetsConstituents_erel', 'JetsConstituents_erel_log', 'JetsConstituents_thetarel', 'JetsConstituents_phirel', 
+            'JetsConstituents_e', 'JetsConstituents_pt',
+            'JetsConstituents_theta', 'JetsConstituents_phi',
+            'JetsConstituents_charge',
+            'JetsConstituents_erel', 'JetsConstituents_erel_log',
+            'JetsConstituents_thetarel', 'JetsConstituents_phirel', 
             'JetsConstituents_dndx',
             #temp 'JetsConstituents_mtof',
             

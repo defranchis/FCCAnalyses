@@ -63,6 +63,7 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<float> *Jets_mass=0;
   ROOT::VecOps::RVec<float> *Jets_pt = 0;
   ROOT::VecOps::RVec<float> *Jets_phi = 0;
+  ROOT::VecOps::RVec<float> *Jets_eta = 0;
   ROOT::VecOps::RVec<float> *Jets_theta = 0;
   ROOT::VecOps::RVec<int>* count_Const = 0;
   ROOT::VecOps::RVec<int>* count_Mu = 0;
@@ -130,6 +131,7 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Jets_mass", &Jets_mass);
   ev->SetBranchAddress("Jets_pt", &Jets_pt);
   ev->SetBranchAddress("Jets_phi", &Jets_phi);
+  ev->SetBranchAddress("Jets_eta", &Jets_eta);
   ev->SetBranchAddress("Jets_theta", &Jets_theta);
   ev->SetBranchAddress("nconst", &count_Const);
   ev->SetBranchAddress("nmu", &count_Mu);
@@ -196,7 +198,7 @@ int main(int argc, char* argv[]) {
   // define variables to write
   
   // jet variables
-  double recojet_e, recojet_mass, recojet_pt, recojet_phi, recojet_theta;
+  double recojet_e, recojet_mass, recojet_pt, recojet_phi, recojet_eta, recojet_theta;
   float flavour = -1;
   float is_q = 0.;
   float is_t = 0.;
@@ -277,6 +279,7 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("recojet_mass", &recojet_mass);
   ntuple->Branch("recojet_pt", &recojet_pt);
   ntuple->Branch("recojet_phi", &recojet_phi);
+  ntuple->Branch("recojet_eta", &recojet_eta);
   ntuple->Branch("recojet_theta", &recojet_theta);
  
   ntuple->Branch("flavour", &flavour);
@@ -412,6 +415,7 @@ int main(int argc, char* argv[]) {
       recojet_mass = (*Jets_mass)[j];
       recojet_pt = (*Jets_pt)[j];
       recojet_phi = (*Jets_phi)[j];
+      recojet_eta = (*Jets_eta)[j];
       recojet_theta = (*Jets_theta)[j];
       nconst = (count_Const->at(j));
       nel = (count_El->at(j));
