@@ -1,6 +1,10 @@
 # compiled analysis scripts
 analysis/makentuples
 
+# custom condor and slurm log files
+**cjob_*
+**sjob_*
+
 # Byte-compiled / optimized / DLL files
 spack*
 __pycache__/
