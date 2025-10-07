@@ -1,5 +1,9 @@
 import ROOT
+import os
 
+# Load custom analyzers for ParticleID-based classification
+analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers_particleid.cxx')
+ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
 
 # define helper function to assign dummy particle IDs to reco particles
 # (only to be used if the actual MC particle IDs are not available).
@@ -100,21 +104,22 @@ class RDFanalysis():
             # define constituent-level observables
             .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(RecoParticles, jetconstituents_ee_genkt)")
         
-            # get the particle ID of all jet constituents
-            #.Alias("MCRecoAssociations0", "MCRecoAssociations#0.index")
-            #.Alias("MCRecoAssociations1", "MCRecoAssociations#1.index")
-            #.Define("JetsConstituents_Pids", "JetConstituentsUtils::get_PIDs_cluster(MCRecoAssociations0, MCRecoAssociations1, RecoParticles, Particle, jetconstituents_ee_genkt)")
-
-            # alternative for running on (Aleph) data: dummy PIDs
-            .Define("JetsConstituents_Pids", "makeDummyPIDs(RP_q, jetconstituents_ee_genkt)")
+            # Extract ParticleID types for all jet constituents
+            # ParticleID.type legend: 0:Track, 1:Electron, 2:Muon, 3:Track from V0, 
+            #                         4:EM, 5:Ecal hadron/residual, 6:Hcal element, 7:Lcal element
+            .Define("JetsConstituents_Types", "getParticleIDTypes(ParticleID, jetconstituents_ee_genkt)")
             
-            # convert the particle ID in some binary flags
-            # note: some of these are defined in unexpected ways, always double check!
-            .Define("JetsConstituents_isMu", "JetConstituentsUtils::get_isMu(JetsConstituents_Pids)")
-            .Define("JetsConstituents_isEl", "JetConstituentsUtils::get_isEl(JetsConstituents_Pids)")
-            .Define("JetsConstituents_isChargedHad", "JetConstituentsUtils::get_isChargedHad(JetsConstituents_Pids)")
-            .Define("JetsConstituents_isGamma", "JetConstituentsUtils::get_isGamma(JetsConstituents_Pids)")
-            .Define("JetsConstituents_isNeutralHad", "JetConstituentsUtils::get_isNeutralHad(JetsConstituents_Pids)")
+            # Convert the ParticleID types to binary flags for particle classification
+            # Muon: type 2
+            # Electron: type 1
+            # Gamma: type 4 (EM)
+            # Charged hadron: types 0 (Track), 3 (Track from V0)
+            # Neutral hadron: types 5 (Ecal hadron/residual), 6 (Hcal element), 7 (Lcal element)
+            .Define("JetsConstituents_isMu", "get_isMu_from_type(JetsConstituents_Types)")
+            .Define("JetsConstituents_isEl", "get_isEl_from_type(JetsConstituents_Types)")
+            .Define("JetsConstituents_isChargedHad", "get_isChargedHad_from_type(JetsConstituents_Types)")
+            .Define("JetsConstituents_isGamma", "get_isGamma_from_type(JetsConstituents_Types)")
+            .Define("JetsConstituents_isNeutralHad", "get_isNeutralHad_from_type(JetsConstituents_Types)")
 
             # kinematics, displacement, PID
             .Define("JetsConstituents_e", "JetConstituentsUtils::get_e(JetsConstituents)")
