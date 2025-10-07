@@ -1,11 +1,31 @@
 import os
 import sys
+import glob
 import time
 import argparse
 import subprocess
 import multiprocessing as mp
 from subprocess import Popen,PIPE
 from datetime import date
+
+
+def read_samplelist(samplelist):
+    '''
+    Read a sample list.
+    Input arguments:
+    - samplelist: path to txt file listing samples.
+      every line in the sample list is assumed to be a path to a root file
+      (potentially containing unix-style wildcards).
+    '''
+    # read each line from the sample list
+    with open(samplelist, 'r') as f:
+        lines = f.readlines()
+    # cleaning and filtering
+    lines = [l.strip(' \t\n') for l in lines]
+    lines = [l for l in lines if (l.endswith('.root') and not l.startswith('#'))]
+    # expand wildcards
+    input_files = sum([glob.glob(l) for l in lines], [])
+    return input_files
 
 
 def run_ntuplizer(cmd_stagentuple_train, cmd_stagentuple_test, f_stdout, f_stderr):
@@ -34,6 +54,8 @@ if __name__ == '__main__':
       help='Fraction of events to put in training ntuple (default: 0.9)'
           +' (rest will go in testing ntuple)')
       # todo: find out if shuffling would be needed here.
+    parser.add_argument('--no-compile', default=False, action='store_true',
+      help='Do not recompile makentuples on the fly (useful in job submission)')
     args = parser.parse_args()
 
     # find input files
@@ -41,11 +63,7 @@ if __name__ == '__main__':
     for el in args.input:
         if el.endswith('.root'): input_files.append(el)
         elif el.endswith('.txt'):
-            with open(el, 'r') as f:
-                lines = f.readlines()
-            lines = [l.strip(' \t\n') for l in lines]
-            lines = [l for l in lines if (l.endswith('.root') and not l.startswith('#'))]
-            input_files += lines[:]
+            input_files += read_samplelist(el)
     print(f'Found following input files ({len(input_files)}):')
     for f in input_files: print(f'  - {f}')
 
@@ -59,10 +77,11 @@ if __name__ == '__main__':
     outputdir = os.path.dirname(args.outputfile)
     if not os.path.exists(outputdir): os.makedirs(outputdir)
 
-    # setup of the environment
-    cmd_compile = "g++ -o makentuples makentuples.cpp `root-config --cflags --libs` -Wall"
-    print('Compiling makentuples...')
-    subprocess.check_call(cmd_compile, shell = True, stdout=None, stderr=None)
+    # compile makentuples
+    if not args.no_compile:
+        cmd_compile = "g++ -o makentuples makentuples.cpp `root-config --cflags --libs` -Wall"
+        print('Compiling makentuples...')
+        subprocess.check_call(cmd_compile, shell = True, stdout=None, stderr=None)
 
     # make command for stage 1
     tempfile = args.outputfile.replace('.root', '_stage1.root')
