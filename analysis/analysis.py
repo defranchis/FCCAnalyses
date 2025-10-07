@@ -119,12 +119,17 @@ class RDFanalysis():
             # kinematics, displacement, PID
             .Define("JetsConstituents_e", "JetConstituentsUtils::get_e(JetsConstituents)")
             .Define("JetsConstituents_pt", "JetConstituentsUtils::get_pt(JetsConstituents)")
+            .Define("JetsConstituents_px", "JetConstituentsUtils::get_px(JetsConstituents)")
+            .Define("JetsConstituents_py", "JetConstituentsUtils::get_py(JetsConstituents)")
+            .Define("JetsConstituents_pz", "JetConstituentsUtils::get_pz(JetsConstituents)")
             .Define("JetsConstituents_theta", "JetConstituentsUtils::get_theta(JetsConstituents)")
             .Define("JetsConstituents_phi", "JetConstituentsUtils::get_phi(JetsConstituents)")
             .Define("JetsConstituents_charge", "JetConstituentsUtils::get_charge(JetsConstituents)")
 
             .Define("JetsConstituents_erel", "JetConstituentsUtils::get_erel_cluster(jets_ee_genkt, JetsConstituents)")
             .Define("JetsConstituents_erel_log", "JetConstituentsUtils::get_erel_log_cluster(jets_ee_genkt, JetsConstituents)")
+            .Define("JetsConstituents_ptrel", "JetConstituentsUtils::get_ptrel_cluster(jets_ee_genkt, JetsConstituents)")
+            .Define("JetsConstituents_ptrel_log", "JetConstituentsUtils::get_ptrel_log_cluster(jets_ee_genkt, JetsConstituents)")
             .Define("JetsConstituents_thetarel", "JetConstituentsUtils::get_thetarel_cluster(jets_ee_genkt, JetsConstituents)")
             .Define("JetsConstituents_phirel", "JetConstituentsUtils::get_phirel_cluster(jets_ee_genkt, JetsConstituents)") 
             
@@ -215,9 +220,11 @@ class RDFanalysis():
             
             # jet-constituent-level variables
             'JetsConstituents_e', 'JetsConstituents_pt',
+            'JetsConstituents_px', 'JetsConstituents_py', 'JetsConstituents_pz',
             'JetsConstituents_theta', 'JetsConstituents_phi',
             'JetsConstituents_charge',
             'JetsConstituents_erel', 'JetsConstituents_erel_log',
+            'JetsConstituents_ptrel', 'JetsConstituents_ptrel_log',
             'JetsConstituents_thetarel', 'JetsConstituents_phirel', 
             'JetsConstituents_dndx',
             #temp 'JetsConstituents_mtof',

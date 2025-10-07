@@ -131,6 +131,21 @@ namespace FCCAnalyses
       return cast_constituent(jcs, ReconstructedParticle::get_pt);
     }
 
+    rv::RVec<FCCAnalysesJetConstituentsData> get_px(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
+    {
+      return cast_constituent(jcs, ReconstructedParticle::get_px);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_py(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
+    {
+      return cast_constituent(jcs, ReconstructedParticle::get_py);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_pz(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
+    {
+      return cast_constituent(jcs, ReconstructedParticle::get_pz);
+    }
+
     rv::RVec<FCCAnalysesJetConstituentsData> get_p(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
     {
       return cast_constituent(jcs, ReconstructedParticle::get_p);
@@ -897,6 +912,27 @@ namespace FCCAnalyses
       return out;
     }
 
+    rv::RVec<FCCAnalysesJetConstituentsData> get_ptrel_log_cluster(const rv::RVec<fastjet::PseudoJet> &jets,
+                                                                   const rv::RVec<FCCAnalysesJetConstituents> &jcs)
+    {
+      rv::RVec<FCCAnalysesJetConstituentsData> out;
+      for (size_t i = 0; i < jets.size(); ++i)
+      {
+        auto &jet_csts = out.emplace_back();
+        float pt_jet = jets.at(i).pt();
+        auto csts = get_jet_constituents(jcs, i);
+        for (const auto &jc : csts)
+        {
+          TLorentzVector jcvec;
+          jcvec.SetXYZM(jc.momentum.x, jc.momentum.y, jc.momentum.z, jc.mass);
+          float val = (pt_jet > 0.) ? jcvec.Pt() / pt_jet : 1.;
+          float ptrel_log = float(std::log10(val));
+          jet_csts.emplace_back(ptrel_log);
+        }
+      }
+      return out;
+    }
+
     rv::RVec<FCCAnalysesJetConstituentsData> get_erel(const rv::RVec<edm4hep::ReconstructedParticleData> &jets,
                                                       const rv::RVec<FCCAnalysesJetConstituents> &jcs)
     {
@@ -930,6 +966,27 @@ namespace FCCAnalyses
           float val = (e_jet > 0.) ? jc.energy / e_jet : 1.;
           float erel = val;
           jet_csts.emplace_back(erel);
+        }
+      }
+      return out;
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_ptrel_cluster(const rv::RVec<fastjet::PseudoJet> &jets,
+                                                               const rv::RVec<FCCAnalysesJetConstituents> &jcs)
+    {
+      rv::RVec<FCCAnalysesJetConstituentsData> out;
+      for (size_t i = 0; i < jets.size(); ++i)
+      {
+        auto &jet_csts = out.emplace_back();
+        double pt_jet = jets.at(i).pt();
+        auto csts = get_jet_constituents(jcs, i);
+        for (const auto &jc : csts)
+        {
+          TLorentzVector jcvec;
+          jcvec.SetXYZM(jc.momentum.x, jc.momentum.y, jc.momentum.z, jc.mass);
+          float val = (pt_jet > 0.) ? jcvec.Pt() / pt_jet : 1.;
+          float ptrel = val;
+          jet_csts.emplace_back(ptrel);
         }
       }
       return out;

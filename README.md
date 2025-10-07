@@ -9,7 +9,7 @@ Note: these instructions are valid for `lxplus`, not necessarily for other envir
 ```
 source ./setup.sh
 ```
-3. Build and install (is this needed?)
+3. Build and install
 ```
 mkdir build install
 cd build
@@ -17,6 +17,11 @@ cmake .. -DCMAKE_INSTALL_PREFIX=../install
 make install
 cd ..
 ```
+(Note: this step is not needed if no modifications are made to the FCCAnalyses framework,
+in which case the library is taken from some remote location;
+use this step if you want to use the local and potentially modified framework.
+Probably you will need to re-run this step every time you make a modification,
+but this remains to be double-checked).
 
 ### How to run
 Go into the `analysis` subfolder.

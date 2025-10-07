@@ -75,12 +75,17 @@ int main(int argc, char* argv[]) {
   // jet constituent properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_e = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_pt = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_px = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_py = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_pz = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_theta = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_phi = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_charge = 0;
   
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_erel = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_erel_log = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_ptrel = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_ptrel_log = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_thetarel = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_phirel = 0;
   
@@ -143,12 +148,17 @@ int main(int argc, char* argv[]) {
   // jet constituent properties
   ev->SetBranchAddress("JetsConstituents_e", &JetsConstituents_e);
   ev->SetBranchAddress("JetsConstituents_pt", &JetsConstituents_pt);
+  ev->SetBranchAddress("JetsConstituents_px", &JetsConstituents_px);
+  ev->SetBranchAddress("JetsConstituents_py", &JetsConstituents_py);
+  ev->SetBranchAddress("JetsConstituents_pz", &JetsConstituents_pz);
   ev->SetBranchAddress("JetsConstituents_theta", &JetsConstituents_theta);
   ev->SetBranchAddress("JetsConstituents_phi", &JetsConstituents_phi);
   ev->SetBranchAddress("JetsConstituents_charge", &JetsConstituents_charge);
   
   ev->SetBranchAddress("JetsConstituents_erel", &JetsConstituents_erel);
   ev->SetBranchAddress("JetsConstituents_erel_log", &JetsConstituents_erel_log);
+  ev->SetBranchAddress("JetsConstituents_ptrel", &JetsConstituents_ptrel);
+  ev->SetBranchAddress("JetsConstituents_ptrel_log", &JetsConstituents_ptrel_log);
   ev->SetBranchAddress("JetsConstituents_thetarel", &JetsConstituents_thetarel);
   ev->SetBranchAddress("JetsConstituents_phirel", &JetsConstituents_phirel);
 
@@ -220,12 +230,17 @@ int main(int argc, char* argv[]) {
   // jet constituent variables
   float pfcand_e[1000] = {0.};
   float pfcand_pt[1000] = {0.};
+  float pfcand_px[1000] = {0.};
+  float pfcand_py[1000] = {0.};
+  float pfcand_pz[1000] = {0.};
   float pfcand_charge[1000] = {0.};
   float pfcand_theta[1000] = {0.};
   float pfcand_phi[1000] = {0.};
   
   float pfcand_erel[1000] = {0.};
   float pfcand_erel_log[1000] = {0.};
+  float pfcand_ptrel[1000] = {0.};
+  float pfcand_ptrel_log[1000] = {0.};
   float pfcand_thetarel[1000] = {0.};
   float pfcand_phirel[1000] = {0.};
 
@@ -304,12 +319,17 @@ int main(int argc, char* argv[]) {
   // jet constituent variables
   ntuple->Branch("pfcand_e", pfcand_e, "pfcand_e[nconst]/F");
   ntuple->Branch("pfcand_pt", pfcand_pt, "pfcand_pt[nconst]/F");
+  ntuple->Branch("pfcand_px", pfcand_px, "pfcand_px[nconst]/F");
+  ntuple->Branch("pfcand_py", pfcand_py, "pfcand_py[nconst]/F");
+  ntuple->Branch("pfcand_pz", pfcand_pz, "pfcand_pz[nconst]/F");
   ntuple->Branch("pfcand_charge", pfcand_charge, "pfcand_charge[nconst]/F");
   ntuple->Branch("pfcand_theta", pfcand_theta, "pfcand_theta[nconst]/F");
   ntuple->Branch("pfcand_phi", pfcand_phi, "pfcand_phi[nconst]/F");
   
   ntuple->Branch("pfcand_erel", pfcand_erel, "pfcand_erel[nconst]/F");
   ntuple->Branch("pfcand_erel_log", pfcand_erel_log, "pfcand_erel_log[nconst]/F");
+  ntuple->Branch("pfcand_ptrel", pfcand_ptrel, "pfcand_ptrel[nconst]/F");
+  ntuple->Branch("pfcand_ptrel_log", pfcand_ptrel_log, "pfcand_ptrel_log[nconst]/F");
   ntuple->Branch("pfcand_thetarel", pfcand_thetarel, "pfcand_thetarel[nconst]/F");
   ntuple->Branch("pfcand_phirel", pfcand_phirel, "pfcand_phirel[nconst]/F");
   
@@ -435,12 +455,17 @@ int main(int argc, char* argv[]) {
       for(int k = 0; k < nconst; ++k){
         pfcand_e[k] = (JetsConstituents_e->at(j))[k];
         pfcand_pt[k] = (JetsConstituents_pt->at(j))[k];
+        pfcand_px[k] = (JetsConstituents_px->at(j))[k];
+        pfcand_py[k] = (JetsConstituents_py->at(j))[k];
+        pfcand_pz[k] = (JetsConstituents_pz->at(j))[k];
         pfcand_theta[k] = (JetsConstituents_theta->at(j))[k];
         pfcand_phi[k] = (JetsConstituents_phi->at(j))[k];
         pfcand_charge[k] = (JetsConstituents_charge->at(j))[k];
         
         pfcand_erel[k] = (JetsConstituents_erel->at(j))[k];
         pfcand_erel_log[k] = (JetsConstituents_erel_log->at(j))[k];
+        pfcand_ptrel[k] = (JetsConstituents_ptrel->at(j))[k];
+        pfcand_ptrel_log[k] = (JetsConstituents_ptrel_log->at(j))[k];
         pfcand_thetarel[k] = (JetsConstituents_thetarel->at(j))[k];
         pfcand_phirel[k] = (JetsConstituents_phirel->at(j))[k];
         
@@ -457,7 +482,7 @@ int main(int argc, char* argv[]) {
         pfcand_detadeta[k] = (JetsConstituents_tanlambda_cov->at(j))[k];
     
         pfcand_dxydz[k] = (JetsConstituents_d0_z0_cov->at(j))[k];
-        pfcand_dphidxy[k] = (JetsConstituents_phi0_d0_cov->at(j))[k]; //*****
+        pfcand_dphidxy[k] = (JetsConstituents_phi0_d0_cov->at(j))[k];
         pfcand_phidz[k] = (JetsConstituents_phi0_z0_cov->at(j))[k];
         
         pfcand_phictgtheta[k] = (JetsConstituents_tanlambda_phi0_cov->at(j))[k];

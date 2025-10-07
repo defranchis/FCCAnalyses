@@ -50,6 +50,9 @@ namespace FCCAnalyses {
                                                     const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks);
 
     rv::RVec<FCCAnalysesJetConstituentsData> get_pt(const rv::RVec<FCCAnalysesJetConstituents>&);
+    rv::RVec<FCCAnalysesJetConstituentsData> get_px(const rv::RVec<FCCAnalysesJetConstituents>&);
+    rv::RVec<FCCAnalysesJetConstituentsData> get_py(const rv::RVec<FCCAnalysesJetConstituents>&);
+    rv::RVec<FCCAnalysesJetConstituentsData> get_pz(const rv::RVec<FCCAnalysesJetConstituents>&);
     rv::RVec<FCCAnalysesJetConstituentsData> get_p(const rv::RVec<FCCAnalysesJetConstituents>&);
     rv::RVec<FCCAnalysesJetConstituentsData> get_e(const rv::RVec<FCCAnalysesJetConstituents>&);
     rv::RVec<FCCAnalysesJetConstituentsData> get_theta(const rv::RVec<FCCAnalysesJetConstituents>&);
@@ -243,10 +246,16 @@ namespace FCCAnalyses {
     rv::RVec<FCCAnalysesJetConstituentsData> get_erel_cluster(const rv::RVec<fastjet::PseudoJet>& jets,
                                                               const rv::RVec<FCCAnalysesJetConstituents>& jcs);
 
+    rv::RVec<FCCAnalysesJetConstituentsData> get_ptrel_cluster(const rv::RVec<fastjet::PseudoJet>& jets,
+                                                               const rv::RVec<FCCAnalysesJetConstituents>& jcs);
+
     rv::RVec<FCCAnalysesJetConstituentsData> get_erel_log(const rv::RVec<edm4hep::ReconstructedParticleData>& jets,
                                                           const rv::RVec<FCCAnalysesJetConstituents>& jcs);
     rv::RVec<FCCAnalysesJetConstituentsData> get_erel_log_cluster(const rv::RVec<fastjet::PseudoJet>& jets,
 								  const rv::RVec<FCCAnalysesJetConstituents>& jcs);
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_ptrel_log_cluster(const rv::RVec<fastjet::PseudoJet>& jets,
+                                  const rv::RVec<FCCAnalysesJetConstituents>& jcs);
 
     rv::RVec<FCCAnalysesJetConstituentsData> get_thetarel(const rv::RVec<edm4hep::ReconstructedParticleData>& jets,
                                                           const rv::RVec<FCCAnalysesJetConstituents>& jcs);
