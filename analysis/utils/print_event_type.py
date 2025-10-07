@@ -63,7 +63,6 @@ ROOT.gInterpreter.Declare("""
     }""")
 
 
-
 # main analyzer class
 class RDFanalysis():
 

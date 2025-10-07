@@ -1,9 +1,14 @@
 import ROOT
 import os
 
-# Load custom analyzers for ParticleID-based classification
-analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers_particleid.cxx')
+# load custom analyzer for particle ID retrieval
+analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_particleid.cxx')
 ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
+
+# load custom analyzer for event classification
+# (now disabled, see simpler version below)
+#analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_geneventtype.cxx')
+#ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
 
 # define helper function to assign dummy particle IDs to reco particles
 # (only to be used if the actual MC particle IDs are not available).
@@ -37,7 +42,7 @@ ROOT.gInterpreter.Declare("""
 #       the event type needed not to be derived, as the simulation was split per quark flavour,
 #       so instead the event type was just derived from the file name.
 ROOT.gInterpreter.Declare("""
-    int getGenEventType(
+    int get_genEventType(
         const ROOT::VecOps::RVec<edm4hep::MCParticleData>& genParticles) {
         for (const auto& genParticle : genParticles) {
             int pdgid = std::abs(genParticle.PDG);
@@ -66,7 +71,7 @@ class RDFanalysis():
             .Define("MC_PrimaryVertexP4", "TLorentzVector(0.,0.,0.,0.)")
 
             # get event type (at generator level)
-            .Define("genEventType", "getGenEventType(MCParticles)")
+            .Define("genEventType", "get_genEventType(MCParticles)")
 
             # define the momentum, energy, mass and charge of all reconstructed particles.
             # note: in FCC simulation, the particle collection is called "RecoParticles",
