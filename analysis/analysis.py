@@ -25,6 +25,27 @@ ROOT.gInterpreter.Declare("""
         return pids;
     }""")
 
+# helper function for deriving the event type.
+# note: for now, only valid with qqbar simulations,
+#       where the event type is between 1 (d dbar) and 5 (b bbar) (see PDG numbering scheme).
+# note: the event type is derived simply from the first quark in the list of MCParticles;
+#       there is in principle no guarantee for any kind of ordering;
+#       we just assume the first quark PDG ID in the MCParticle collection
+#       is the one corresponding to the type of quarks produced in the hard scattering.
+#       to be checked and refined later.
+# note: in the original analyzer that served as source for this one,
+#       the event type needed not to be derived, as the simulation was split per quark flavour,
+#       so instead the event type was just derived from the file name.
+ROOT.gInterpreter.Declare("""
+    int getGenEventType(
+        const ROOT::VecOps::RVec<edm4hep::MCParticleData>& genParticles) {
+        for (const auto& genParticle : genParticles) {
+            int pdgid = std::abs(genParticle.PDG);
+            if( (pdgid >= 1) && (pdgid <= 6) ){ return pdgid; }
+        }
+        return -1;
+    }""")
+
 
 # main analyzer class
 class RDFanalysis():
@@ -43,6 +64,9 @@ class RDFanalysis():
             # alternative for running on (Aleph) data: just use a dummy.
             # note: maybe later try to switch to actual reco primary vertex.
             .Define("MC_PrimaryVertexP4", "TLorentzVector(0.,0.,0.,0.)")
+
+            # get event type (at generator level)
+            .Define("genEventType", "getGenEventType(MCParticles)")
 
             # define the momentum, energy, mass and charge of all reconstructed particles.
             # note: in FCC simulation, the particle collection is called "RecoParticles",
@@ -74,6 +98,7 @@ class RDFanalysis():
             .Define("Jets_e", "JetClusteringUtils::get_e(jets_ee_genkt)")
             .Define("Jets_mass", "JetClusteringUtils::get_m(jets_ee_genkt)")
             .Define("Jets_phi", "JetClusteringUtils::get_phi(jets_ee_genkt)")
+            .Define("Jets_eta", "JetClusteringUtils::get_eta(jets_ee_genkt)")
             .Define("Jets_theta", "JetClusteringUtils::get_theta(jets_ee_genkt)")
 
             # define constituent-level observables
@@ -113,7 +138,6 @@ class RDFanalysis():
             .Alias("EFlowTrack", "Tracks") # must be an object of type rv::RVec<edm4hep::TrackData>
             .Alias("EFlowTrack_1", "_Tracks_trackStates") # must be an object of type ROOT::VecOps::RVec<edm4hep::TrackState>
             .Define("EFlowTrack_2", "1.0 / ReconstructedParticle::get_p(RecoParticles)") # must be an object of type rv::RVec<edm4hep::Quantity>
-            #.Define("EFlowTrack_2", "ReconstructedParticle::get_p(RecoParticles)") # must be an object of type rv::RVec<edm4hep::Quantity>
 
             # continue defining kinematics
             .Define("JetsConstituents_dndx", "JetConstituentsUtils::get_dndx(JetsConstituents, EFlowTrack_2, EFlowTrack, JetsConstituents_isChargedHad)")
@@ -183,9 +207,23 @@ class RDFanalysis():
 
     def output():
         branchList = [
-            'Jets_e', 'Jets_mass', 'Jets_pt', 'Jets_phi', 'Jets_theta',
-            'JetsConstituents_e', 'JetsConstituents_pt', 'JetsConstituents_theta', 'JetsConstituents_phi', 'JetsConstituents_charge',
-            'JetsConstituents_erel', 'JetsConstituents_erel_log', 'JetsConstituents_thetarel', 'JetsConstituents_phirel', 
+            # event-level variables
+            'genEventType',
+            'njet',
+            'nconst',
+            'nmu', 'nel', 'nchargedhad', 'nphoton', 'nneutralhad',
+            'de', 'dpt', 'dphi', 'dtheta',
+            'invariant_mass',
+            
+            # jet-level variables
+            'Jets_e', 'Jets_mass', 'Jets_pt', 'Jets_phi', 'Jets_eta', 'Jets_theta',
+            
+            # jet-constituent-level variables
+            'JetsConstituents_e', 'JetsConstituents_pt',
+            'JetsConstituents_theta', 'JetsConstituents_phi',
+            'JetsConstituents_charge',
+            'JetsConstituents_erel', 'JetsConstituents_erel_log',
+            'JetsConstituents_thetarel', 'JetsConstituents_phirel', 
             'JetsConstituents_dndx',
             #temp 'JetsConstituents_mtof',
             
@@ -209,9 +247,5 @@ class RDFanalysis():
             'JetsConstituents_isChargedHad',
             'JetsConstituents_isGamma', 
             'JetsConstituents_isNeutralHad',
-            'njet', 'nconst', 
-            'nmu', 'nel', 'nchargedhad', 'nphoton', 'nneutralhad',
-            'de', 'dpt', 'dphi', 'dtheta',
-            'invariant_mass'
         ]
         return branchList    

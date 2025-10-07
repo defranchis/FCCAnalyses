@@ -1,3 +1,6 @@
+# Simple utility script to print the available branches in a root file
+
+
 import os
 import sys
 import ROOT
