@@ -85,7 +85,7 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_isChargedHad_from_type(
     for (const auto& jet_types : types) {
         ROOT::VecOps::RVec<int> jet_flags;
         for (auto type : jet_types) {
-            jet_flags.push_back((type == 0 || type == 3) ? 1 : 0);
+            jet_flags.push_back((type == 0) ? 1 : 0);
         }
         result.push_back(jet_flags);
     }
@@ -102,7 +102,7 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_isNeutralHad_from_type(
     for (const auto& jet_types : types) {
         ROOT::VecOps::RVec<int> jet_flags;
         for (auto type : jet_types) {
-            jet_flags.push_back((type == 5 || type == 6 || type == 7) ? 1 : 0);
+            jet_flags.push_back((type == 5) ? 1 : 0);
         }
         result.push_back(jet_flags);
     }
