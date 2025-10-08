@@ -60,28 +60,44 @@ class RDFanalysis():
         df2 = (
             df
 
-            # get MC primary vertex
-            # type 1: TVector3
-            #.Define("MC_PrimaryVertex", "FCCAnalyses::MCParticle::get_EventPrimaryVertex(21)( Particle )" )
-            # type 2: TLorentzVector
-            #.Define("MC_PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()( Particle )" )
+            # for Aleph simulation, the collection of MC particles is called "MCParticles",
+            # while for FCC simulation it is called "Particle", so define an alias here.
+            # and same for "RecoParticles" vs "ReconstructedParticles".
+            # and same for "ParticleID" vs "ParticleIDs" (note: not well defined for FCC).
+            .Alias("Particle", "MCParticles")
+            .Alias("ReconstructedParticles", "RecoParticles")
+            .Alias("ParticleIDs", "ParticleID")
 
-            # alternative for running on (Aleph) data: just use a dummy.
+            # note: in (Aleph) data, the collections EFlowTrack, EFlowTrack_1 and EFlowTrack_2 do not seem to exist.
+            #       instead, we just use aliases and dummys and hope they are more or less equivalent...
+            # note: while the usage of "Tracks" might be ok (indexed by RecoParticle.tracks_begin),
+            #       there seems to be an indexing issue with _Tracks_trackStates,
+            #       which is indexed in the code by RecoParticle.tracks_begin (just like Tracks),
+            #       but it seems like there is another index mapping using Track.trackStates_begin.
+            .Alias("EFlowTrack", "Tracks") # must be an object of type rv::RVec<edm4hep::TrackData>
+            .Alias("EFlowTrack_1", "_Tracks_trackStates") # must be an object of type ROOT::VecOps::RVec<edm4hep::TrackState>
+            .Define("EFlowTrack_2", "1.0 / ReconstructedParticle::get_p(ReconstructedParticles)") # must be an object of type rv::RVec<edm4hep::Quantity>
+            .Alias("Reco2TrackLinks", "_RecoParticles_tracks")
+
+            # get MC primary vertex
+            .Define("MC_PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)" )
+
+            # alternative for running on data: just use a dummy.
             # note: maybe later try to switch to actual reco primary vertex.
-            .Define("MC_PrimaryVertexP4", "TLorentzVector(0.,0.,0.,0.)")
+            #.Define("MC_PrimaryVertexP4", "TLorentzVector(0.,0.,0.,0.)")
 
             # get event type (at generator level)
-            .Define("genEventType", "get_genEventType(MCParticles)")
+            .Define("genEventType", "get_genEventType(Particle)")
 
             # define the momentum, energy, mass and charge of all reconstructed particles.
-            # note: in FCC simulation, the particle collection is called "RecoParticles",
-            #       while in Aleph data the collection seems to be called "RecoParticles".
-            .Define("RP_px",          "ReconstructedParticle::get_px(RecoParticles)")
-            .Define("RP_py",          "ReconstructedParticle::get_py(RecoParticles)")
-            .Define("RP_pz",          "ReconstructedParticle::get_pz(RecoParticles)")
-            .Define("RP_e",           "ReconstructedParticle::get_e(RecoParticles)")
-            .Define("RP_m",           "ReconstructedParticle::get_mass(RecoParticles)")
-            .Define("RP_q",           "ReconstructedParticle::get_charge(RecoParticles)")
+            # note: in FCC simulation, the particle collection is called "ReconstructedParticles",
+            #       while in Aleph data the collection seems to be called "ReconstructedParticles".
+            .Define("RP_px",          "ReconstructedParticle::get_px(ReconstructedParticles)")
+            .Define("RP_py",          "ReconstructedParticle::get_py(ReconstructedParticles)")
+            .Define("RP_pz",          "ReconstructedParticle::get_pz(ReconstructedParticles)")
+            .Define("RP_e",           "ReconstructedParticle::get_e(ReconstructedParticles)")
+            .Define("RP_m",           "ReconstructedParticle::get_mass(ReconstructedParticles)")
+            .Define("RP_q",           "ReconstructedParticle::get_charge(ReconstructedParticles)")
             
             # build "pseudo-jets", meaning each particle is converted to a jet
             # consisting of only that one particle (which can then be clustered in the next step)
@@ -107,12 +123,12 @@ class RDFanalysis():
             .Define("Jets_theta", "JetClusteringUtils::get_theta(jets_ee_genkt)")
 
             # define constituent-level observables
-            .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(RecoParticles, jetconstituents_ee_genkt)")
+            .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(ReconstructedParticles, jetconstituents_ee_genkt)")
         
             # Extract ParticleID types for all jet constituents
             # ParticleID.type legend: 0:Track, 1:Electron, 2:Muon, 3:Track from V0, 
             #                         4:EM, 5:Ecal hadron/residual, 6:Hcal element, 7:Lcal element
-            .Define("JetsConstituents_Types", "getParticleIDTypes(ParticleID, jetconstituents_ee_genkt)")
+            .Define("JetsConstituents_Types", "getParticleIDTypes(ParticleIDs, jetconstituents_ee_genkt)")
             
             # Convert the ParticleID types to binary flags for particle classification
             # Muon: type 2
@@ -143,46 +159,40 @@ class RDFanalysis():
             .Define("JetsConstituents_thetarel", "JetConstituentsUtils::get_thetarel_cluster(jets_ee_genkt, JetsConstituents)")
             .Define("JetsConstituents_phirel", "JetConstituentsUtils::get_phirel_cluster(jets_ee_genkt, JetsConstituents)") 
             
-            # note: in (Aleph) data, the collections EFlowTrack, EFlowTrack_1 and EFlowTrack_2 do not seem to exist.
-            #       instead, we just use aliases and dummys and hope they are more or less equivalent...
-            .Alias("EFlowTrack", "Tracks") # must be an object of type rv::RVec<edm4hep::TrackData>
-            .Alias("EFlowTrack_1", "_Tracks_trackStates") # must be an object of type ROOT::VecOps::RVec<edm4hep::TrackState>
-            .Define("EFlowTrack_2", "1.0 / ReconstructedParticle::get_p(RecoParticles)") # must be an object of type rv::RVec<edm4hep::Quantity>
-
-            # continue defining kinematics
             .Define("JetsConstituents_dndx", "JetConstituentsUtils::get_dndx(JetsConstituents, EFlowTrack_2, EFlowTrack, JetsConstituents_isChargedHad)")
             #temp .Define("JetsConstituents_mtof", "JetConstituentsUtils::get_mtof(JetsConstituents, EFlowTrack_L, EFlowTrack, TrackerHits, JetsConstituents_Pids)")
             
-            .Define("JetsConstituents_d0_wrt0", "JetConstituentsUtils::get_d0(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_z0_wrt0", "JetConstituentsUtils::get_z0(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_phi0_wrt0", "JetConstituentsUtils::get_phi0(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_omega_wrt0", "JetConstituentsUtils::get_omega(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_tanlambda_wrt0", "JetConstituentsUtils::get_tanLambda(JetsConstituents, EFlowTrack_1)")
+            .Define("JetsConstituents_d0_wrt0", "JetConstituentsUtils::get_d0(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_z0_wrt0", "JetConstituentsUtils::get_z0(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_phi0_wrt0", "JetConstituentsUtils::get_phi0(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_omega_wrt0", "JetConstituentsUtils::get_omega(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_tanlambda_wrt0", "JetConstituentsUtils::get_tanLambda(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
 
-            .Define("JetsConstituents_Bz", "JetConstituentsUtils::get_Bz(JetsConstituents, EFlowTrack_1)")
-            .Define("Bz", "ReconstructedParticle2Track::Bz(RecoParticles, EFlowTrack_1)")
+            # calculate the magnetic field strength along the z-axis from the curvature of the tracks
+            .Define("JetsConstituents_Bz", "JetConstituentsUtils::get_Bz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("Bz", "ReconstructedParticle2Track::Bz(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
             
-            .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, MC_PrimaryVertexP4, Bz)")
-            .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, MC_PrimaryVertexP4, Bz)")
-            .Define("JetsConstituents_phi0", "JetConstituentsUtils::XPtoPar_phi(JetsConstituents, EFlowTrack_1, MC_PrimaryVertexP4, Bz)")
+            .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
+            .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
+            .Define("JetsConstituents_phi0", "JetConstituentsUtils::XPtoPar_phi(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
             .Define("JetsConstituents_C", "JetConstituentsUtils::XPtoPar_C(JetsConstituents, EFlowTrack_1, Bz)")
             .Define("JetsConstituents_ct", "JetConstituentsUtils::XPtoPar_ct(JetsConstituents, EFlowTrack_1, Bz)")
 
-            .Define("JetsConstituents_omega_cov", "JetConstituentsUtils::get_omega_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_d0_cov", "JetConstituentsUtils::get_d0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_z0_cov", "JetConstituentsUtils::get_z0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_phi0_cov", "JetConstituentsUtils::get_phi0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_tanlambda_cov", "JetConstituentsUtils::get_tanlambda_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_d0_z0_cov", "JetConstituentsUtils::get_d0_z0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_phi0_d0_cov", "JetConstituentsUtils::get_phi0_d0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_phi0_z0_cov", "JetConstituentsUtils::get_phi0_z0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_tanlambda_phi0_cov", "JetConstituentsUtils::get_tanlambda_phi0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_tanlambda_d0_cov", "JetConstituentsUtils::get_tanlambda_d0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_tanlambda_z0_cov", "JetConstituentsUtils::get_tanlambda_z0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_omega_tanlambda_cov", "JetConstituentsUtils::get_omega_tanlambda_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_omega_phi0_cov", "JetConstituentsUtils::get_omega_phi0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_omega_d0_cov", "JetConstituentsUtils::get_omega_d0_cov(JetsConstituents, EFlowTrack_1)")
-            .Define("JetsConstituents_omega_z0_cov", "JetConstituentsUtils::get_omega_z0_cov(JetsConstituents, EFlowTrack_1)")
+            .Define("JetsConstituents_omega_cov", "JetConstituentsUtils::get_omega_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_d0_cov", "JetConstituentsUtils::get_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_z0_cov", "JetConstituentsUtils::get_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_phi0_cov", "JetConstituentsUtils::get_phi0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_tanlambda_cov", "JetConstituentsUtils::get_tanlambda_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_d0_z0_cov", "JetConstituentsUtils::get_d0_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_phi0_d0_cov", "JetConstituentsUtils::get_phi0_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_phi0_z0_cov", "JetConstituentsUtils::get_phi0_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_tanlambda_phi0_cov", "JetConstituentsUtils::get_tanlambda_phi0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_tanlambda_d0_cov", "JetConstituentsUtils::get_tanlambda_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_tanlambda_z0_cov", "JetConstituentsUtils::get_tanlambda_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_omega_tanlambda_cov", "JetConstituentsUtils::get_omega_tanlambda_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_omega_phi0_cov", "JetConstituentsUtils::get_omega_phi0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_omega_d0_cov", "JetConstituentsUtils::get_omega_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("JetsConstituents_omega_z0_cov", "JetConstituentsUtils::get_omega_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             
             .Define("JetsConstituents_Sip2dVal", "JetConstituentsUtils::get_Sip2dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_phi0, Bz)")
             .Define("JetsConstituents_Sip2dSig", "JetConstituentsUtils::get_Sip2dSig(JetsConstituents_Sip2dVal, JetsConstituents_d0_cov)")
