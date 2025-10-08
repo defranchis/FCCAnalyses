@@ -57,10 +57,11 @@ int main(int argc, char* argv[]) {
   // event properties
   int genEventType;
   int nJets;
+  float Bz;
 
   // jet properties
-  ROOT::VecOps::RVec<float> *Jets_e=0;
-  ROOT::VecOps::RVec<float> *Jets_mass=0;
+  ROOT::VecOps::RVec<float> *Jets_e = 0;
+  ROOT::VecOps::RVec<float> *Jets_mass = 0;
   ROOT::VecOps::RVec<float> *Jets_pt = 0;
   ROOT::VecOps::RVec<float> *Jets_phi = 0;
   ROOT::VecOps::RVec<float> *Jets_eta = 0;
@@ -125,11 +126,15 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_isGamma = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_isNeutralHad = 0;
 
+  // just for debugging purposes: store magnetic field calculated from track curvature
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_Bz = 0;
+
   // map variables to branches in the input tree 
   
   // event properties
   ev->SetBranchAddress("genEventType", &genEventType);
   ev->SetBranchAddress("njet", &nJets);
+  ev->SetBranchAddress("Bz", &Bz);
 
   // jet properties
   ev->SetBranchAddress("Jets_e", &Jets_e);
@@ -198,6 +203,8 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("JetsConstituents_isGamma", &JetsConstituents_isGamma);
   ev->SetBranchAddress("JetsConstituents_isNeutralHad", &JetsConstituents_isNeutralHad);
 
+  ev->SetBranchAddress("JetsConstituents_Bz", &JetsConstituents_Bz);
+
   // make output file and output tree
   std::string outfileName(argv[2]);
   TFile* outfile = new TFile(outfileName.c_str(), "recreate");
@@ -207,6 +214,9 @@ int main(int argc, char* argv[]) {
  
   // define variables to write
   
+  // event variables
+  float bz = 0.;
+
   // jet variables
   double recojet_e, recojet_mass, recojet_pt, recojet_phi, recojet_eta, recojet_theta;
   float flavour = -1;
@@ -275,10 +285,12 @@ int main(int argc, char* argv[]) {
   float pfcand_btagJetDistSig[1000] = {0.};
 
   float pfcand_isMu[1000] = {0.};
-  float pfcand_isEl[1000] ={0.};
-  float pfcand_isChargedHad[1000] ={0.};
-  float pfcand_isGamma[1000] ={0.};
-  float pfcand_isNeutralHad[1000] ={0.};
+  float pfcand_isEl[1000] = {0.};
+  float pfcand_isChargedHad[1000] = {0.};
+  float pfcand_isGamma[1000] = {0.};
+  float pfcand_isNeutralHad[1000] = {0.};
+
+  float pfcand_Bz[1000] = {0.};
 
   // counting
   int njet = 0;
@@ -288,6 +300,9 @@ int main(int argc, char* argv[]) {
   int saved_events_counts = 0;                                                                                             
 
   // define output branches
+
+  // event variables
+  ntuple->Branch("bz", &bz, "bz/F");
 
   // jet variables 
   ntuple->Branch("recojet_e", &recojet_e);
@@ -369,6 +384,8 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("pfcand_isGamma", pfcand_isGamma, "pfcand_isGamma[nconst]/F");
   ntuple->Branch("pfcand_isNeutralHad", pfcand_isNeutralHad, "pfcand_isNeutralHad[nconst]/F");
 
+  ntuple->Branch("pfcand_Bz", pfcand_Bz, "pfcand_Bz[nconst]/F");
+
   // read the start entry and stop entry
   // (and convert fractions to absolute numbers if needed)
   float f_i = atof(argv[3]);
@@ -392,6 +409,7 @@ int main(int argc, char* argv[]) {
 
     // derive event level properties
     njet = nJets;
+    bz = Bz;
     int eventFlavour = genEventType;
 
     // do some printouts to track progress
@@ -506,6 +524,8 @@ int main(int argc, char* argv[]) {
         pfcand_isChargedHad[k] = (JetsConstituents_isChargedHad->at(j))[k];
         pfcand_isGamma[k] = (JetsConstituents_isGamma->at(j))[k];
         pfcand_isNeutralHad[k] = (JetsConstituents_isNeutralHad->at(j))[k];
+
+        pfcand_Bz[k] = (JetsConstituents_Bz->at(j))[k];
       }  // end of loop over constituents per jet
 
       // fill ntuple (per jet, not per event!) 
