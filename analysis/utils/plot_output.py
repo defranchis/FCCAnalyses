@@ -75,7 +75,10 @@ if __name__=='__main__':
             this_data = events[variable][masks[category]]
             if this_data.layout.minmax_depth[1]>=2: this_data = ak.flatten(this_data)
             this_data = this_data.to_numpy()
-            if np.isnan(this_data).any(): np.nan_to_num(this_data, copy=False, nan=0)
+            if np.isnan(this_data).any():
+                msg = 'WARNING: replacing NaN by 0...'
+                print(msg)
+                np.nan_to_num(this_data, copy=False, nan=0)
             data[category] = this_data
 
         # determine suitable binning
