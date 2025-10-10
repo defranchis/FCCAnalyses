@@ -51,33 +51,75 @@ ROOT.gInterpreter.Declare("""
         return -1;
     }""")
 
+# helper function for making a dummy RecoParticle-to-Tracks linking collection.
+# this is needed for syntax in case the linking collection does not exist,
+# and the linking between RecoParticles and Tracks is direct.
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<podio::ObjectID> makeDummyRecoToTracks(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps){
+        ROOT::VecOps::RVec<podio::ObjectID> links;
+        links.reserve(rps.size());
+        for (size_t i = 0; i < rps.size(); ++i) {
+            const auto& rp = rps[i];
+            podio::ObjectID oid;
+            oid.index = rp.tracks_begin;
+            oid.collectionID = 0;
+            links.push_back(oid);
+        }
+        return links;
+    }""")
+
 
 # main analyzer class
 class RDFanalysis():
 
     def analysers(df):
-        
-        df2 = (
-            df
 
-            # for Aleph simulation, the collection of MC particles is called "MCParticles",
-            # while for FCC simulation it is called "Particle", so define an alias here.
-            # and same for "RecoParticles" vs "ReconstructedParticles".
-            # and same for "ParticleID" vs "ParticleIDs" (note: not well defined for FCC).
-            .Alias("Particle", "MCParticles")
-            .Alias("ReconstructedParticles", "RecoParticles")
-            .Alias("ParticleIDs", "ParticleID")
+        # settings (maybe later make arguments)
+        det = 'aleph'
 
-            # note: in (Aleph) data, the collections EFlowTrack, EFlowTrack_1 and EFlowTrack_2 do not seem to exist.
-            #       instead, we just use aliases and dummys and hope they are more or less equivalent...
-            # note: while the usage of "Tracks" might be ok (indexed by RecoParticle.tracks_begin),
-            #       there seems to be an indexing issue with _Tracks_trackStates,
-            #       which is indexed in the code by RecoParticle.tracks_begin (just like Tracks),
-            #       but it seems like there is another index mapping using Track.trackStates_begin.
-            .Alias("EFlowTrack", "Tracks") # must be an object of type rv::RVec<edm4hep::TrackData>
-            .Alias("EFlowTrack_1", "_Tracks_trackStates") # must be an object of type ROOT::VecOps::RVec<edm4hep::TrackState>
-            .Define("EFlowTrack_2", "1.0 / ReconstructedParticle::get_p(ReconstructedParticles)") # must be an object of type rv::RVec<edm4hep::Quantity>
-            .Alias("Reco2TrackLinks", "_RecoParticles_tracks")
+        # initialization
+        dfout = df
+
+        # for Aleph simulation, the collection of MC particles is called "MCParticles",
+        # while for FCC simulation it is called "Particle", so define an alias here.
+        # and same for "RecoParticles" vs "ReconstructedParticles".
+        # and same for "ParticleID" vs "ParticleIDs" (note: not well defined for FCC).
+        if det=='aleph':
+            dfout = (
+                dfout
+
+                .Alias("Particle", "MCParticles")
+                .Alias("ReconstructedParticles", "RecoParticles")
+                .Alias("ParticleIDs", "ParticleID")
+            )
+
+        # for Aleph simulation, the collections EFlowTrack, EFlowTrack_1 and EFlowTrack_2 do not seem to exist,
+        # so we need to alias them with other collections.
+        # note: the alias for EFlowTrack_2 has not yet been validated, no guarantee that it is correct.
+        if det=='aleph':
+            dfout = (
+                dfout
+
+                .Alias("EFlowTrack", "Tracks")
+                # (must be an object of type rv::RVec<edm4hep::TrackData>)
+                .Alias("EFlowTrack_1", "_Tracks_trackStates")
+                # (must be an object of type ROOT::VecOps::RVec<edm4hep::TrackState>)
+                .Define("EFlowTrack_2", "1.0 / ReconstructedParticle::get_p(ReconstructedParticles)")
+                # (must be an object of type rv::RVec<edm4hep::Quantity>)
+            )
+
+        # for Aleph simulation, the link between RecoParticles and Tracks is indirect,
+        # via an intermediate collection _RecoParticles_tracks;
+        # for FCC simulation, we must define it as a transparent mapping for the syntax
+        if det=='aleph':
+            dfout = dfout.Alias("Reco2TrackLinks", "_RecoParticles_tracks")
+        elif det=='fcc':
+            dfout = dfout.Define("Reco2TrackLinks", "makeDummyRecoToTracks(ReconstructedParticles)")
+
+        # do the actual analysis
+        dfout = (
+            dfout
 
             # get MC primary vertex
             .Define("MC_PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)" )
@@ -171,6 +213,11 @@ class RDFanalysis():
             # calculate the magnetic field strength along the z-axis from the curvature of the tracks
             .Define("JetsConstituents_Bz", "JetConstituentsUtils::get_Bz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("Bz", "ReconstructedParticle2Track::Bz(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
+            # for FCC sim (as opposed to Aleph sim),
+            # need to account for different unit conventions...
+            # maybe solve more cleanly later
+            #.Redefine("Bz", "Bz * (-10)")
+            #.Redefine("JetsConstituents_Bz", "JetsConstituents_Bz * (-10)")
             
             .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
             .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
@@ -223,7 +270,7 @@ class RDFanalysis():
             
             .Define("invariant_mass", "JetConstituentsUtils::InvariantMass(tlv_jets[0], tlv_jets[1])")
         )
-        return df2
+        return dfout
 
     def output():
         branchList = [
