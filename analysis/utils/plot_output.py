@@ -39,6 +39,8 @@ if __name__=='__main__':
       'pfcand_phirel',
       'pfcand_charge',
 
+      'pfcand_d0_wrt0',
+      'pfcand_z0_wrt0',
       'pfcand_dxy',
       'pfcand_dz',
       'pfcand_btagSip2dVal',
@@ -83,8 +85,14 @@ if __name__=='__main__':
 
         # determine suitable binning
         data_array = np.concatenate(list(data.values()))
-        minv = np.quantile(data_array, 0.01)
-        maxv = np.quantile(data_array, 0.99)
+        mask = (np.abs(data_array+9)>1e-3).astype(bool)
+        npass = np.sum(mask.astype(int))
+        if npass==0:
+            msg = 'WARNING: no instances pass mask; skipping this variable.'
+            print(msg)
+            continue
+        minv = np.quantile(data_array[mask], 0.05)
+        maxv = np.quantile(data_array[mask], 0.95)
         bins = np.linspace(minv, maxv, num=51)
 
         # make figure

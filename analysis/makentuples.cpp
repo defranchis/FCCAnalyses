@@ -93,6 +93,8 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dndx = 0;
   //ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_mtof = 0;
 
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_d0_wrt0 = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_z0_wrt0 = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dxy = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dz = 0;
 
@@ -170,6 +172,8 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("JetsConstituents_dndx", &JetsConstituents_dndx);
   //ev->SetBranchAddress("JetsConstituents_mtof", &JetsConstituents_mtof);
 
+  ev->SetBranchAddress("JetsConstituents_d0_wrt0", &JetsConstituents_d0_wrt0);
+  ev->SetBranchAddress("JetsConstituents_z0_wrt0", &JetsConstituents_z0_wrt0);
   ev->SetBranchAddress("JetsConstituents_dxy", &JetsConstituents_dxy);
   ev->SetBranchAddress("JetsConstituents_dz", &JetsConstituents_dz);
 
@@ -256,7 +260,9 @@ int main(int argc, char* argv[]) {
 
   float pfcand_dndx[1000] = {0.};
   //float pfcand_mtof[1000] = {0.};
-  
+ 
+  float pfcand_d0_wrt0[1000] = {0.};
+  float pfcand_z0_wrt0[1000] = {0.};
   float pfcand_dxy[1000] = {0.};
   float pfcand_dz[1000] = {0.};
   
@@ -351,6 +357,8 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("pfcand_dndx", pfcand_dndx, "pfcand_dndx[nconst]/F");
   //ntuple->Branch("pfcand_mtof", pfcand_mtof, "pfcand_mtof[nconst]/F");
 
+  ntuple->Branch("pfcand_d0_wrt0", pfcand_d0_wrt0, "pfcand_d0_wrt0[nconst]/F");
+  ntuple->Branch("pfcand_z0_wrt0", pfcand_z0_wrt0, "pfcand_z0_wrt0[nconst]/F");
   ntuple->Branch("pfcand_dxy", pfcand_dxy, "pfcand_dxy[nconst]/F");
   ntuple->Branch("pfcand_dz", pfcand_dz, "pfcand_dz[nconst]/F");
 
@@ -490,6 +498,8 @@ int main(int argc, char* argv[]) {
         pfcand_dndx[k] = (JetsConstituents_dndx->at(j))[k]/1000.; //transformed in mm
         //pfcand_mtof[k] = (JetsConstituents_mtof->at(j))[k];
 
+        pfcand_d0_wrt0[k] = (JetsConstituents_d0_wrt0->at(j))[k];
+        pfcand_z0_wrt0[k] = (JetsConstituents_z0_wrt0->at(j))[k];
         pfcand_dxy[k] = (JetsConstituents_dxy->at(j))[k];
         pfcand_dz[k] = (JetsConstituents_dz->at(j))[k];
        

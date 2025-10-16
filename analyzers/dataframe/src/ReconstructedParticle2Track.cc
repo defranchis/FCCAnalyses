@@ -112,6 +112,7 @@ namespace ReconstructedParticle2Track{
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
         TVector3 X( - D0_wrt0 * TMath::Sin(phi0_wrt0) , D0_wrt0 * TMath::Cos(phi0_wrt0) , Z0_wrt0);
+        //TVector3 X( D0_wrt0 * TMath::Cos(phi0_wrt0) , D0_wrt0 * TMath::Sin(phi0_wrt0) , Z0_wrt0);
         TVector3 x = X - PV.Vect();
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
 
@@ -152,8 +153,8 @@ namespace ReconstructedParticle2Track{
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
         TVector3 X( - D0_wrt0 * TMath::Sin(phi0_wrt0) , D0_wrt0 * TMath::Cos(phi0_wrt0) , Z0_wrt0);
+        //TVector3 X( D0_wrt0 * TMath::Cos(phi0_wrt0) , D0_wrt0 * TMath::Sin(phi0_wrt0) , Z0_wrt0);
         TVector3 x = X - PV.Vect();
-
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
 
         double a = - rp.charge * Bz * cSpeed;
@@ -200,8 +201,8 @@ namespace ReconstructedParticle2Track{
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
         TVector3 X( - D0_wrt0 * TMath::Sin(phi0_wrt0) , D0_wrt0 * TMath::Cos(phi0_wrt0) , Z0_wrt0);
+        //TVector3 X( D0_wrt0 * TMath::Cos(phi0_wrt0) , D0_wrt0 * TMath::Sin(phi0_wrt0) , Z0_wrt0);
         TVector3 x = X - PV.Vect();
-
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
 
         double a = - rp.charge * Bz * cSpeed;

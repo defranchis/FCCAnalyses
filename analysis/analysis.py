@@ -122,18 +122,27 @@ class RDFanalysis():
             dfout
 
             # get MC primary vertex
-            .Define("MC_PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)" )
+            #.Define("MC_PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)" )
 
             # alternative for running on data: just use a dummy.
             # note: maybe later try to switch to actual reco primary vertex.
-            #.Define("MC_PrimaryVertexP4", "TLorentzVector(0.,0.,0.,0.)")
+            .Define("MC_PrimaryVertexP4", "TLorentzVector(0.,0.,0.,0.)")
+
+            # store the primary vertex coordinates
+            # (mainly for debugging)
+            .Define("PV_x", "MC_PrimaryVertexP4.X()")
+            .Define("PV_y", "MC_PrimaryVertexP4.Y()")
+            .Define("PV_z", "MC_PrimaryVertexP4.Z()")
+
+            # store the pdg ID and generator status for all generator particles
+            # (mainly for debugging)
+            .Define("GenParticle_pdgId", "MCParticle::get_pdg(Particle)")
+            .Define("GenParticle_genStatus", "MCParticle::get_genStatus(Particle)")
 
             # get event type (at generator level)
             .Define("genEventType", "get_genEventType(Particle)")
 
             # define the momentum, energy, mass and charge of all reconstructed particles.
-            # note: in FCC simulation, the particle collection is called "ReconstructedParticles",
-            #       while in Aleph data the collection seems to be called "ReconstructedParticles".
             .Define("RP_px",          "ReconstructedParticle::get_px(ReconstructedParticles)")
             .Define("RP_py",          "ReconstructedParticle::get_py(ReconstructedParticles)")
             .Define("RP_pz",          "ReconstructedParticle::get_pz(ReconstructedParticles)")
@@ -204,6 +213,15 @@ class RDFanalysis():
             .Define("JetsConstituents_dndx", "JetConstituentsUtils::get_dndx(JetsConstituents, EFlowTrack_2, EFlowTrack, JetsConstituents_isChargedHad)")
             #temp .Define("JetsConstituents_mtof", "JetConstituentsUtils::get_mtof(JetsConstituents, EFlowTrack_L, EFlowTrack, TrackerHits, JetsConstituents_Pids)")
             
+            # store some track parameters with respect to the nominal origin
+            # (mainly for debugging? typically these variables should be re-calculated w.r.t. the primary vertex)
+            # note: the parameters have the following meaning:
+            #  - d0: transverse impact parameter, i.e. signed transverse distance of closest approach of track to origin
+            #  - z0: longitudinal impact parameter, i.e. z-coordinate of the point of closest approach of the track to origin
+            #  - phi0: ?
+            #  - omega: track curvature (does not depend on reference point?)
+            #  - tan(lambda): pz / pT (related to theta) (does not depend on reference point?)
+            # note: the functions below don't do any calculations, they are just getters for the values stored.
             .Define("JetsConstituents_d0_wrt0", "JetConstituentsUtils::get_d0(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_z0_wrt0", "JetConstituentsUtils::get_z0(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_phi0_wrt0", "JetConstituentsUtils::get_phi0(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
@@ -213,11 +231,21 @@ class RDFanalysis():
             # calculate the magnetic field strength along the z-axis from the curvature of the tracks
             .Define("JetsConstituents_Bz", "JetConstituentsUtils::get_Bz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("Bz", "ReconstructedParticle2Track::Bz(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
-            # for FCC sim (as opposed to Aleph sim),
-            # need to account for different unit conventions...
-            # maybe solve more cleanly later
-            #.Redefine("Bz", "Bz * (-10)")
-            #.Redefine("JetsConstituents_Bz", "JetsConstituents_Bz * (-10)")
+        )
+        
+        # for FCC sim (as opposed to Aleph sim),
+        # need to account for different unit conventions...
+        if det=='fcc':
+
+            dfout = (
+                dfout
+                .Redefine("Bz", "Bz * (-10)")
+                .Redefine("JetsConstituents_Bz", "JetsConstituents_Bz * (-10)")
+            )
+
+        # continue with analysis
+        dfout = (
+            dfout
             
             .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
             .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
@@ -281,6 +309,10 @@ class RDFanalysis():
             'nmu', 'nel', 'nchargedhad', 'nphoton', 'nneutralhad',
             'de', 'dpt', 'dphi', 'dtheta',
             'invariant_mass',
+            'PV_x', 'PV_y', 'PV_z',
+
+            # gen-particle variables
+            'GenParticle_pdgId', 'GenParticle_genStatus',
             
             # jet-level variables
             'Jets_e', 'Jets_mass', 'Jets_pt', 'Jets_phi', 'Jets_eta', 'Jets_theta',
