@@ -69,6 +69,40 @@ ROOT.gInterpreter.Declare("""
         return links;
     }""")
 
+# helper function to retrieve a vertex from the collection of vertices
+# in the correct TLorentzVector format.
+# note: not clear how to distinguish primary from secondary vertices,
+#       this code just relies on the fact that >99% of events have exactly one vertex stored.
+# note: what to do in case no vertex is stored for an event?
+#       for now just use the dummy of (0, 0, 0) in those cases.
+ROOT.gInterpreter.Declare("""
+    TLorentzVector getRecoPrimaryVertex(
+        ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex> vertexCollection){
+        edm4hep::VertexData vertex;
+        TLorentzVector result = {0., 0., 0., 0.};
+        if( vertexCollection.size() == 0 ){ return result; }
+        vertex = vertexCollection.at(0).vertex;
+        result = {vertex.position.x, vertex.position.y, vertex.position.z, 0.};
+        return result;
+    }""")
+
+# helper function to re-calculate the primary vertex from the collection of tracks.
+ROOT.gInterpreter.Declare("""
+    TLorentzVector fitRecoPrimaryVertex(
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracks){
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse;
+        for(const auto& track: tracks){
+            //if( std::abs(track.omega) < 0.015 ){ continue; }
+            tracksToUse.push_back(track);
+        }
+        TLorentzVector result = {0., 0., 0., 0.};
+        if( tracksToUse.size() < 5 ){ return result; }
+        FCCAnalyses::VertexingUtils::FCCAnalysesVertex fitresult = FCCAnalyses::VertexFitterSimple::VertexFitter_Tk(0, tracksToUse);
+        edm4hep::VertexData vertex = fitresult.vertex;
+        result = {vertex.position.x, vertex.position.y, vertex.position.z, 0.};
+        return result;
+    }""")
+
 
 # main analyzer class
 class RDFanalysis():
@@ -122,17 +156,25 @@ class RDFanalysis():
             dfout
 
             # get MC primary vertex
-            #.Define("MC_PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)" )
+            #.Define("PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)")
 
             # alternative for running on data: just use a dummy.
             # note: maybe later try to switch to actual reco primary vertex.
-            .Define("MC_PrimaryVertexP4", "TLorentzVector(0.,0.,0.,0.)")
+            #.Define("PrimaryVertexP4", "TLorentzVector(0.,0.,0.,0.)")
+
+            # alternative for running on data or circumventing other issues with the MC primary vertex:
+            # use reco primary vertex.
+            # note: not sure how to make this work for FCC sim; there doesn't seem to be an equivalent collection.
+            #.Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
+
+            # alternative: recalculate reco primary vertex
+            .Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1)")
 
             # store the primary vertex coordinates
             # (mainly for debugging)
-            .Define("PV_x", "MC_PrimaryVertexP4.X()")
-            .Define("PV_y", "MC_PrimaryVertexP4.Y()")
-            .Define("PV_z", "MC_PrimaryVertexP4.Z()")
+            .Define("PV_x", "PrimaryVertexP4.X()")
+            .Define("PV_y", "PrimaryVertexP4.Y()")
+            .Define("PV_z", "PrimaryVertexP4.Z()")
 
             # store the pdg ID and generator status for all generator particles
             # (mainly for debugging)
@@ -247,9 +289,9 @@ class RDFanalysis():
         dfout = (
             dfout
             
-            .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
-            .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
-            .Define("JetsConstituents_phi0", "JetConstituentsUtils::XPtoPar_phi(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, MC_PrimaryVertexP4, Bz)")
+            .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Bz)")
+            .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Bz)")
+            .Define("JetsConstituents_phi0", "JetConstituentsUtils::XPtoPar_phi(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Bz)")
             .Define("JetsConstituents_C", "JetConstituentsUtils::XPtoPar_C(JetsConstituents, EFlowTrack_1, Bz)")
             .Define("JetsConstituents_ct", "JetConstituentsUtils::XPtoPar_ct(JetsConstituents, EFlowTrack_1, Bz)")
 
