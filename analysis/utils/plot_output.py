@@ -14,7 +14,8 @@ if __name__=='__main__':
     categories = [
       'recojet_isB',
       'recojet_isC',
-      'recojet_isUDSG'
+      'recojet_isUDSG',
+      'recojet_isData'
     ]
     variables = [
       'recojet_pt',

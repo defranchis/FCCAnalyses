@@ -163,9 +163,9 @@ class RDFanalysis():
             # set dummies (maybe later find out how to avoid the need for this)
             dfout = (
                 dfout
-                .Define("GenParticle_pdgId", "0.")
-                .Define("GenParticle_genStatus", "0.")
-                .Define("genEventType", "0.")
+                .Define("GenParticle_pdgId", "0")
+                .Define("GenParticle_genStatus", "0")
+                .Define("genEventType", "-1")
             )
 
         # do the actual analysis

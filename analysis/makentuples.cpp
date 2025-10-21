@@ -224,6 +224,7 @@ int main(int argc, char* argv[]) {
   // jet variables
   double recojet_e, recojet_mass, recojet_pt, recojet_phi, recojet_eta, recojet_theta;
   float flavour = -1;
+  float is_data = 0.;
   float is_q = 0.;
   float is_t = 0.;
   float is_b = 0.;
@@ -318,7 +319,8 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("recojet_eta", &recojet_eta);
   ntuple->Branch("recojet_theta", &recojet_theta);
  
-  ntuple->Branch("flavour", &flavour);
+  ntuple->Branch("recojet_flavour", &flavour);
+  ntuple->Branch("recojet_isData", &is_data);
   ntuple->Branch("recojet_isQ", &is_q);
   ntuple->Branch("recojet_isT", &is_t);
   ntuple->Branch("recojet_isB", &is_b);
@@ -446,7 +448,8 @@ int main(int argc, char* argv[]) {
 
       // get jet type (from event type)
       flavour = (float)eventFlavour;
-      is_q = (eventFlavour!=0);
+      is_data = (eventFlavour<0);
+      is_q = (eventFlavour>0);
       is_t = (eventFlavour==6);
       is_b = (eventFlavour==5);
       is_c = (eventFlavour==4);
