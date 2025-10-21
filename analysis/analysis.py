@@ -110,7 +110,8 @@ class RDFanalysis():
     def analysers(df):
 
         # settings (maybe later make arguments)
-        det = 'aleph'
+        det = 'aleph' # (choose from "aleph" or "fcc")
+        dtype = 'data' # (choose from "sim" or "data")
 
         # initialization
         dfout = df
@@ -120,13 +121,9 @@ class RDFanalysis():
         # and same for "RecoParticles" vs "ReconstructedParticles".
         # and same for "ParticleID" vs "ParticleIDs" (note: not well defined for FCC).
         if det=='aleph':
-            dfout = (
-                dfout
-
-                .Alias("Particle", "MCParticles")
-                .Alias("ReconstructedParticles", "RecoParticles")
-                .Alias("ParticleIDs", "ParticleID")
-            )
+            if dtype=='sim': dfout = dfout.Alias("Particle", "MCParticles")
+            dfout = dfout.Alias("ReconstructedParticles", "RecoParticles")
+            dfout = dfout.Alias("ParticleIDs", "ParticleID")
 
         # for Aleph simulation, the collections EFlowTrack, EFlowTrack_1 and EFlowTrack_2 do not seem to exist,
         # so we need to alias them with other collections.
@@ -146,10 +143,30 @@ class RDFanalysis():
         # for Aleph simulation, the link between RecoParticles and Tracks is indirect,
         # via an intermediate collection _RecoParticles_tracks;
         # for FCC simulation, we must define it as a transparent mapping for the syntax
-        if det=='aleph':
-            dfout = dfout.Alias("Reco2TrackLinks", "_RecoParticles_tracks")
-        elif det=='fcc':
-            dfout = dfout.Define("Reco2TrackLinks", "makeDummyRecoToTracks(ReconstructedParticles)")
+        if det=='aleph': dfout = dfout.Alias("Reco2TrackLinks", "_RecoParticles_tracks")
+        elif det=='fcc': dfout = dfout.Define("Reco2TrackLinks", "makeDummyRecoToTracks(ReconstructedParticles)")
+
+        # do gen-level stuff
+        if dtype=='sim':
+            dfout = (
+                dfout
+                
+                # store the pdg ID and generator status for all generator particles
+                # (mainly for debugging)
+                .Define("GenParticle_pdgId", "MCParticle::get_pdg(Particle)")
+                .Define("GenParticle_genStatus", "MCParticle::get_genStatus(Particle)")
+
+                # get event type (at generator level)
+                .Define("genEventType", "get_genEventType(Particle)")
+            )
+        else:
+            # set dummies (maybe later find out how to avoid the need for this)
+            dfout = (
+                dfout
+                .Define("GenParticle_pdgId", "0.")
+                .Define("GenParticle_genStatus", "0.")
+                .Define("genEventType", "0.")
+            )
 
         # do the actual analysis
         dfout = (
@@ -165,24 +182,16 @@ class RDFanalysis():
             # alternative for running on data or circumventing other issues with the MC primary vertex:
             # use reco primary vertex.
             # note: not sure how to make this work for FCC sim; there doesn't seem to be an equivalent collection.
-            #.Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
+            .Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
 
             # alternative: recalculate reco primary vertex
-            .Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1)")
+            #.Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1)")
 
             # store the primary vertex coordinates
             # (mainly for debugging)
             .Define("PV_x", "PrimaryVertexP4.X()")
             .Define("PV_y", "PrimaryVertexP4.Y()")
             .Define("PV_z", "PrimaryVertexP4.Z()")
-
-            # store the pdg ID and generator status for all generator particles
-            # (mainly for debugging)
-            .Define("GenParticle_pdgId", "MCParticle::get_pdg(Particle)")
-            .Define("GenParticle_genStatus", "MCParticle::get_genStatus(Particle)")
-
-            # get event type (at generator level)
-            .Define("genEventType", "get_genEventType(Particle)")
 
             # define the momentum, energy, mass and charge of all reconstructed particles.
             .Define("RP_px",          "ReconstructedParticle::get_px(ReconstructedParticles)")
@@ -343,19 +352,35 @@ class RDFanalysis():
         return dfout
 
     def output():
-        branchList = [
-            # event-level variables
+        branchList = []
+
+        # gen-level stuff
+        branchList += [
             'genEventType',
+            'GenParticle_pdgId',
+            'GenParticle_genStatus'
+        ]
+
+        # general
+        branchList += [
+            # event-level variables
             'njet',
             'nconst',
-            'nmu', 'nel', 'nchargedhad', 'nphoton', 'nneutralhad',
-            'de', 'dpt', 'dphi', 'dtheta',
+            'nmu',
+            'nel',
+            'nchargedhad',
+            'nphoton',
+            'nneutralhad',
+            'de',
+            'dpt',
+            'dphi',
+            'dtheta',
             'invariant_mass',
-            'PV_x', 'PV_y', 'PV_z',
+            'PV_x',
+            'PV_y',
+            'PV_z',
+            'Bz',
 
-            # gen-particle variables
-            'GenParticle_pdgId', 'GenParticle_genStatus',
-            
             # jet-level variables
             'Jets_e', 'Jets_mass', 'Jets_pt', 'Jets_phi', 'Jets_eta', 'Jets_theta',
             
@@ -370,15 +395,33 @@ class RDFanalysis():
             'JetsConstituents_dndx',
             #temp 'JetsConstituents_mtof',
             
-            'JetsConstituents_d0_wrt0', 'JetsConstituents_z0_wrt0', 'JetsConstituents_phi0_wrt0', 'JetsConstituents_omega_wrt0', 'JetsConstituents_tanlambda_wrt0',
-            'Bz', 'JetsConstituents_Bz',
-            'JetsConstituents_dxy', 'JetsConstituents_dz', 'JetsConstituents_phi0',
-            'JetsConstituents_C', 'JetsConstituents_ct',
+            'JetsConstituents_d0_wrt0',
+            'JetsConstituents_z0_wrt0',
+            'JetsConstituents_phi0_wrt0',
+            'JetsConstituents_omega_wrt0',
+            'JetsConstituents_tanlambda_wrt0',
+            'JetsConstituents_Bz',
+            'JetsConstituents_dxy',
+            'JetsConstituents_dz',
+            'JetsConstituents_phi0',
+            'JetsConstituents_C',
+            'JetsConstituents_ct',
 
-            'JetsConstituents_omega_cov', 'JetsConstituents_d0_cov', 'JetsConstituents_z0_cov', 'JetsConstituents_phi0_cov', 'JetsConstituents_tanlambda_cov',
-            'JetsConstituents_d0_z0_cov', 'JetsConstituents_phi0_d0_cov', 'JetsConstituents_phi0_z0_cov', 
-            'JetsConstituents_tanlambda_phi0_cov', 'JetsConstituents_tanlambda_d0_cov', 'JetsConstituents_tanlambda_z0_cov', 
-            'JetsConstituents_omega_tanlambda_cov', 'JetsConstituents_omega_phi0_cov', 'JetsConstituents_omega_d0_cov', 'JetsConstituents_omega_z0_cov', 
+            'JetsConstituents_omega_cov',
+            'JetsConstituents_d0_cov',
+            'JetsConstituents_z0_cov',
+            'JetsConstituents_phi0_cov',
+            'JetsConstituents_tanlambda_cov',
+            'JetsConstituents_d0_z0_cov',
+            'JetsConstituents_phi0_d0_cov',
+            'JetsConstituents_phi0_z0_cov', 
+            'JetsConstituents_tanlambda_phi0_cov',
+            'JetsConstituents_tanlambda_d0_cov',
+            'JetsConstituents_tanlambda_z0_cov', 
+            'JetsConstituents_omega_tanlambda_cov',
+            'JetsConstituents_omega_phi0_cov',
+            'JetsConstituents_omega_d0_cov',
+            'JetsConstituents_omega_z0_cov', 
             'JetsConstituents_Sip2dVal',
             'JetsConstituents_Sip2dSig', 
             'JetsConstituents_Sip3dVal',

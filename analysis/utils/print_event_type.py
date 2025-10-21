@@ -34,6 +34,17 @@ ROOT.gInterpreter.Declare("""
         return res;
     }""")
 
+# helper function for storing the PDG ID
+# of the first gen-level particle in the event
+ROOT.gInterpreter.Declare("""
+    int getFirstPdgId(
+        const ROOT::VecOps::RVec<edm4hep::MCParticleData>& genParticles) {
+        for (const auto& genParticle : genParticles) {
+            return genParticle.PDG;
+        }
+        return -99;
+    }""")
+
 # helper function for storing the first quark PDG ID.
 # note: there is no formal guarantee for any kind of ordering;
 #       we just assume the first quark PDG ID in the MCParticle collection
@@ -72,15 +83,17 @@ class RDFanalysis():
             df_in
             #.Define("dummy_print", "printGenParticles(MCParticles)")
             #.Define("genPdgIds", "getPdgIds(MCParticles)")
-            .Define("firstQuarkPdgId", "getFirstQuarkPdgId(MCParticles)")
-            .Define("firstQuarkStatus", "getFirstQuarkStatus(MCParticles)")
+            .Define("firstPdgId", "getFirstPdgId(MCParticles)")
+            #.Define("firstQuarkPdgId", "getFirstQuarkPdgId(MCParticles)")
+            #.Define("firstQuarkStatus", "getFirstQuarkStatus(MCParticles)")
         )
         return df_out
 
     def output():
         branchList = ([
           #"genPdgIds",
-          "firstQuarkPdgId",
-          "firstQuarkStatus"
+          "firstPdgId",
+          #"firstQuarkPdgId",
+          #"firstQuarkStatus"
         ])
         return branchList
