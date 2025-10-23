@@ -22,6 +22,4 @@ You can always run `python producetrees.py -h` to see all available options.
 
 ### Current status
 Runs successfully on some example files for FCC-ee with some minor caveats, see [here](reference/README.md) for more details.
-
-Does not run yet on our ALEPH data files, because the first step in `analysis.py` requires a collection of MC particles.
-So we need to either wait for ALEPH simulation, or modify the workflow to make it run on data.
+Also runs successfully on Aleph simulation in principle, but some variables seem to be ill-defined.

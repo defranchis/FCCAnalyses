@@ -11,15 +11,35 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> getParticleIDTypes(
     ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> types;
 
     for (const auto& jet_constituents : constituents) {
-        ROOT::VecOps::RVec<int> jet_types;
+        ROOT::VecOps::RVec<int> constituent_types;
         for (auto idx : jet_constituents) {
             // Get the type from ParticleID at this index
             // Type values: 0:Track, 1:Electron, 2:Muon, 3:Track from V0,
             //              4:EM, 5:Ecal hadron/residual, 6:Hcal element, 7:Lcal element
             int type = particle_ids[idx].type;
-            jet_types.push_back(type);
+            constituent_types.push_back(type);
         }
-        types.push_back(jet_types);
+        types.push_back(constituent_types);
+    }
+
+    return types;
+}
+
+// Extract dummy ParticleID types for jet constituents.
+// Returns same structure as getParticleIDTypes,
+// but using dummy particle IDs (in case the real ones are not available).
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> getDummyParticleIDTypes(
+    const std::vector<std::vector<int>>& constituents) {
+    
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> types;
+
+    for (const auto& jet_constituents : constituents) {
+        ROOT::VecOps::RVec<int> constituent_types;
+        for (auto idx : jet_constituents) {
+            int type = 0;
+            constituent_types.push_back(type);
+        }
+        types.push_back(constituent_types);
     }
 
     return types;

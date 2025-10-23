@@ -1,36 +1,12 @@
-import ROOT
 import os
+import sys
+import ROOT
 
 # load custom analyzer for particle ID retrieval
 analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_particleid.cxx')
 ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
 
-# load custom analyzer for event classification
-# (now disabled, see simpler version below)
-#analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_geneventtype.cxx')
-#ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
-
-# define helper function to assign dummy particle IDs to reco particles
-# (only to be used if the actual MC particle IDs are not available).
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> makeDummyPIDs(
-        const ROOT::VecOps::RVec<float>& charges,
-        const std::vector<std::vector<int>>& constituents) {
-        ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> pids;
-        for (const auto& group : constituents) {
-            ROOT::VecOps::RVec<float> tmp;
-            for (auto idx : group) {
-                int q = charges[idx];
-                if (q > 0)      tmp.push_back(211);
-                else if (q < 0) tmp.push_back(-211);
-                else            tmp.push_back(111);
-            }
-            pids.push_back(tmp);
-        }
-        return pids;
-    }""")
-
-# helper function for deriving the event type.
+# helper function for deriving the gen-level event type.
 # note: for now, only valid with qqbar simulations,
 #       where the event type is between 1 (d dbar) and 5 (b bbar) (see PDG numbering scheme).
 # note: the event type is derived simply from the first quark in the list of MCParticles;
@@ -49,6 +25,20 @@ ROOT.gInterpreter.Declare("""
             if( (pdgid >= 1) && (pdgid <= 6) ){ return pdgid; }
         }
         return -1;
+    }""")
+
+# helper function for deriving the reco-level event type.
+# for more info on the class bitset encoding this information,
+# see here: https://aleph-new.docs.cern.ch/eos/1994-data/
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<unsigned int> get_recoEventType(
+        ROOT::VecOps::RVec<unsigned int> classBitsetInt) {
+        std::bitset<32> classBitset = std::bitset<32>(classBitsetInt[0]);
+        ROOT::VecOps::RVec<unsigned int> res;
+        for(unsigned int shift=0; shift<32; shift++){
+            if(classBitset[shift]){ res.push_back(shift+1); }
+        }
+        return res;
     }""")
 
 # helper function for making a dummy RecoParticle-to-Tracks linking collection.
@@ -72,7 +62,7 @@ ROOT.gInterpreter.Declare("""
 # helper function to retrieve a vertex from the collection of vertices
 # in the correct TLorentzVector format.
 # note: not clear how to distinguish primary from secondary vertices,
-#       this code just relies on the fact that >99% of events have exactly one vertex stored.
+#       this code just relies on the fact that >99% of events (in simulation) have exactly one vertex stored.
 # note: what to do in case no vertex is stored for an event?
 #       for now just use the dummy of (0, 0, 0) in those cases.
 ROOT.gInterpreter.Declare("""
@@ -87,6 +77,7 @@ ROOT.gInterpreter.Declare("""
     }""")
 
 # helper function to re-calculate the primary vertex from the collection of tracks.
+# note: experimental; runs but not yet thoroughly tested.
 ROOT.gInterpreter.Declare("""
     TLorentzVector fitRecoPrimaryVertex(
         ROOT::VecOps::RVec<edm4hep::TrackState> tracks){
@@ -109,12 +100,31 @@ class RDFanalysis():
 
     def analysers(df):
 
-        # settings (maybe later make arguments)
-        det = 'aleph' # (choose from "aleph" or "fcc")
-        dtype = 'data' # (choose from "sim" or "data")
-
         # initialization
         dfout = df
+
+        # automatically determine detector type based on the presence of some branches
+        # (maybe make more robust later)
+        det = None
+        try:
+            df.Alias("_", "ReconstructedParticles")
+            det = 'fcc'
+        except: pass
+        try:
+            df.Alias("_", "RecoParticles")
+            det = 'aleph'
+        except: pass
+        if det is None:
+            raise Exception('Could not determine detector type.')
+
+        # automatically determine data type based on the presence of some branches
+        # (maybe make more robust later)
+        dtype = 'data'
+        try:
+            if det=='fcc': df.Alias("_", "Particle")
+            if det=='aleph': df.Alias("_", "MCParticles")
+            dtype = 'sim'
+        except: pass
 
         # for Aleph simulation, the collection of MC particles is called "MCParticles",
         # while for FCC simulation it is called "Particle", so define an alias here.
@@ -172,6 +182,10 @@ class RDFanalysis():
         dfout = (
             dfout
 
+            # get reco-level event type(s)
+            # todo: put some dummy values for FCC simulation where ClassBitset is not defined (?)
+            .Define("recoEventType", "get_recoEventType(ClassBitset)")
+
             # get MC primary vertex
             #.Define("PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)")
 
@@ -223,6 +237,12 @@ class RDFanalysis():
             .Define("Jets_phi", "JetClusteringUtils::get_phi(jets_ee_genkt)")
             .Define("Jets_eta", "JetClusteringUtils::get_eta(jets_ee_genkt)")
             .Define("Jets_theta", "JetClusteringUtils::get_theta(jets_ee_genkt)")
+            .Define("Jets_p4", "JetConstituentsUtils::compute_tlv_jets(jets_ee_genkt)")
+
+            # define event-level properties
+            .Define("Event_mass", "JetConstituentsUtils::InvariantMass(Jets_p4[0], Jets_p4[1])")
+            .Define("Event_njets", "(int)Jets_p4.size()")
+            .Define("Event_Bz", "ReconstructedParticle2Track::Bz(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
 
             # define constituent-level observables
             .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(ReconstructedParticles, jetconstituents_ee_genkt)")
@@ -281,7 +301,6 @@ class RDFanalysis():
 
             # calculate the magnetic field strength along the z-axis from the curvature of the tracks
             .Define("JetsConstituents_Bz", "JetConstituentsUtils::get_Bz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
-            .Define("Bz", "ReconstructedParticle2Track::Bz(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
         )
         
         # for FCC sim (as opposed to Aleph sim),
@@ -290,7 +309,7 @@ class RDFanalysis():
 
             dfout = (
                 dfout
-                .Redefine("Bz", "Bz * (-10)")
+                .Redefine("Event_Bz", "Event_Bz * (-10)")
                 .Redefine("JetsConstituents_Bz", "JetsConstituents_Bz * (-10)")
             )
 
@@ -298,11 +317,11 @@ class RDFanalysis():
         dfout = (
             dfout
             
-            .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Bz)")
-            .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Bz)")
-            .Define("JetsConstituents_phi0", "JetConstituentsUtils::XPtoPar_phi(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Bz)")
-            .Define("JetsConstituents_C", "JetConstituentsUtils::XPtoPar_C(JetsConstituents, EFlowTrack_1, Bz)")
-            .Define("JetsConstituents_ct", "JetConstituentsUtils::XPtoPar_ct(JetsConstituents, EFlowTrack_1, Bz)")
+            .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
+            .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
+            .Define("JetsConstituents_phi0", "JetConstituentsUtils::XPtoPar_phi(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
+            .Define("JetsConstituents_C", "JetConstituentsUtils::XPtoPar_C(JetsConstituents, EFlowTrack_1, Event_Bz)")
+            .Define("JetsConstituents_ct", "JetConstituentsUtils::XPtoPar_ct(JetsConstituents, EFlowTrack_1, Event_Bz)")
 
             .Define("JetsConstituents_omega_cov", "JetConstituentsUtils::get_omega_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_d0_cov", "JetConstituentsUtils::get_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
@@ -320,21 +339,20 @@ class RDFanalysis():
             .Define("JetsConstituents_omega_d0_cov", "JetConstituentsUtils::get_omega_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_omega_z0_cov", "JetConstituentsUtils::get_omega_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             
-            .Define("JetsConstituents_Sip2dVal", "JetConstituentsUtils::get_Sip2dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_phi0, Bz)")
+            .Define("JetsConstituents_Sip2dVal", "JetConstituentsUtils::get_Sip2dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_phi0, Event_Bz)")
             .Define("JetsConstituents_Sip2dSig", "JetConstituentsUtils::get_Sip2dSig(JetsConstituents_Sip2dVal, JetsConstituents_d0_cov)")
-            .Define("JetsConstituents_Sip3dVal", "JetConstituentsUtils::get_Sip3dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0, Bz)")
+            .Define("JetsConstituents_Sip3dVal", "JetConstituentsUtils::get_Sip3dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0, Event_Bz)")
             .Define("JetsConstituents_Sip3dSig", "JetConstituentsUtils::get_Sip3dSig(JetsConstituents_Sip3dVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
-            .Define("JetsConstituents_JetDistVal", "JetConstituentsUtils::get_JetDistVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0, Bz)")
+            .Define("JetsConstituents_JetDistVal", "JetConstituentsUtils::get_JetDistVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0, Event_Bz)")
             .Define("JetsConstituents_JetDistSig", "JetConstituentsUtils::get_JetDistSig(JetsConstituents_JetDistVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
 
             # counting the types of particles per jet
-            .Define("njet", "JetConstituentsUtils::count_jets(JetsConstituents)")
-            .Define("nconst", "JetConstituentsUtils::count_consts(JetsConstituents)")
-            .Define("nmu", "JetConstituentsUtils::count_type(JetsConstituents_isMu)")
-            .Define("nel", "JetConstituentsUtils::count_type(JetsConstituents_isEl)")
-            .Define("nchargedhad", "JetConstituentsUtils::count_type(JetsConstituents_isChargedHad)")
-            .Define("nphoton", "JetConstituentsUtils::count_type(JetsConstituents_isGamma)")
-            .Define("nneutralhad", "JetConstituentsUtils::count_type(JetsConstituents_isNeutralHad)")
+            .Define("Jets_nConstituents", "JetConstituentsUtils::count_consts(JetsConstituents)")
+            .Define("Jets_nMu", "JetConstituentsUtils::count_type(JetsConstituents_isMu)")
+            .Define("Jets_nEl", "JetConstituentsUtils::count_type(JetsConstituents_isEl)")
+            .Define("Jets_nChargedHad", "JetConstituentsUtils::count_type(JetsConstituents_isChargedHad)")
+            .Define("Jets_nPhoton", "JetConstituentsUtils::count_type(JetsConstituents_isGamma)")
+            .Define("Jets_nNeutralHad", "JetConstituentsUtils::count_type(JetsConstituents_isNeutralHad)")
         
             # compute the residues jet-constituents on significant kinematic variables as a check
             # notes:
@@ -342,12 +360,11 @@ class RDFanalysis():
             # - "sum_tlv_jcs" seems to mean: "the lorentz vectors of the jets, but calculated by summing all constituents"
             .Define("tlv_jets", "JetConstituentsUtils::compute_tlv_jets(jets_ee_genkt)")
             .Define("sum_tlv_jcs", "JetConstituentsUtils::sum_tlv_constituents(JetsConstituents)")
-            .Define("de", "JetConstituentsUtils::compute_residue_energy(tlv_jets, sum_tlv_jcs)")
-            .Define("dpt", "JetConstituentsUtils::compute_residue_pt(tlv_jets, sum_tlv_jcs)")
-            .Define("dphi", "JetConstituentsUtils::compute_residue_phi(tlv_jets, sum_tlv_jcs)")
-            .Define("dtheta", "JetConstituentsUtils::compute_residue_theta(tlv_jets, sum_tlv_jcs)")
+            .Define("Event_de", "JetConstituentsUtils::compute_residue_energy(tlv_jets, sum_tlv_jcs)")
+            .Define("Event_dpt", "JetConstituentsUtils::compute_residue_pt(tlv_jets, sum_tlv_jcs)")
+            .Define("Event_dphi", "JetConstituentsUtils::compute_residue_phi(tlv_jets, sum_tlv_jcs)")
+            .Define("Event_dtheta", "JetConstituentsUtils::compute_residue_theta(tlv_jets, sum_tlv_jcs)")
             
-            .Define("invariant_mass", "JetConstituentsUtils::InvariantMass(tlv_jets[0], tlv_jets[1])")
         )
         return dfout
 
@@ -364,25 +381,31 @@ class RDFanalysis():
         # general
         branchList += [
             # event-level variables
-            'njet',
-            'nconst',
-            'nmu',
-            'nel',
-            'nchargedhad',
-            'nphoton',
-            'nneutralhad',
-            'de',
-            'dpt',
-            'dphi',
-            'dtheta',
-            'invariant_mass',
+            'recoEventType',
+            'Event_njets',
+            'Event_mass',
+            'Event_Bz',
+            'Event_de',
+            'Event_dpt',
+            'Event_dphi',
+            'Event_dtheta',
             'PV_x',
             'PV_y',
             'PV_z',
-            'Bz',
 
             # jet-level variables
-            'Jets_e', 'Jets_mass', 'Jets_pt', 'Jets_phi', 'Jets_eta', 'Jets_theta',
+            'Jets_e',
+            'Jets_mass',
+            'Jets_pt',
+            'Jets_phi',
+            'Jets_eta',
+            'Jets_theta',
+            'Jets_nConstituents',
+            'Jets_nMu',
+            'Jets_nEl',
+            'Jets_nChargedHad',
+            'Jets_nPhoton',
+            'Jets_nNeutralHad',
             
             # jet-constituent-level variables
             'JetsConstituents_e', 'JetsConstituents_pt',

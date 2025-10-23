@@ -135,8 +135,8 @@ int main(int argc, char* argv[]) {
   
   // event properties
   ev->SetBranchAddress("genEventType", &genEventType);
-  ev->SetBranchAddress("njet", &nJets);
-  ev->SetBranchAddress("Bz", &Bz);
+  ev->SetBranchAddress("Event_njets", &nJets);
+  ev->SetBranchAddress("Event_Bz", &Bz);
 
   // jet properties
   ev->SetBranchAddress("Jets_e", &Jets_e);
@@ -145,12 +145,12 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Jets_phi", &Jets_phi);
   ev->SetBranchAddress("Jets_eta", &Jets_eta);
   ev->SetBranchAddress("Jets_theta", &Jets_theta);
-  ev->SetBranchAddress("nconst", &count_Const);
-  ev->SetBranchAddress("nmu", &count_Mu);
-  ev->SetBranchAddress("nel", &count_El);
-  ev->SetBranchAddress("nchargedhad", &count_ChargedHad);
-  ev->SetBranchAddress("nphoton", &count_Photon);
-  ev->SetBranchAddress("nneutralhad", &count_NeutralHad);
+  ev->SetBranchAddress("Jets_nConstituents", &count_Const);
+  ev->SetBranchAddress("Jets_nMu", &count_Mu);
+  ev->SetBranchAddress("Jets_nEl", &count_El);
+  ev->SetBranchAddress("Jets_nChargedHad", &count_ChargedHad);
+  ev->SetBranchAddress("Jets_nPhoton", &count_Photon);
+  ev->SetBranchAddress("Jets_nNeutralHad", &count_NeutralHad);
 
   // jet constituent properties
   ev->SetBranchAddress("JetsConstituents_e", &JetsConstituents_e);
@@ -413,7 +413,7 @@ int main(int argc, char* argv[]) {
 
   // run over each entry in the tree
   for(int i = N_i; i < nentries; ++i) {
-    
+
     // get the event
     ev->GetEntry(i);
 
