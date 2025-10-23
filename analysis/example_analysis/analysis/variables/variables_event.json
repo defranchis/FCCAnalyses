@@ -1,0 +1,20 @@
+[
+{
+  "name": "event_mass",
+  "variable": "Event_mass",
+  "axtitle": "Invariant mass of two leading jets",
+  "unit": "GeV",
+  "xlow": 50,
+  "xhigh": 120,
+  "nbins": 70
+},
+{
+  "name": "event_njets",
+  "variable": "Event_njets",
+  "axtitle": "Number of jets per event",
+  "unit": "",
+  "bins": [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5],
+  "iscategorical": "true",
+  "xlabels": ["0", "1", "2", "3", "4"]
+}
+]

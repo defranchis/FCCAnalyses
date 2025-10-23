@@ -1,0 +1,689 @@
+# Plot analysis results
+
+import os
+import sys
+import json
+import copy
+import uproot
+import argparse
+import numpy as np
+import awkward as ak
+from fnmatch import fnmatch
+import matplotlib.pyplot as plt
+
+thisdir = os.path.abspath(os.path.dirname(__file__))
+topdir = os.path.abspath(os.path.join(thisdir, '../'))
+sys.path.append(topdir)
+
+from tools.variabletools import read_variables
+from tools.variabletools import HistogramVariable, DoubleHistogramVariable
+from tools.samplelisttools import read_samplelist, read_sampledict, find_files
+from tools.lumitools import get_lumidict
+from tools.plottools import make_hist_from_events
+from tools.plottools import merge_events, merge_sampledict
+from tools.plottools import make_batches
+from tools.processinfo import ProcessInfoCollection, ProcessCollection
+from analysis.eventselection import load_eventselection, get_variable_names
+from analysis.eventselection import get_selection_mask, get_selection_masks
+from analysis.objectselection import load_objectselection
+from analysis.objectselection import apply_objectselection
+from analysis.systematics import get_weight_variation
+from analysis.systematics import format_systematic_name
+from plotting.plot import plot
+
+
+def make_histograms(dtypedict, variables,
+        branches_to_read = None,
+        files_per_batch = None,
+        objectselection = None,
+        eventselection = None,
+        select_processes = None,
+        blinding = None,
+        blind_processes = None,
+        regions = None,
+        recalculate_regions = False,
+        splitdict = None,
+        weight_variations = None,
+        xsections = None,
+        lumi = None):
+    '''
+    Helper function for making histograms from a given set of sampledicts.
+    Input arguments:
+    - dtypedict: dictionary of the form {dtype: sampledict, ...}
+    - variables: list of variables to produce histograms for
+    Returns:
+    - dictionary with the following structure:
+      dtype -> region_variable_key -> process_key -> systematic_key -> (counts, errors)
+    Note: the systematic_key for nominal is "nominal".
+    Note: only systematics in the form of weight variations are supported so far,
+          not yet systematics with object variations.
+    '''
+
+    # add nominal to weight variations (if not yet provided)
+    if weight_variations is None: weight_variations = {}
+    weight_variations['nominal'] = None
+
+    # loop over samples
+    hists = {}
+    for dtype, sampledict in dtypedict.items():
+        if sampledict is None: continue
+        hists[dtype] = {}
+        for process_key, files in sampledict.items():
+            print(f'Now running on sample {process_key}...')
+
+            # set weight variations for this sample
+            # todo: make more flexible and robust against name changes
+            this_weight_variations = copy.deepcopy(weight_variations)
+            if dtype=='data': this_weight_variations = {'nominal': None}
+            if process_key=='syndata': this_weight_variations = {'nominal': None}
+            if process_key=='bkgmodel':
+                this_weight_variations = {key: val for key, val in this_weight_variations.items()
+                                         if( key=='nominal' or key.startswith('abcdWeight') )}
+            else:
+                this_weight_variations = {key: val for key, val in this_weight_variations.items()
+                                         if( key=='nominal' or not key.startswith('abcdWeight') )}
+
+            # set sample dict and branches to read
+            # todo: make more robust against name changes
+            this_sampledict = {process_key: files}
+            this_branches_to_read = branches_to_read[:]
+            #if dtype=='sim':
+            #    # for synthetic data, do not read weights or weight variations
+            #    if process_key=='syndata': pass
+            #    # else read weights and weight variations (if requested)
+            #    else:
+            #        this_branches_to_read.append('weight')
+            #        for weight_variation, branches in this_weight_variations.items():
+            #            if weight_variation == 'nominal': continue
+            #            if branches is None: continue
+            #            for branch in branches: this_branches_to_read.append(branch)
+            # remove duplicates
+            this_branches_to_read = list(set(this_branches_to_read))
+
+            # split files in batches if requested
+            # (sometimes needed to not run out of memory...)
+            this_batches = [this_sampledict] # default case of no splitting in batches
+            if files_per_batch is not None:
+                files_per_batch = int(files_per_batch)
+                batched_files = make_batches(files, batch_size=files_per_batch)
+                this_batches = [{process_key: batch} for batch in batched_files]
+                print(f'Split sample in {len(this_batches)} batches.')
+
+            # loop over batches
+            for batch_idx, batch_sampledict in enumerate(this_batches):
+                print(f'Reading batch {batch_idx+1} / {len(this_batches)}...')
+                events = read_sampledict(batch_sampledict, treename='events',
+                           branches=this_branches_to_read, verbose=False)
+                print(f'Read batch with {len(events[process_key])} entries'
+                        + f' and {len(events[process_key].fields)} branches.')
+
+                # do extra object selection
+                if objectselection is not None:
+                    print('Doing extra object selection...')
+                    events[process_key] = apply_objectselection(events[process_key],
+                                            objectselection[0], objectselection[1])
+
+                # do extra event selection
+                if eventselection is not None:
+
+                    # check if event selection actually needs to be applied
+                    # (process dependent)
+                    do_selection = True
+                    if select_processes is not None and len(select_processes)==0:
+                        msg = 'WARNING: found select_processes which is not None but empty;'
+                        msg += ' this is ambiguous and will be treated as None.'
+                        print(msg)
+                        select_processes = None
+                    if select_processes is not None and process_key not in select_processes:
+                        do_selection = False
+                    
+                    if do_selection:
+                        print('Doing extra event selection...')
+                        nevents = len(events[process_key])
+                        mask = get_selection_mask(events[process_key], eventselection)
+                        events[process_key] = events[process_key][mask]
+                        nselected = len(events[process_key])
+                        print(f'Selected {nselected} out of {nevents} entries.')
+
+                # recalculate regions
+                this_regions = regions
+                if regions is not None and recalculate_regions:
+                    print('Recalculating regions...')
+                    for region_name, selection_string in regions.items():
+                        mask = get_selection_mask(events[process_key], selection_string)
+                        events[process_key][f'mask-{region_name}'] = mask
+                    this_regions = {region_name: f'mask-{region_name}' for region_name in regions.keys()}
+
+                # get nominal weights
+                nominal_weights = np.ones(len(events[process_key]))
+                #if 'weight' in events[process_key].fields:
+                #    nominal_weights = events[process_key]['weight'].to_numpy()
+                if dtype=='sim':
+                    # note: this will not work in bachted mode,
+                    # normalization will be done incorrectly if more than 1 batch is used.
+                    if xsections is not None and lumi is not None:
+                        xsec = xsections[process_key]
+                        nominal_weights = lumi * xsec / len(events[process_key])
+
+                # make masks for subprocesses
+                subprocess_masks = {process_key: np.ones(len(events[process_key])).astype(bool)}
+                if splitdict is not None and process_key in splitdict.keys():
+                    subprocess_masks = {}
+                    for subprocess_key, subprocess_selection in splitdict[process_key].items():
+                        subprocess_masks[subprocess_key] = get_selection_mask(events[process_key], subprocess_selection).to_numpy().astype(bool)
+
+                # loop over subprocesses
+                for subprocess_key, subprocess_mask in subprocess_masks.items():
+                    if not subprocess_key in hists[dtype].keys(): hists[dtype][subprocess_key] = {}
+
+                    # loop over systematics with weight variations
+                    # (including also nominal case)
+                    for weight_variation in this_weight_variations:
+                        systematic_key = format_systematic_name(weight_variation)
+                        if not systematic_key in hists[dtype][subprocess_key].keys():
+                            hists[dtype][subprocess_key][systematic_key] = {}
+                        varied_weights = get_weight_variation(events[process_key], weight_variation)
+                        varied_weights = np.multiply(nominal_weights, varied_weights)
+
+                        # loop over regions and variables
+                        if this_regions is None: this_regions = {'baseline': None}
+                        for region_name, region_mask_name in this_regions.items():
+                            for variable in variables:
+                                #print(f'Making histogram for {weight_variation}, {region_name}, variable {variable.name}...')
+                                region_variable_key = f'{region_name}_{variable.name}'
+
+                                # get mask for this region
+                                region_mask = np.ones(len(events[process_key])).astype(bool)
+                                if region_mask_name is not None: region_mask = events[process_key][region_mask_name]
+
+                                # optional: blind some histograms
+                                # note: this is done per variable rather than upfront,
+                                #       because the blinding may depend on the variable.
+                                #       for example, when plotting mH1, we want the mask 'mH1 outside mass window',
+                                #       when plotting mH2, we want 'mH2 outside mass window',
+                                #       and when plotting the double mass, we want 'mH1 or mH2 outside mass window'.
+                                if blinding is not None:
+                                    if variable.name not in blinding.keys():
+                                        msg = f'Blinding was specified but variable {variable.name} not found in the dict.'
+                                        raise Exception(msg)
+                                    do_selection = ( (blind_processes is None)
+                                                   or (len(blind_processes)>0 and process_key in blind_processes) )
+                                    if do_selection:
+                                        blinding_selection = blinding[variable.name]
+                                        blinding_mask = get_selection_mask(events[process_key], blinding_selection)
+                                        region_mask = ((region_mask) & (blinding_mask))
+
+                                # make total mask (region and subprocess)
+                                total_mask = ((region_mask) & (subprocess_mask))
+
+                                # make histogram
+                                hist = make_hist_from_events(events[process_key], variable,
+                                         weights=varied_weights, mask=total_mask, clipmin=0,
+                                         verbose=False, flatten=True)
+
+                                # add to dict
+                                if region_variable_key in hists[dtype][subprocess_key][systematic_key].keys():
+                                    counts, errors = hists[dtype][subprocess_key][systematic_key][region_variable_key]
+                                    counts += hist[0]
+                                    errors = np.sqrt(np.square(errors) + np.square(hist[1]))
+                                    hists[dtype][subprocess_key][systematic_key][region_variable_key] = (counts, errors)
+                                else: hists[dtype][subprocess_key][systematic_key][region_variable_key] = hist
+
+                            # end loop over variables
+                        # end loop over regions
+                    # end loop over weight variations
+                # end loop over subprocesses
+            # end loop over batches
+        # end loop over processes
+    # end loop over dtypes
+
+    # restructure dictionary to put the region/variable outside the processes and systematics
+    newhists = {}
+    for dtype in hists.keys():
+        newhists[dtype] = {}
+        processes = list(hists[dtype].keys())
+        regvars = list(hists[dtype][processes[0]]['nominal'].keys())
+        for regvar in regvars:
+            newhists[dtype][regvar] = {}
+            for process in processes:
+                newhists[dtype][regvar][process] = {}
+                for sysvar in hists[dtype][process].keys():
+                    newhists[dtype][regvar][process][sysvar] = hists[dtype][process][sysvar][regvar]
+    hists = newhists
+
+    # return result
+    return hists
+
+
+if __name__=='__main__':
+
+    # read command line args
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--sim', required=True, nargs='+')
+    parser.add_argument('-d', '--data', default=None, nargs='+')
+    parser.add_argument('-v', '--variables', required=True, nargs='+')
+    parser.add_argument('-o', '--outputdir', required=True)
+    parser.add_argument('--objectselection', default=None)
+    parser.add_argument('--eventselection', default=None)
+    parser.add_argument('--select_processes', default=[], nargs='+')
+    parser.add_argument('--regions', default=None)
+    parser.add_argument('--recalculate_regions', default=False, action='store_true')
+    parser.add_argument('--files_per_batch', default=None)
+    parser.add_argument('--year', default=None)
+    parser.add_argument('--luminosity', default=-1, type=float)
+    parser.add_argument('--xsections', default=None)
+    parser.add_argument('--merge', default=None)
+    parser.add_argument('--split', default=None)
+    parser.add_argument('--normalizesim', default=False, action='store_true')
+    parser.add_argument('--shapes', default=False, action='store_true')
+    parser.add_argument('--dolog', default=False, action='store_true')
+    args = parser.parse_args()
+
+    # set weight variations to include in the uncertainty band
+    # (hard-coded for now, maybe extend later)
+    weight_variations = {}
+
+    # parse arguments
+    if args.data is not None and len(args.data)==0: args.data = None
+
+    # read regions
+    regions = None
+    if args.regions is not None:
+        regions = load_eventselection(args.regions)
+        if not args.recalculate_regions:
+            # if the regions are not to be recalculated,
+            # use already existing masks (assumed to be present in input files)
+            regions = {s: f'mask-{s}' for s in regions.keys()}
+        # also add a region with no additional selection applied
+        regions['baseline'] = None
+        print('Found following regions:')
+        print(list(regions.keys()))
+
+    # read extra object selection to apply
+    objectselection = None
+    if args.objectselection is not None:
+        objectselection = load_objectselection(args.objectselection)
+        print('Found following extra object selection to apply:')
+        print(objectselection[0])
+        print('(to the following branches):')
+        print(objectselection[1])
+
+    # read extra selection to apply
+    event_selection_name = None
+    eventselection = None
+    select_processes = None
+    if args.eventselection is not None:
+        eventselection = load_eventselection(args.eventselection, nexpect=1)
+        print('Found following extra event selection to apply:')
+        print(eventselection)
+        if len(args.select_processes)>0:
+            select_processes = args.select_processes
+            print('(selection will be applied only to the following processes:'
+                    + f' {select_processes})')
+        event_selection_name = list(eventselection.keys())[0]
+        eventselection = eventselection[event_selection_name]
+
+    # read cross-sections
+    xsections = None
+    if args.xsections is not None:
+        with open(args.xsections, 'r') as f:
+            xsections = json.load(f)
+        print('Found following cross-sections:')
+        print(json.dumps(xsections, indent=2))
+
+    # read merging instructions
+    mergedict = None
+    if args.merge is not None:
+        with open(args.merge, 'r') as f:
+            mergedict = json.load(f)
+        print('Found following instructions for merging samples:')
+        print(json.dumps(mergedict, indent=2))
+
+    # read splitting instructions
+    splitdict = None
+    if args.split is not None:
+        with open(args.split, 'r') as f:
+            splitdict = json.load(f)
+        print('Found following instructions for splitting samples:')
+        print(json.dumps(splitdict, indent=2))
+
+    # find samples for simulation
+    sampledirs_sim = []
+    print('Finding sample files for simulation...')
+    for sampledir in args.sim:
+        # first check if a file 'files.json' is present (i.e. after merging years)
+        ffile = os.path.join(sampledir, 'files.json')
+        if os.path.exists(ffile): sampledirs_sim.append(ffile)
+        # else default case: find all .root files in the given directory
+        else: sampledirs_sim.append(sampledir)
+    sampledict_sim = find_files(sampledirs_sim, verbose=False)
+    #print('Found following sample dict for simulation:')
+    #print(json.dumps(sampledict_sim, indent=2))
+    nsimfiles = sum([len(v) for v in sampledict_sim.values()])
+    print(f'Found {nsimfiles} simulation files.')
+
+    # find samples for data
+    sampledict_data = None
+    if args.data is not None:
+        sampledirs_data = []
+        print('Finding sample files for data...')
+        for sampledir in args.data:
+            # first check if a file 'files.json' is present (i.e. after merging years)
+            ffile = os.path.join(sampledir, 'files.json')
+            if os.path.exists(ffile): sampledirs_data.append(ffile)
+            # else default case: find all .root files in the given directory
+            else: sampledirs_data.append(sampledir)
+        sampledict_data = find_files(sampledirs_data, verbose=False)
+        #print('Found following sample dict for data:')
+        #print(json.dumps(sampledict_data, indent=2))
+        ndatafiles = sum([len(v) for v in sampledict_data.values()])
+        print(f'Found {ndatafiles} data files.')
+
+    # do merging
+    if mergedict is not None:
+        print('Merging samples...')
+        sampledict_sim = merge_sampledict(sampledict_sim, mergedict, verbose=True)
+        if sampledict_data is not None:
+            print('Merging data...')
+            sampledict_data = merge_sampledict(sampledict_data, mergedict, verbose=False)
+        # printouts for testing
+        print('Number of files for (merged) samples:')
+        for sampledict in [sampledict_sim, sampledict_data]:
+            if sampledict is None: continue
+            for key, val in sampledict.items():
+                print(f'  - {key}: {len(val)}')
+
+    # read variables
+    variables = sum([read_variables(f) for f in args.variables], [])
+    variablelist = []
+    for variable in variables:
+        if isinstance(variable, DoubleHistogramVariable):
+            variablelist.append(variable.primary.variable)
+            variablelist.append(variable.secondary.variable)
+        else:
+            variablelist.append(variable.variable)
+    variablelist = sum([get_variable_names(v) for v in variablelist], [])
+    variablelist = list(set(variablelist))
+
+    # get luminosity from year
+    luminosity = args.luminosity
+    if args.year is not None:
+        lumi_from_year = get_lumidict()[args.year]
+        if args.luminosity is None or args.luminosity < 0:
+            luminosity = lumi_from_year
+        elif luminosity!=lumi_from_year:
+            msg = f'WARNING: found inconsistency between provided luminosity ({luminosity})'
+            msg += f' and the one corresponding to the provided year ({args.year}: {lumi_from_year}).'
+            print(msg)
+    if luminosity < 0: luminosity = None
+
+    # define variables to read
+    branches_to_read = []
+    # add masks
+    if regions is not None:
+        if not args.recalculate_regions:
+            for mask_name in regions.values():
+                if mask_name is None: continue
+                branches_to_read.append(mask_name)
+        else:
+            for selection_string in regions.values():
+                if selection_string is None: continue
+                branches_to_read += get_variable_names(selection_string)
+    # add selection
+    if objectselection is not None:
+        branches_to_read += get_variable_names(objectselection[0])
+    if eventselection is not None:
+        branches_to_read += get_variable_names(eventselection)
+    # add variables to plot
+    branches_to_read += variablelist[:]
+    # add variables needed for splitting
+    if splitdict is not None:
+        for splitkey, this_splitdict in splitdict.items():
+            for selection_string in this_splitdict.values():
+                branches_to_read += get_variable_names(selection_string)
+    # remove potential duplicates
+    branches_to_read = list(set(branches_to_read))
+    print('Found following branches to read:')
+    print(branches_to_read)
+
+    # make histograms
+    dtypedict = {'sim': sampledict_sim, 'data': sampledict_data}
+    hists_combined = make_histograms(dtypedict, variables,
+                       branches_to_read = branches_to_read,
+                       files_per_batch = args.files_per_batch,
+                       objectselection = objectselection,
+                       eventselection = eventselection,
+                       select_processes = select_processes,
+                       regions = regions,
+                       recalculate_regions = args.recalculate_regions,
+                       splitdict = splitdict,
+                       weight_variations = weight_variations,
+                       lumi = luminosity,
+                       xsections = xsections)
+
+    # do some parsing after the loop above
+    # (now that regions might have been recalculated,
+    #  replace their event selection by the corresponding mask)
+    if regions is not None:
+        regions = {region_name: f'mask-{region_name}' for region_name in regions.keys()}
+
+    # some more parsing
+    # (make a list of all simulated processes after potential splitting)
+    sim_processes = list(dtypedict['sim'].keys())
+    if splitdict is not None:
+        for key, this_splitdict in splitdict.items():
+            vals = list(this_splitdict.keys())
+            sim_processes.remove(key)
+            sim_processes += vals
+
+    # check number of data categories
+    # (only one is supported for now)
+    datatag = None
+    if sampledict_data is not None:
+        keys = list(sampledict_data.keys())
+        if len(keys)==1: datatag = keys[0]
+        else:
+            msg = f'Found unexpected number of data categories: {keys}'
+            raise Exception(msg)
+
+    # make color dict
+    colordict = {}
+    colordict['qqb'] = 'deepskyblue'
+    colordict['light'] = 'lightskyblue'
+    colordict['cc'] = 'deepskyblue'
+    colordict['bb'] = 'darkorchid'
+
+    # make label dict
+    labeldict = {}
+    for p in sim_processes:
+        labeldict[p] = p
+
+    # set histogram styles and stacking
+    styledict = {}
+    stacklist = []
+    # default case: stack all simulation as filled histograms
+    for p in sim_processes: styledict[p] = 'fill'
+    stacklist = [p for p in sim_processes]
+    normalize = False
+    # shape comparison mode: no stacking, line histograms, normalized
+    if args.shapes:
+        for p in sim_processes: styledict[p] = 'step'
+        stacklist = []
+        normalize = True
+
+    # plot aesthetics settings
+    extracmstext = 'Preliminary'
+    lumiheaderparts = []
+    if args.year is not None:
+        lumiheaderparts.append(args.year)
+    if luminosity is not None:
+        lumiheaderparts.append('{:.2f}'.format(luminosity) + ' pb$^{-1}$')
+    lumiheader = ', '.join(lumiheaderparts)
+
+    # settings for multiplying the signal
+    multdict = None
+    if multdict is not None:
+        for key, val in multdict.items():
+            if not key in labeldict: continue
+            labeldict[key] = labeldict[key] + f' (x {val})'
+
+    # make output directory
+    if not os.path.exists(args.outputdir): os.makedirs(args.outputdir)
+
+    # loop over regions and variables
+    if regions is None: regions = {'baseline': None}
+    for region_name, mask_name in regions.items():
+        for variable in variables:
+            print(f'Plotting selection {region_name}, variable {variable.name}...')
+            region_variable_key = f'{region_name}_{variable.name}'
+
+            # get nominal histograms for simulation
+            hists_sim_nominal = {}
+            for process_key in hists_combined['sim'][region_variable_key].keys():
+                hists_sim_nominal[process_key] = hists_combined['sim'][region_variable_key][process_key]['nominal']
+
+            # get histograms for data
+            hists_data = None
+            if datatag is not None:
+                hists_data = {}
+                for process_key in hists_combined['data'][region_variable_key].keys():
+                    hists_data[process_key] = hists_combined['data'][region_variable_key][process_key]['nominal']
+
+            # concatenate all histograms in a single array (for later use)
+            histarray = [h[0] for h in hists_sim_nominal.values()]
+            if hists_data is not None:
+                histarray += [h[0] for h in hists_data.values()]
+            histarray = np.array(histarray)
+
+            # split off data hist
+            data = None
+            if hists_data is not None: data = {datatag: hists_data[datatag]}
+
+            # make a ProcessCollection
+            hists_sim = {}
+            for process_key in hists_combined['sim'][region_variable_key].keys():
+                for systematic_key, hist in hists_combined['sim'][region_variable_key][process_key].items():
+                    histname = f'{process_key}_{region_variable_key}_{systematic_key}'
+                    hists_sim[histname] = hist
+            pic = ProcessInfoCollection.fromhistlist(list(hists_sim.keys()), region_variable_key)
+            pc = ProcessCollection(pic, hists_sim)
+            print(pic)
+
+            # extract the systematic uncertainties (per process)
+            systematics = {}
+            for process_key in hists_combined['sim'][region_variable_key].keys():
+                systematic = pc.get_systematics_rss(processes=[process_key])[0]
+                systematics[process_key] = (hists_sim_nominal[process_key][0], systematic)
+
+            # define ratios to plot
+            ratios = []
+            if datatag is not None: ratios.append([datatag, stacklist])
+
+            # modify label dict to include the yield per process
+            this_labeldict = labeldict.copy()
+            print_yield = True # maybe later add as argument
+            if print_yield:
+                for process_key, hist in hists_sim_nominal.items():
+                    old_label = labeldict.get(process_key, None)
+                    if old_label is None: continue
+                    process_yield = np.sum(hist[0])
+                    new_label = old_label + ' ({:.2e})'.format(process_yield)
+                    this_labeldict[process_key] = new_label
+
+            # do plotting
+            yaxtitle = 'Events'
+            if normalize: yaxtitle += ' (normalized)'
+            fig, axs = plot(bkg=hists_sim_nominal,
+                       data=data,
+                       systematics=systematics,
+                       variable=variable,
+                       stacklist=stacklist,
+                       colordict=colordict,
+                       labeldict=this_labeldict,
+                       styledict=styledict,
+                       multdict=multdict,
+                       normalize=normalize,
+                       normalizesim=args.normalizesim,
+                       extracmstext=extracmstext,
+                       lumiheader=lumiheader,
+                       yaxtitle=yaxtitle,
+                       dolegend=False,
+                       ratios=ratios)
+
+            # some more plot aesthetics
+            axs[0].set_ylim((0, axs[0].get_ylim()[1]*1.4))
+            axs[0].legend(loc='upper right', fontsize=12)
+            if len(regions.keys())>1:
+                axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
+                    transform=axs[0].transAxes)
+            if event_selection_name is not None:
+                label = event_selection_name
+                if select_processes is not None and len(args.select_processes)>0:
+                    label += ' (for {})'.format(', '.join(select_processes))
+                axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
+                  transform=axs[0].transAxes)
+            if args.normalizesim:
+                axs[0].text(0.05, 0.8, 'Simulation normalized to data', ha='left', va='top', fontsize=12,
+                  transform=axs[0].transAxes)
+            # data ratio pad
+            if datatag is not None: axs[1].set_ylim((0, 2))
+
+            # save the figure
+            fig.tight_layout()
+            figname = region_name + '_' + variable.name + '.png'
+            figname = os.path.join(args.outputdir, figname)
+            fig.savefig(figname)
+            plt.close(fig)
+            print(f'Figure saved to {figname}.')
+            del axs
+            del fig
+
+            # same with log scale
+            if args.dolog:
+                fig, axs = plot(bkg=hists_sim_nominal,
+                       data=data,
+                       systematics=systematics,
+                       variable=variable,
+                       stacklist=stacklist,
+                       colordict=colordict,
+                       labeldict=this_labeldict,
+                       styledict=styledict,
+                       logscale=True,
+                       multdict=multdict,
+                       normalize=normalize,
+                       normalizesim=args.normalizesim,
+                       extracmstext=extracmstext,
+                       lumiheader=lumiheader,
+                       yaxtitle=yaxtitle,
+                       dolegend=False,
+                       ratios=ratios)
+
+                # some more plot aesthetics
+                if np.any(histarray > 0):
+                    ymin = np.min(histarray[np.nonzero(histarray)])
+                    axs[0].set_ylim((ymin, axs[0].get_ylim()[1]**1.4))
+                axs[0].legend(loc='upper right', fontsize=12)
+                if len(regions.keys())>1:
+                    axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
+                        transform=axs[0].transAxes)
+                if event_selection_name is not None:
+                    label = event_selection_name
+                    if select_processes is not None and len(select_processes)>0:
+                        label += ' (for {})'.format(', '.join(select_processes))
+                    axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
+                      transform=axs[0].transAxes)
+                if args.normalizesim:
+                    axs[0].text(0.05, 0.8, 'Simulation normalized to data', ha='left', va='top', fontsize=12,
+                      transform=axs[0].transAxes)
+                # data ratio pad
+                if datatag is not None: axs[1].set_ylim((0, 2))
+
+                # save the figure
+                fig.tight_layout()
+                figname = region_name + '_' + variable.name + '_log.png'
+                figname = os.path.join(args.outputdir, figname)
+                fig.savefig(figname)
+                plt.close(fig)
+                print(f'Figure saved to {figname}.')
+                del axs
+                del fig

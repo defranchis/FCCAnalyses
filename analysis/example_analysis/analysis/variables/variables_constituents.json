@@ -1,0 +1,38 @@
+[
+{
+  "name": "jet_0_constituents_energy",
+  "variable": "JetsConstituents_e[:,0,:]",
+  "axtitle": "First jet constituents energy",
+  "unit": "GeV",
+  "xlow": 0,
+  "xhigh": 10,
+  "nbins": 50
+},
+{
+  "name": "jet_1_constituents_energy",
+  "variable": "JetsConstituents_e[:,1,:]",
+  "axtitle": "Second jet constituents energy",
+  "unit": "GeV",
+  "xlow": 0,
+  "xhigh": 10,
+  "nbins": 50
+},
+{
+  "name": "jet_0_constituents_dxy",
+  "variable": "JetsConstituents_dxy[:,0,:]",
+  "axtitle": "First jet constituents dxy",
+  "unit": "cm (?)",
+  "xlow": -1,
+  "xhigh": 1,
+  "nbins": 50
+},
+{
+  "name": "jet_0_constituents_dz",
+  "variable": "JetsConstituents_dz[:,0,:]",
+  "axtitle": "First jet constituents dz",
+  "unit": "cm (?)",
+  "xlow": -3,
+  "xhigh": 3,
+  "nbins": 50
+}
+]
