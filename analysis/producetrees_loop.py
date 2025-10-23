@@ -23,6 +23,10 @@ if __name__ == '__main__':
       help='Input .root files, OR path to a .txt file listing input .root files (one per line)')
     parser.add_argument('-o', '--outputdir', required=True,
       help='Output directory')
+    parser.add_argument('--run-ntuplizer', default=False, action='store_true',
+      help='Run per-jet ntuplizer stage (default: run only per-event stage)')
+    parser.add_argument('--do-clean', default=False, action='store_true',
+      help='Remove intermediate output after running the ntuplizing stage.')
     parser.add_argument('-r', '--runmode', default='local', choices=['local', 'condor'])
     args = parser.parse_args()
 
@@ -36,9 +40,10 @@ if __name__ == '__main__':
     for f in input_files: print(f'  - {f}')
 
     # compile makentuples
-    cmd_compile = "g++ -o makentuples makentuples.cpp `root-config --cflags --libs` -Wall"
-    print('Compiling makentuples...')
-    subprocess.check_call(cmd_compile, shell = True, stdout=None, stderr=None)
+    if args.run_ntuplizer:
+        cmd_compile = "g++ -o makentuples makentuples.cpp `root-config --cflags --libs` -Wall"
+        print('Compiling makentuples...')
+        subprocess.check_call(cmd_compile, shell = True, stdout=None, stderr=None)
 
     # make output directory
     if os.path.exists(args.outputdir):
@@ -49,14 +54,30 @@ if __name__ == '__main__':
         os.system(f'rm {os.path.join(args.outputdir, "*")}')
     else: os.makedirs(args.outputdir)
 
-    # make commands
+    # loop over input files
     cmds = []
     for idx, input_file in enumerate(input_files):
-        outputfile = os.path.join(args.outputdir, f'output_{idx}.root')
+
+        # find out if input file is simulation or data
+        # (only used for output file naming)
+        if 'QQB' in input_file: dtype = 'qqb'
+        elif 'DATA' in input_file: dtype = 'data'
+        else:
+            msg = f'Data type of input file {input_file} not recognized.'
+            raise Exception(msg)
+
+        # make output file name
+        outputfile = os.path.join(args.outputdir, f'output_{dtype}_{idx}.root')
+
+        # make command to run
         cmd = 'python producetrees.py'
         cmd += f' -i {input_file}'
         cmd += f' -o {outputfile}'
-        cmd += ' --no-compile'
+        if args.run_ntuplizer:
+            cmd += ' --run-ntuplizer'
+            cmd += ' --no-compile'
+        if args.do_clean:
+            cmd += ' --do-clean'
         cmds.append(cmd)
 
     # run or submit commands
