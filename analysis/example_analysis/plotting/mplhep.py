@@ -20,8 +20,8 @@ def histplot(histograms,
         histograms = [histograms]
         color = [color]
         edgecolor = [edgecolor]
-        alpha = [alpha]
         label = [label]
+    if not isinstance(alpha, list): alpha = [alpha]*len(histograms)
 
     for idx in range(len(histograms)):
 
