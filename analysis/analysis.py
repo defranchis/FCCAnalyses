@@ -178,13 +178,16 @@ class RDFanalysis():
                 .Define("genEventType", "-1")
             )
 
+        # do reco-level event type
+        # (only well-defined for Aleph, put a dummy for FCC)
+        if det=='aleph':
+            dfout = dfout.Define("recoEventType", "get_recoEventType(ClassBitset)")
+        elif det=='fcc':
+            dfout = dfout.Define("recoEventType", "-1")
+
         # do the actual analysis
         dfout = (
             dfout
-
-            # get reco-level event type(s)
-            # todo: put some dummy values for FCC simulation where ClassBitset is not defined (?)
-            .Define("recoEventType", "get_recoEventType(ClassBitset)")
 
             # get MC primary vertex
             #.Define("PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)")
