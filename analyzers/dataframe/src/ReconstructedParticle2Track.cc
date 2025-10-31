@@ -49,8 +49,11 @@ namespace ReconstructedParticle2Track{
         const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links) {
 
     // initializations
-    const double c_light = 2.99792458e8;
-    const double a = c_light * 1e4 * 1e-15 * (-1);
+    double c_light = 2.99792458e8; // speed of light in m/s
+    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
+    c_light *= -10; // numerical factor that appears to be needed for Aleph
+    // (because of curvature expressed in 1/cm instead of 1/mm (?),
+    // and apparently other sign convention).
     ROOT::VecOps::RVec<float> out;
 
     // loop over reco particles
@@ -60,7 +63,7 @@ namespace ReconstructedParticle2Track{
         if(trackIndex < trackStates.size()) {
             edm4hep::TrackState trst = trackStates.at(trackIndex); 
 	        double pt = sqrt(p.momentum.x * p.momentum.x + p.momentum.y * p.momentum.y);
-	        double Bz = trst.omega / a * pt * std::copysign(1.0, p.charge);
+	        double Bz = trst.omega / c_light * pt * std::copysign(1.0, p.charge);
 	        out.push_back(Bz);
             valid = true;
         }
@@ -74,8 +77,11 @@ namespace ReconstructedParticle2Track{
            const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links) {
 
     // initializations
-    const double c_light =  2.99792458e8; // speed of light m/sec;
-    const double a = c_light * 1e4 * 1e-15 * (-1);
+    double c_light = 2.99792458e8; // speed of light in m/s
+    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
+    c_light *= -10; // numerical factor that appears to be needed for Aleph
+    // (because of curvature expressed in 1/cm instead of 1/mm (?),
+    // and apparently other sign convention).
     double Bz = -9; // dummy value if no result found
 
     // loop over reco particles
@@ -85,7 +91,7 @@ namespace ReconstructedParticle2Track{
       edm4hep::TrackState trst = trackStates.at(trackIndex);
       double pt = sqrt(p.momentum.x * p.momentum.x + p.momentum.y * p.momentum.y);
       double omega = trst.omega;
-      Bz = omega / a * pt * std::copysign(1.0, p.charge);
+      Bz = omega / c_light * pt * std::copysign(1.0, p.charge);
       // break after the first particle with valid result
       break;
     }
@@ -99,8 +105,11 @@ namespace ReconstructedParticle2Track{
 	  const TLorentzVector& PV,
 	  const float& Bz) {
 
-    const double cSpeed = 2.99792458e8 * 1.0e-9;
-
+    double c_light = 2.99792458e8; // speed of light in m/s
+    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
+    c_light *= 10; // numerical factor that appears to be needed for Aleph
+    // (because of curvature expressed in 1/cm instead of 1/mm (?),
+    // and apparently other sign convention).
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
@@ -116,7 +125,7 @@ namespace ReconstructedParticle2Track{
         TVector3 x = X - PV.Vect();
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
 
-        double a = - rp.charge * Bz * cSpeed;
+        double a = - rp.charge * Bz * c_light;
         double pt = p.Pt();
         double r2 = x(0) * x(0) + x(1) * x(1);
         double cross = x(0) * p(1) - x(1) * p(0);
@@ -140,7 +149,11 @@ namespace ReconstructedParticle2Track{
       const TLorentzVector& PV,
       const float& Bz) {
 
-    const double cSpeed = 2.99792458e8 * 1.0e-9;
+    double c_light = 2.99792458e8; // speed of light in m/s
+    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
+    c_light *= 10; // numerical factor that appears to be needed for Aleph
+    // (because of curvature expressed in 1/cm instead of 1/mm (?),
+    // and apparently other sign convention).
 
     ROOT::VecOps::RVec<float> out;
 
@@ -157,7 +170,7 @@ namespace ReconstructedParticle2Track{
         TVector3 x = X - PV.Vect();
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
 
-        double a = - rp.charge * Bz * cSpeed;
+        double a = - rp.charge * Bz * c_light;
         double pt = p.Pt();
         double C = a/(2 * pt);
         double r2 = x(0) * x(0) + x(1) * x(1);
@@ -188,8 +201,11 @@ namespace ReconstructedParticle2Track{
       const TLorentzVector& PV,
       const float& Bz) {
 
-    const double cSpeed = 2.99792458e8 * 1.0e-9;
-
+    double c_light = 2.99792458e8; // speed of light in m/s
+    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
+    c_light *= 10; // numerical factor that appears to be needed for Aleph
+    // (because of curvature expressed in 1/cm instead of 1/mm (?),
+    // and apparently other sign convention).
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
@@ -205,7 +221,7 @@ namespace ReconstructedParticle2Track{
         TVector3 x = X - PV.Vect();
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
 
-        double a = - rp.charge * Bz * cSpeed;
+        double a = - rp.charge * Bz * c_light;
         double pt = p.Pt();
         double r2 = x(0) * x(0) + x(1) * x(1);
         double cross = x(0) * p(1) - x(1) * p(0);

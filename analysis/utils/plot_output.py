@@ -63,10 +63,18 @@ if __name__=='__main__':
             batches.append(f.arrays(branches_to_read))
     events = ak.concatenate(batches)
 
-    # make masks
-    masks = {}
+    # make kinematic mask (optional)
+    #kinematic_mask = np.ones(len(events)).astype(bool)
+    kinematic_mask = (
+        (events['recojet_pt'].to_numpy()>10)
+        & (np.abs(events['recojet_eta'].to_numpy())<0.9)
+        & (events['nconst'].to_numpy()>5)
+    ).astype(bool)
+
+    # make category masks
+    category_masks = {}
     for category in categories:
-        masks[category] = events[category].to_numpy().astype(bool)
+        category_masks[category] = events[category].to_numpy().astype(bool)
 
     # loop over variables to plot
     for variable in variables:
@@ -75,7 +83,7 @@ if __name__=='__main__':
         # get data
         data = {}
         for category in categories:
-            this_data = events[variable][masks[category]]
+            this_data = events[variable][(kinematic_mask) & (category_masks[category])]
             if this_data.layout.minmax_depth[1]>=2: this_data = ak.flatten(this_data)
             this_data = this_data.to_numpy()
             if np.isnan(this_data).any():
@@ -92,8 +100,8 @@ if __name__=='__main__':
             msg = 'WARNING: no instances pass mask; skipping this variable.'
             print(msg)
             continue
-        minv = np.quantile(data_array[mask], 0.05)
-        maxv = np.quantile(data_array[mask], 0.95)
+        minv = np.quantile(data_array[mask], 0.1)
+        maxv = np.quantile(data_array[mask], 0.9)
         bins = np.linspace(minv, maxv, num=51)
 
         # make figure
