@@ -58,6 +58,9 @@ int main(int argc, char* argv[]) {
   int genEventType;
   int nJets;
   float Bz;
+  double PV_x;
+  double PV_y;
+  double PV_z;
 
   // jet properties
   ROOT::VecOps::RVec<float> *Jets_e = 0;
@@ -95,8 +98,10 @@ int main(int argc, char* argv[]) {
 
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_d0_wrt0 = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_z0_wrt0 = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_phi0_wrt0 = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dxy = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dz = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dphi = 0;
 
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_omega_cov = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_d0_cov = 0;
@@ -137,6 +142,9 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("genEventType", &genEventType);
   ev->SetBranchAddress("Event_njets", &nJets);
   ev->SetBranchAddress("Event_Bz", &Bz);
+  ev->SetBranchAddress("PV_x", &PV_x);
+  ev->SetBranchAddress("PV_y", &PV_y);
+  ev->SetBranchAddress("PV_z", &PV_z);
 
   // jet properties
   ev->SetBranchAddress("Jets_e", &Jets_e);
@@ -174,8 +182,10 @@ int main(int argc, char* argv[]) {
 
   ev->SetBranchAddress("JetsConstituents_d0_wrt0", &JetsConstituents_d0_wrt0);
   ev->SetBranchAddress("JetsConstituents_z0_wrt0", &JetsConstituents_z0_wrt0);
+  ev->SetBranchAddress("JetsConstituents_phi0_wrt0", &JetsConstituents_phi0_wrt0);
   ev->SetBranchAddress("JetsConstituents_dxy", &JetsConstituents_dxy);
   ev->SetBranchAddress("JetsConstituents_dz", &JetsConstituents_dz);
+  ev->SetBranchAddress("JetsConstituents_phi0", &JetsConstituents_dphi);
 
   ev->SetBranchAddress("JetsConstituents_omega_cov", &JetsConstituents_omega_cov);
   ev->SetBranchAddress("JetsConstituents_d0_cov", &JetsConstituents_d0_cov);
@@ -220,6 +230,9 @@ int main(int argc, char* argv[]) {
   
   // event variables
   float bz = 0.;
+  float pvx = 0.;
+  float pvy = 0.;
+  float pvz = 0.;
 
   // jet variables
   double recojet_e, recojet_mass, recojet_pt, recojet_phi, recojet_eta, recojet_theta;
@@ -264,8 +277,10 @@ int main(int argc, char* argv[]) {
  
   float pfcand_d0_wrt0[1000] = {0.};
   float pfcand_z0_wrt0[1000] = {0.};
+  float pfcand_phi0_wrt0[1000] = {0.};
   float pfcand_dxy[1000] = {0.};
   float pfcand_dz[1000] = {0.};
+  float pfcand_dphi[1000] = {0.};
   
   float pfcand_dptdpt[1000] = {0.};
   float pfcand_dxydxy[1000] = {0.};
@@ -310,6 +325,9 @@ int main(int argc, char* argv[]) {
 
   // event variables
   ntuple->Branch("bz", &bz, "bz/F");
+  ntuple->Branch("pvx", &pvx, "pvx/F");
+  ntuple->Branch("pvy", &pvy, "pvy/F");
+  ntuple->Branch("pvz", &pvz, "pvz/F");
 
   // jet variables 
   ntuple->Branch("recojet_e", &recojet_e);
@@ -361,8 +379,10 @@ int main(int argc, char* argv[]) {
 
   ntuple->Branch("pfcand_d0_wrt0", pfcand_d0_wrt0, "pfcand_d0_wrt0[nconst]/F");
   ntuple->Branch("pfcand_z0_wrt0", pfcand_z0_wrt0, "pfcand_z0_wrt0[nconst]/F");
+  ntuple->Branch("pfcand_phi0_wrt0", pfcand_phi0_wrt0, "pfcand_phi0_wrt0[nconst]/F");
   ntuple->Branch("pfcand_dxy", pfcand_dxy, "pfcand_dxy[nconst]/F");
   ntuple->Branch("pfcand_dz", pfcand_dz, "pfcand_dz[nconst]/F");
+  ntuple->Branch("pfcand_dphi", pfcand_dphi, "pfcand_dphi[nconst]/F");
 
   ntuple->Branch("pfcand_dptdpt", pfcand_dptdpt, "pfcand_dptdpt[nconst]/F");
   ntuple->Branch("pfcand_dxydxy", pfcand_dxydxy, "pfcand_dxydxy[nconst]/F");
@@ -420,6 +440,10 @@ int main(int argc, char* argv[]) {
     // derive event level properties
     njet = nJets;
     bz = Bz;
+    pvx = (float)PV_x;
+    pvy = (float)PV_y;
+    pvz = (float)PV_z;
+    std::cout << pvx << std::endl;
     int eventFlavour = genEventType;
 
     // do some printouts to track progress
@@ -503,8 +527,10 @@ int main(int argc, char* argv[]) {
 
         pfcand_d0_wrt0[k] = (JetsConstituents_d0_wrt0->at(j))[k];
         pfcand_z0_wrt0[k] = (JetsConstituents_z0_wrt0->at(j))[k];
+        pfcand_phi0_wrt0[k] = (JetsConstituents_phi0_wrt0->at(j))[k];
         pfcand_dxy[k] = (JetsConstituents_dxy->at(j))[k];
         pfcand_dz[k] = (JetsConstituents_dz->at(j))[k];
+        pfcand_dphi[k] = (JetsConstituents_dphi->at(j))[k];
        
         pfcand_dptdpt[k] = (JetsConstituents_omega_cov->at(j))[k];
         pfcand_dxydxy[k] = (JetsConstituents_d0_cov->at(j))[k];

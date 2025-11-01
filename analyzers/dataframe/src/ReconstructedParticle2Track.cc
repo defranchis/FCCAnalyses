@@ -47,13 +47,19 @@ namespace ReconstructedParticle2Track{
         const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
         const ROOT::VecOps::RVec<edm4hep::TrackState>& trackStates,
         const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links) {
+    // Get the magnetic field strength from the momentum of a particle
+    // and the curvature of its associated track.
+    // Based on the formula p[GeV/c] = c[= 0.3 in these units] B[T] r[m]
+    // with p the momentum, c the speed of light, B the magnetic field strength,
+    // and r the radius of curvature.
 
     // initializations
     double c_light = 2.99792458e8; // speed of light in m/s
-    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
-    c_light *= -10; // numerical factor that appears to be needed for Aleph
-    // (because of curvature expressed in 1/cm instead of 1/mm (?),
-    // and apparently other sign convention).
+    c_light *= 1e-9 * 1e-3; // conversion to appropriate units
+    // (see formula above, and also accounting for r in mm instead of in m).
+    c_light *= -10; // extra numerical factor needed for Aleph data
+    // (because of the curvature being expressed in 1/cm instead of 1/mm,
+    // and apparently flipped sign convention).
     ROOT::VecOps::RVec<float> out;
 
     // loop over reco particles
@@ -75,14 +81,20 @@ namespace ReconstructedParticle2Track{
   float Bz(const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
            const ROOT::VecOps::RVec<edm4hep::TrackState>& trackStates,
            const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links) {
+    // Get the magnetic field strength for an event
+    // from the momenta of the particles and the curvatures of their associated tracks.
+    // Based on the formula p[GeV/c] = c[= 0.3 in these units] B[T] r[m]
+    // with p the momentum, c the speed of light, B the magnetic field strength,
+    // and r the radius of curvature.
 
     // initializations
     double c_light = 2.99792458e8; // speed of light in m/s
-    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
-    c_light *= -10; // numerical factor that appears to be needed for Aleph
-    // (because of curvature expressed in 1/cm instead of 1/mm (?),
-    // and apparently other sign convention).
-    double Bz = -9; // dummy value if no result found
+    c_light *= 1e-9 * 1e-3; // conversion to appropriate units
+    // (see formula above, and also accounting for r in mm instead of in m).
+    c_light *= -10; // extra numerical factor needed for Aleph data
+    // (because of the curvature being expressed in 1/cm instead of 1/mm,
+    // and apparently flipped sign convention).
+    double Bz = -9; // dummy value if no valid result found
 
     // loop over reco particles
     for(auto & p: rps) {
@@ -104,12 +116,13 @@ namespace ReconstructedParticle2Track{
       const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links,
 	  const TLorentzVector& PV,
 	  const float& Bz) {
+    // Get dxy with respect to primary vertex,
+    // given the track state parameters calculated with respect to the origin.
 
+    // initializations
     double c_light = 2.99792458e8; // speed of light in m/s
-    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
-    c_light *= 10; // numerical factor that appears to be needed for Aleph
-    // (because of curvature expressed in 1/cm instead of 1/mm (?),
-    // and apparently other sign convention).
+    c_light *= 1e-9 * 1e-3; // conversion to appropriate units
+    c_light *= -10; // extra numerical factor needed for Aleph data
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
@@ -117,6 +130,7 @@ namespace ReconstructedParticle2Track{
       if(trackIndex < trackStates.size()){
 
         float D0_wrt0 = trackStates.at(trackIndex).D0;
+        //float D0_wrt0 = std::abs(trackStates.at(trackIndex).D0);
         float Z0_wrt0 = trackStates.at(trackIndex).Z0;
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
@@ -148,13 +162,13 @@ namespace ReconstructedParticle2Track{
       const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links,
       const TLorentzVector& PV,
       const float& Bz) {
+    // Get dz with respect to primary vertex,
+    // given the track state parameters calculated with respect to the origin.
 
+    // initializations
     double c_light = 2.99792458e8; // speed of light in m/s
-    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
-    c_light *= 10; // numerical factor that appears to be needed for Aleph
-    // (because of curvature expressed in 1/cm instead of 1/mm (?),
-    // and apparently other sign convention).
-
+    c_light *= 1e-9 * 1e-3; // conversion to appropriate units
+    c_light *= -10; // extra numerical factor needed for Aleph data
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
@@ -162,6 +176,7 @@ namespace ReconstructedParticle2Track{
       if(trackIndex < trackStates.size()){
 
         float D0_wrt0 = trackStates.at(trackIndex).D0;
+        //float D0_wrt0 = std::abs(trackStates.at(trackIndex).D0);
         float Z0_wrt0 = trackStates.at(trackIndex).Z0;
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
@@ -200,19 +215,21 @@ namespace ReconstructedParticle2Track{
       const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links,
       const TLorentzVector& PV,
       const float& Bz) {
+    // Get phi with respect to primary vertex,
+    // given the track state parameters calculated with respect to the origin.
 
+    // initializations
     double c_light = 2.99792458e8; // speed of light in m/s
-    c_light *= 1e3 * 1e-15; // unit conversion (to mm/fs?)
-    c_light *= 10; // numerical factor that appears to be needed for Aleph
-    // (because of curvature expressed in 1/cm instead of 1/mm (?),
-    // and apparently other sign convention).
+    c_light *= 1e-9 * 1e-3; // conversion to appropriate units
+    c_light *= -10; // extra numerical factor needed for Aleph data
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
       size_t trackIndex = getTrackIndex(rp, reco2track_links);
       if(trackIndex < trackStates.size()){
 
-        float D0_wrt0 = trackStates.at(trackIndex).D0;
+        float D0_wrt0 = std::abs(trackStates.at(trackIndex).D0);
+        //float D0_wrt0 = std::abs(trackStates.at(trackIndex).D0);
         float Z0_wrt0 = trackStates.at(trackIndex).Z0;
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
