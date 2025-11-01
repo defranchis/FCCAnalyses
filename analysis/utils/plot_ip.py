@@ -37,7 +37,13 @@ if __name__=='__main__':
 
     # do selection
     events = events[np.abs(events['pvz']-0)>1e-12] 
-    events = events[:1]
+    #events = events[:1000]
+
+    # calculate ips
+    d0x = -ak.flatten(-events['pfcand_d0_wrt0'], axis=None) * np.sin(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
+    dx = -ak.flatten(events['pfcand_dxy'], axis=None) * np.sin(ak.flatten(events['pfcand_dphi'], axis=None))
+    d0y = ak.flatten(-events['pfcand_d0_wrt0'], axis=None) * np.cos(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
+    dy = ak.flatten(events['pfcand_dxy'], axis=None) * np.cos(ak.flatten(events['pfcand_dphi'], axis=None))
 
     # make a distribution of z0, pvz, and dz
     bins = np.linspace(-3, 3, num=51)
@@ -54,8 +60,6 @@ if __name__=='__main__':
     # make a distribution of d0x, pvx, and dx
     bins = np.linspace(-0.2, 0.2, num=51)
     fig, ax = plt.subplots()
-    d0x = np.abs(ak.flatten(events['pfcand_d0_wrt0'], axis=None)) * np.cos(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
-    dx = np.abs(ak.flatten(events['pfcand_dxy'], axis=None)) * np.cos(ak.flatten(events['pfcand_dphi'], axis=None))
     ax.hist(events['pvx'], bins=bins, density=True, histtype='step', linewidth=2, label='PVx')
     ax.hist(d0x, bins=bins, density=True, histtype='step', linewidth=2, label='D0x (wrt 0)')
     ax.hist(dx, bins=bins, density=True, histtype='step', linewidth=2, label='dx (wrt PV)')
@@ -66,8 +70,6 @@ if __name__=='__main__':
     # make a distribution of d0y, pvy, and dy
     bins = np.linspace(-0.2, 0.2, num=51)
     fig, ax = plt.subplots()
-    d0y = np.abs(ak.flatten(events['pfcand_d0_wrt0'], axis=None)) * np.sin(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
-    dy = np.abs(ak.flatten(events['pfcand_dxy'], axis=None)) * np.sin(ak.flatten(events['pfcand_dphi'], axis=None))
     ax.hist(events['pvy'], bins=bins, density=True, histtype='step', linewidth=2, label='PVy')
     ax.hist(d0y, bins=bins, density=True, histtype='step', linewidth=2, label='D0y (wrt 0)')
     ax.hist(dy, bins=bins, density=True, histtype='step', linewidth=2, label='dy (wrt PV)')
@@ -87,7 +89,7 @@ if __name__=='__main__':
     fig.savefig('dxy.png')
 
     # make a scatter plot of d0, pvx/pvy, and dxy
-    '''fig, ax = plt.subplots()
+    fig, ax = plt.subplots()
     markersize=3
     alpha = 1
     d0x = np.abs(ak.flatten(events['pfcand_d0_wrt0'], axis=None)) * np.cos(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
@@ -101,4 +103,4 @@ if __name__=='__main__':
     ax.set_xlim(-0.2, 0.2)
     ax.set_ylim(-0.2, 0.2)
     fig.tight_layout()
-    fig.savefig('dxy.png')'''
+    fig.savefig('dxy_scatter.png')
