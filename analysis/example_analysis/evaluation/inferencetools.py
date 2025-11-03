@@ -1,0 +1,208 @@
+import os
+import sys
+import json
+import onnx
+import onnxruntime
+import numpy as np
+import awkward as ak
+
+
+def _p4_from_ptetaphim(pt, eta, phi, mass):
+    # from here: https://github.com/hqucms/weaver-core/blob/9b92955bc89ecada29f5d4e6b9a21f4f0a28f8c5/weaver/utils/data/tools.py#L111
+    import vector
+    vector.register_awkward()
+    return vector.zip({'pt': pt, 'eta': eta, 'phi': phi, 'mass': mass})
+
+
+def _pad(a, maxlen, value=0, dtype='float32'):
+    # from here: https://github.com/hqucms/weaver-core/blob/9b92955bc89ecada29f5d4e6b9a21f4f0a28f8c5/weaver/utils/data/tools.py#L32
+    if isinstance(a, np.ndarray) and a.ndim >= 2 and a.shape[1] == maxlen:
+        return a
+    elif isinstance(a, ak.Array):
+        if a.ndim == 1:
+            a = ak.unflatten(a, 1)
+        a = ak.fill_none(ak.pad_none(a, maxlen, clip=True), value)
+        return ak.values_astype(a, dtype)
+    else:
+        x = (np.ones((len(a), maxlen)) * value).astype(dtype)
+        for idx, s in enumerate(a):
+            if not len(s):
+                continue
+            trunc = s[:maxlen].astype(dtype)
+            x[idx, :len(trunc)] = trunc
+        return x
+
+
+def _clip(a, a_min, a_max):
+    # from here: https://github.com/hqucms/weaver-core/blob/9b92955bc89ecada29f5d4e6b9a21f4f0a28f8c5/weaver/utils/data/tools.py#L61
+    if isinstance(a, np.ndarray) or a.ndim == 1:
+        return np.clip(a, a_min, a_max)
+    else:
+        return ak.unflatten(np.clip(ak.to_numpy(ak.flatten(a)), a_min, a_max), ak.num(a))
+
+
+def add_variables(events, names_only=False):
+    '''
+    Build new variables and add to events dict.
+    Note: hard-coded for now, maybe try to automate later if needed.
+    Input arguments:
+      - events: events dict of the form {'<variable name>': awkward array, ...}
+      - names_only: return only the names of the variables that are needed as input
+        and the names of the variables that will be produced,
+        without actually producing them.
+        In this case the events argument is not used and can be None.
+    Returns:
+      - If names_only is set to True, returns a dictionary of the form:
+        {'input_names': [names of input variables],
+         'output_names': [names of variables that will be produced]}
+      - Else returns the modified events dict with added variables.
+    '''
+    if names_only:
+        # just return a dict with input and output names
+        # (e.g. useful for deciding which branches to read)
+        names = {
+          'input_names': [
+            'JetsConstituents_pt', 'JetsConstituents_e', 'JetsConstituents_thetarel', 'JetsConstituents_phirel'
+          ],
+          'output_names': [
+            'JetsConstituents_mask', 'JetsConstituents_pt_log', 'JetsConstituents_e_log', 'JetsConstituents_drrel'
+          ]
+        }
+        return names
+    # add new variables to events dict
+    events['JetsConstituents_mask'] = ak.ones_like(events['JetsConstituents_pt'])
+    events['JetsConstituents_pt_log'] = np.log(events['JetsConstituents_pt'])
+    events['JetsConstituents_e_log'] = np.log(events['JetsConstituents_e'])
+    events['JetsConstituents_drrel'] = np.hypot(events['JetsConstituents_thetarel'], events['JetsConstituents_phirel'])
+    return events
+
+
+def preprocess_jets(jets, prepdict, translation=None):
+    '''
+    Do formatting and preprocessing of input variables.
+    Input arguments:
+      - jets: jets dict of the form {'<variable name>': awkward array, ...}
+      - prepdict: a dictionary with preprocessing parameters, as returned by weaver.
+      - translation: a dictionary with variable name translations.
+    Returns:
+      - data dict of the form {'<input name>': numpy array, ...}
+    Note: need to keep in sync with how preprocessing is performed in weaver.
+    See here: https://github.com/hqucms/weaver-core/blob/9b92955bc89ecada29f5d4e6b9a21f4f0a28f8c5/weaver/utils/dataset.py#L21
+    '''
+    data = {}
+    # loop over input names
+    for key in prepdict['input_names']:
+        thisdata = []
+        var_length = prepdict[key]['var_length']
+        # loop over variables
+        for varname in prepdict[key]['var_names']:
+            params = prepdict[key]['var_infos'][varname]
+            if translation is not None: varname = translation.get(varname, varname)
+            values = jets[varname]
+            # do preprocessing
+            values = _clip((values - params['median']) * params['norm_factor'],
+                           params['lower_bound'], params['upper_bound'])
+            # do padding
+            values = _pad(values, var_length, value=params['pad'])
+            # check for nan
+            if np.any(np.isnan(values)):
+                values = np.nan_to_num(values)
+            # check for inf
+            if np.any(np.isinf(values)):
+                values = np.where(np.isinf(values), params['replace_inf_value'], values)
+            thisdata.append(values)
+        thisdata = np.array(thisdata).astype('float32')
+        thisdata = thisdata.transpose([1,0,2])
+        data[key] = thisdata
+    return data
+        
+
+def infer_jets(jets, modelname, prepdict, translation=None, batch_size=None):
+
+    # get the data in correct format
+    data = preprocess_jets(jets, prepdict, translation=translation)
+    if 'part' in modelname:
+        if 'points' in data.keys():
+            data.pop('points')
+            # (somehow this key is missing in the onnx model inputs,
+            # not clear if this is expected,
+            # or if the model will be evaluated correctly without it,
+            # but seems to be fine...)
+
+    # divide in batches
+    ndata = data[list(data.keys())[0]].shape[0]
+    if batch_size is None or ndata <= batch_size: batches = [data]
+    else:
+        batches = []
+        idx = 0
+        while idx < ndata:
+            batch = {key: values[idx:idx+batch_size] for key, values in data.items()}
+            batches.append(batch)
+            idx += batch_size
+    print(f'[INFO in infer_jets]: received {ndata} instances for inference.')
+    print(f'[INFO in infer_jets]: split instances into {len(batches)} batches of size {batch_size}')
+
+    # load model
+    # note: only used for checking?
+    #       see here: https://onnxruntime.ai/docs/get-started/with-python.html
+    model = onnx.load(modelname)
+    onnx.checker.check_model(model)
+    #print('Model input:')
+    #print(model.graph.input)
+    #print('Model output:')
+    #print(model.graph.output)
+    # start inference session
+    session_options = onnxruntime.SessionOptions()
+    session_options.inter_op_num_threads = 8
+    session_options.intra_op_num_threads = 8
+    session = onnxruntime.InferenceSession(modelname, session_options)
+
+    # run the inference
+    outputs = []
+    nclasses = len(prepdict['output_names'])
+    for batch_idx, batch in enumerate(batches):
+        print(f'[INFO in infer_jets]: running inference on batch {batch_idx+1} / {len(batches)}...', end='\r')
+        batch_outputs = session.run(None, batch)[0]
+        if batch_outputs.shape[1] != nclasses:
+            msg = f'Expected {nclasses} output classes, but found array of shape {batch_outputs.shape}.'
+            raise Exception(msg)
+        scores = {}
+        for idx, output_name in enumerate(prepdict['output_names']):
+            scores[output_name] = batch_outputs[:,idx]
+        outputs.append(scores)
+    print()
+
+    # concatenate batch outputs
+    new_outputs = {}
+    for output_name in prepdict['output_names']:
+        new_outputs[output_name] = np.concatenate([output[output_name] for output in outputs])
+    outputs = new_outputs
+
+    # rename scores
+    keys = list(outputs.keys())
+    for key in keys:
+        newname = 'score_' + key.split('_')[-1]
+        outputs[newname] = outputs.pop(key)
+    return outputs
+
+
+def infer_events(events, modelname, prepdict, do_add_variables=False, **kwargs):
+    # do preprocessing
+    if do_add_variables: events = add_variables(events)
+    # flatten events array into jets array
+    jets_vars = [varname for varname in events.fields if varname.startswith('Jets_')]
+    constituents_vars = [varname for varname in events.fields if varname.startswith('JetsConstituents_')]
+    jets_shape = ak.num(events[jets_vars[0]])
+    jets = {varname: ak.flatten(events[varname], axis=1) for varname in constituents_vars}
+    # special handling of batches with no jets
+    if len(jets[constituents_vars[0]])==0:
+        outputs = {'score_' + key.split('_')[-1]: np.zeros(len(events)) for key in prepdict['output_names']}
+        return outputs
+    # run inference on jets
+    outputs = infer_jets(jets, modelname, prepdict, **kwargs)
+    # unflatten scores back into events shape
+    outputs = {key: ak.unflatten(val, jets_shape) for key, val in outputs.items()}
+    # make event score out of per-jet scores
+    # (simple product for now, maybe extend later)
+    outputs = {key: np.prod(val, axis=1).to_numpy() for key, val in outputs.items()}
+    return outputs

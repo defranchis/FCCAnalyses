@@ -5,6 +5,9 @@ analysis/makentuples
 **cjob_*
 **sjob_*
 
+# custom output folders
+**output_*
+
 # Byte-compiled / optimized / DLL files
 spack*
 __pycache__/
