@@ -4,6 +4,7 @@ import os
 import sys
 import json
 import copy
+import pickle
 import uproot
 import argparse
 import numpy as np
@@ -84,19 +85,8 @@ def make_histograms(dtypedict, variables,
                                          if( key=='nominal' or not key.startswith('abcdWeight') )}
 
             # set sample dict and branches to read
-            # todo: make more robust against name changes
             this_sampledict = {process_key: files}
             this_branches_to_read = branches_to_read[:]
-            #if dtype=='sim':
-            #    # for synthetic data, do not read weights or weight variations
-            #    if process_key=='syndata': pass
-            #    # else read weights and weight variations (if requested)
-            #    else:
-            #        this_branches_to_read.append('weight')
-            #        for weight_variation, branches in this_weight_variations.items():
-            #            if weight_variation == 'nominal': continue
-            #            if branches is None: continue
-            #            for branch in branches: this_branches_to_read.append(branch)
             # remove duplicates
             this_branches_to_read = list(set(this_branches_to_read))
 
@@ -116,6 +106,9 @@ def make_histograms(dtypedict, variables,
                            branches=this_branches_to_read, verbose=False)
                 print(f'Read batch with {len(events[process_key])} entries'
                         + f' and {len(events[process_key].fields)} branches.')
+
+                # store number of events before any selection (for normalization later)
+                nevents = {process_key: len(events[process_key])}
 
                 # do extra object selection
                 if objectselection is not None:
@@ -139,11 +132,11 @@ def make_histograms(dtypedict, variables,
                     
                     if do_selection:
                         print('Doing extra event selection...')
-                        nevents = len(events[process_key])
+                        nbefore = len(events[process_key])
                         mask = get_selection_mask(events[process_key], eventselection)
                         events[process_key] = events[process_key][mask]
                         nselected = len(events[process_key])
-                        print(f'Selected {nselected} out of {nevents} entries.')
+                        print(f'Selected {nselected} out of {nbefore} entries.')
 
                 # recalculate regions
                 this_regions = regions
@@ -163,7 +156,7 @@ def make_histograms(dtypedict, variables,
                     # normalization will be done incorrectly if more than 1 batch is used.
                     if xsections is not None and lumi is not None:
                         xsec = xsections[process_key]
-                        nominal_weights = lumi * xsec / len(events[process_key])
+                        nominal_weights = lumi * xsec / nevents[process_key]
 
                 # make masks for subprocesses
                 subprocess_masks = {process_key: np.ones(len(events[process_key])).astype(bool)}
