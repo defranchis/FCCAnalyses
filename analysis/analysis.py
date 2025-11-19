@@ -221,17 +221,30 @@ class RDFanalysis():
             # build "pseudo-jets", meaning each particle is converted to a jet
             # consisting of only that one particle (which can then be clustered in the next step)
             .Define("pseudo_jets",    "JetClusteringUtils::set_pseudoJets(RP_px, RP_py, RP_pz, RP_e)")
-            # run jet clustering with the following parameters:
-            # - use all reconstructed particles (in the form of the pseudo-jets defined earlier)
-            # - algorithm ee_genkt
-            # - R=1.5
-            # - inclusive clustering
-            # - E-scheme
-            .Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(1.5, 0, 0, 0, 0, -1)(pseudo_jets)")
+            # run jet clustering
+            # note: the JetClustering namespace with its functions is defined here:
+            #       FCCAnalyses/addons/FastJet/src/JetClustering.cc.
+            # note: the arguments are (in order):
+            # - radius: jet radius (typically 1.5)
+            # - exclusive: inclusive or exclusive clustering.
+            #   "inclusive" = variable number of jets, fixed radius.
+            #   "exclusive" = fixed number of jets (typically 2, i.e. hemispheres), variable radius.
+            #   in the case of exclusive clustering, the jet radius argument is ignored (?).
+            #   use 0 for inclusive clustering, 1 or 2 for exclusive clustering (?)
+            #   (see FCCAnalyses/analyzers/dataframe/src/JetClusteringUtils.cc / build_jets)
+            # - cut: seems to be a pt threshold for inclusive clustering,
+            #   and the number of jets in exclusive clustering (?)
+            #   (see FCCAnalyses/analyzers/dataframe/src/JetClusteringUtils.cc / build_jets)
+            #   (see https://fastjet.fr/repo/doxygen-3.0.0/classfastjet_1_1ClusterSequence.html)
+            # - sorted: sorting method (leave at default 0).
+            # - recombination: how jets are summed (leave at default 0).
+            # - exponent (of kT algorithm, typically -1, i.e. anti-kT).
+            .Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(2, 0, 0, 0, 0, -1)(pseudo_jets)") # inclusive
+            #.Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(1.5, 3, 2, 0, 0, -1)(pseudo_jets)") # exclusive
             # get the jets out of the struct
-            .Define("jets_ee_genkt",           "JetClusteringUtils::get_pseudoJets(FCCAnalysesJets_ee_genkt)")
+            .Define("jets_ee_genkt", "JetClusteringUtils::get_pseudoJets(FCCAnalysesJets_ee_genkt)")
             # get the jets constituents out of the struct
-            .Define("jetconstituents_ee_genkt","JetClusteringUtils::get_constituents(FCCAnalysesJets_ee_genkt)")
+            .Define("jetconstituents_ee_genkt", "JetClusteringUtils::get_constituents(FCCAnalysesJets_ee_genkt)")
 
             # define jet-level observables
             .Define("Jets_pt", "JetClusteringUtils::get_pt(jets_ee_genkt)")
@@ -249,7 +262,7 @@ class RDFanalysis():
 
             # define constituent-level observables
             .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(ReconstructedParticles, jetconstituents_ee_genkt)")
-        
+ 
             # Extract ParticleID types for all jet constituents
             # ParticleID.type legend: 0:Track, 1:Electron, 2:Muon, 3:Track from V0, 
             #                         4:EM, 5:Ecal hadron/residual, 6:Hcal element, 7:Lcal element
@@ -381,9 +394,9 @@ class RDFanalysis():
             'GenParticle_genStatus'
         ]
 
-        # general
+        
+        # event-level variables
         branchList += [
-            # event-level variables
             'recoEventType',
             'Event_njets',
             'Event_mass',
@@ -395,8 +408,10 @@ class RDFanalysis():
             'PV_x',
             'PV_y',
             'PV_z',
-
-            # jet-level variables
+        ]
+        
+        # jet-level variables
+        branchList += [
             'Jets_e',
             'Jets_mass',
             'Jets_pt',
@@ -409,8 +424,10 @@ class RDFanalysis():
             'Jets_nChargedHad',
             'Jets_nPhoton',
             'Jets_nNeutralHad',
-            
-            # jet-constituent-level variables
+        ]
+
+        # jet-constituent-level variables
+        branchList += [
             'JetsConstituents_e', 'JetsConstituents_pt',
             'JetsConstituents_px', 'JetsConstituents_py', 'JetsConstituents_pz',
             'JetsConstituents_theta', 'JetsConstituents_phi',
@@ -460,4 +477,5 @@ class RDFanalysis():
             'JetsConstituents_isGamma', 
             'JetsConstituents_isNeutralHad',
         ]
+
         return branchList    
