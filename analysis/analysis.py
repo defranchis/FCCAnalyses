@@ -168,6 +168,7 @@ class RDFanalysis():
 
                 # get event type (at generator level)
                 .Define("genEventType", "get_genEventType(Particle)")
+
             )
         else:
             # set dummies (maybe later find out how to avoid the need for this)
@@ -355,11 +356,11 @@ class RDFanalysis():
             .Define("JetsConstituents_omega_d0_cov", "JetConstituentsUtils::get_omega_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_omega_z0_cov", "JetConstituentsUtils::get_omega_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             
-            .Define("JetsConstituents_Sip2dVal", "JetConstituentsUtils::get_Sip2dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_phi0, Event_Bz)")
+            .Define("JetsConstituents_Sip2dVal", "JetConstituentsUtils::get_Sip2dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_phi0)")
             .Define("JetsConstituents_Sip2dSig", "JetConstituentsUtils::get_Sip2dSig(JetsConstituents_Sip2dVal, JetsConstituents_d0_cov)")
-            .Define("JetsConstituents_Sip3dVal", "JetConstituentsUtils::get_Sip3dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0, Event_Bz)")
+            .Define("JetsConstituents_Sip3dVal", "JetConstituentsUtils::get_Sip3dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0)")
             .Define("JetsConstituents_Sip3dSig", "JetConstituentsUtils::get_Sip3dSig(JetsConstituents_Sip3dVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
-            .Define("JetsConstituents_JetDistVal", "JetConstituentsUtils::get_JetDistVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0, Event_Bz)")
+            .Define("JetsConstituents_JetDistVal", "JetConstituentsUtils::get_JetDistVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0)")
             .Define("JetsConstituents_JetDistSig", "JetConstituentsUtils::get_JetDistSig(JetsConstituents_JetDistVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
 
             # counting the types of particles per jet
