@@ -311,7 +311,8 @@ getRP2TRK_D0(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,
   for (auto & p: in) {
     size_t trackIndex = getTrackIndex(p, reco2track_links);
     if (trackIndex < trackStates.size()){
-      result.push_back(trackStates.at(trackIndex).D0);
+      // note: extra sign flip for D0 seems to be needed for Aleph data
+      result.push_back(-trackStates.at(trackIndex).D0);
     }
     else result.push_back(-9.);
   }
@@ -341,7 +342,8 @@ getRP2TRK_D0_sig(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,
   for (auto & p: in) {
     size_t trackIndex = getTrackIndex(p, reco2track_links);
     if (trackIndex < trackStates.size()){
-      result.push_back(trackStates.at(trackIndex).D0/sqrt(trackStates.at(trackIndex).covMatrix[0]));
+      // note: extra sign flip for D0 seems to be needed for Aleph data
+      result.push_back(-trackStates.at(trackIndex).D0/sqrt(trackStates.at(trackIndex).covMatrix[0]));
     }
     else result.push_back(-9.);
   }

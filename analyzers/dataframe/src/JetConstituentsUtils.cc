@@ -450,8 +450,11 @@ namespace FCCAnalyses
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip2dVal(const rv::RVec<edm4hep::ReconstructedParticleData> &jets,
                                                           const rv::RVec<FCCAnalysesJetConstituents> &jcs,
                                                           const ROOT::VecOps::RVec<edm4hep::TrackState> &tracks,
-                                                          const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
-    {
+                                                          const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+      // calculate signed impact parameter from D0 and phi0 values.
+      // for more info on the definition of the signed impact parameter, see below (in get_Sip2dVal_clusterV).
+      
+      // get D0 and phi0
       rv::RVec<FCCAnalysesJetConstituentsData> out;
       rv::RVec<FCCAnalysesJetConstituentsData> D0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_D0);
       rv::RVec<FCCAnalysesJetConstituentsData> phi0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_phi);
@@ -480,46 +483,41 @@ namespace FCCAnalyses
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip2dVal_cluster(const rv::RVec<fastjet::PseudoJet> &jets,
                                                                   const rv::RVec<FCCAnalysesJetConstituents> &jcs,
                                                                   const ROOT::VecOps::RVec<edm4hep::TrackState> &tracks,
-                                                                  const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
-    {
+                                                                  const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+      // calculate signed impact parameter from D0 and phi0 values.
+      // for more info on the definition of the signed impact parameter, see below (in get_Sip2dVal_clusterV).
+
+      // get D0 and phi0
       rv::RVec<FCCAnalysesJetConstituentsData> out;
       rv::RVec<FCCAnalysesJetConstituentsData> D0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_D0);
       rv::RVec<FCCAnalysesJetConstituentsData> phi0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_phi);
 
-      for (int i = 0; i < jets.size(); ++i)
-      {
-        TVector2 p(jets[i].px(), jets[i].py());
-        FCCAnalysesJetConstituentsData cprojs;
-        for (int j = 0; j < jcs[i].size(); ++j)
-        {
-          if (D0.at(i).at(j) != -9)
-          {
-            TVector2 d0(-D0.at(i).at(j) * TMath::Sin(phi0.at(i).at(j)), D0.at(i).at(j) * TMath::Cos(phi0.at(i).at(j)));
-            cprojs.push_back(TMath::Sign(1, d0 * p) * fabs(D0.at(i).at(j)));
-          }
-          else
-          {
-            cprojs.push_back(-9.);
-          }
-        }
-        out.push_back(cprojs);
-      }
-      return out;
+      return get_Sip2dVal_clusterV(jets, D0, phi0);
     }
 
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip2dVal_clusterV(const rv::RVec<fastjet::PseudoJet> &jets,
                                                                    const rv::RVec<FCCAnalysesJetConstituentsData> &D0,
-                                                                   const rv::RVec<FCCAnalysesJetConstituentsData> &phi0,
-                                                                   const float Bz)
-    {
+                                                                   const rv::RVec<FCCAnalysesJetConstituentsData> &phi0){
+      // calculate signed impact parameter from provided D0 and phi0 values.
+      // note: this value is defined as:
+      //       sign(d * p) * abs(D0)
+      //         where d = position vector (in the transverse plane) from reference point to point of closest approach.
+      //         where p = momentum vector (in the transvers plane) of the jet.
+      //         where D0 = (signed) distance to the point of closest approach.
+      //       hence this function returns the same absolute value as the D0 being passed in as an argument;
+      //       only the sign is potentially flipped depending on the angle between the PCA and the jet momentum!
+      
+      // initialize output (will have same shape as D0 and phi0)
       rv::RVec<FCCAnalysesJetConstituentsData> out;
 
+      // loop over jets and jet constituents per jet
       for (int i = 0; i < jets.size(); ++i)
       {
         TVector2 p(jets[i].px(), jets[i].py());
         FCCAnalysesJetConstituentsData cprojs;
         for (int j = 0; j < D0[i].size(); ++j)
         {
+          // calculate signed impact parameter
           if (D0.at(i).at(j) != -9)
           {
             TVector2 d0(-D0.at(i).at(j) * TMath::Sin(phi0.at(i).at(j)), D0.at(i).at(j) * TMath::Cos(phi0.at(i).at(j)));
@@ -535,8 +533,6 @@ namespace FCCAnalyses
       return out;
     }
 
-    /// The functions get_Sip2dSig and get_Sip2dVal can be made independent;
-    /// I passed to the former the result of the latter, avoiding the recomputation
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip2dSig(const rv::RVec<FCCAnalysesJetConstituentsData> &Sip2dVals,
                                                           const rv::RVec<FCCAnalysesJetConstituentsData> &err2_D0)
     {
@@ -563,8 +559,10 @@ namespace FCCAnalyses
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip3dVal(const rv::RVec<edm4hep::ReconstructedParticleData> &jets,
                                                           const rv::RVec<FCCAnalysesJetConstituents> &jcs,
                                                           const ROOT::VecOps::RVec<edm4hep::TrackState> &tracks,
-                                                          const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
-    {
+                                                          const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+      // calculate signed impact parameter from D0, Z0 and phi0 values.
+      // for more info on the definition of the signed impact parameter, see below (in get_Sip3dVal_clusterV).
+
       rv::RVec<FCCAnalysesJetConstituentsData> out;
       rv::RVec<FCCAnalysesJetConstituentsData> D0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_D0);
       rv::RVec<FCCAnalysesJetConstituentsData> Z0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_Z0);
@@ -594,48 +592,44 @@ namespace FCCAnalyses
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip3dVal_cluster(const rv::RVec<fastjet::PseudoJet> &jets,
                                                                   const rv::RVec<FCCAnalysesJetConstituents> &jcs,
                                                                   const ROOT::VecOps::RVec<edm4hep::TrackState> &tracks,
-                                                                  const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
-    {
+                                                                  const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+      // calculate signed impact parameter from D0, Z0 and phi0 values.
+      // for more info on the definition of the signed impact parameter, see below (in get_Sip3dVal_clusterV).
+      
+      // get D0, Z0 and phi0
       rv::RVec<FCCAnalysesJetConstituentsData> out;
       rv::RVec<FCCAnalysesJetConstituentsData> D0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_D0);
       rv::RVec<FCCAnalysesJetConstituentsData> Z0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_Z0);
       rv::RVec<FCCAnalysesJetConstituentsData> phi0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_phi);
 
-      for (int i = 0; i < jets.size(); ++i)
-      {
-        TVector3 p(jets[i].px(), jets[i].py(), jets[i].pz());
-        FCCAnalysesJetConstituentsData cprojs;
-        for (int j = 0; j < jcs[i].size(); ++j)
-        {
-          if (D0.at(i).at(j) != -9)
-          {
-            TVector3 d(-D0.at(i).at(j) * TMath::Sin(phi0.at(i).at(j)), D0.at(i).at(j) * TMath::Cos(phi0.at(i).at(j)), Z0.at(i).at(j));
-            cprojs.push_back(TMath::Sign(1, d * p) * fabs(sqrt(D0.at(i).at(j) * D0.at(i).at(j) + Z0.at(i).at(j) * Z0.at(i).at(j))));
-          }
-          else
-          {
-            cprojs.push_back(-9);
-          }
-        }
-        out.push_back(cprojs);
-      }
-      return out;
+      return get_Sip3dVal_clusterV(jets, D0, Z0, phi0);
     }
 
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip3dVal_clusterV(const rv::RVec<fastjet::PseudoJet> &jets,
                                                                    const rv::RVec<FCCAnalysesJetConstituentsData> &D0,
                                                                    const rv::RVec<FCCAnalysesJetConstituentsData> &Z0,
-                                                                   const rv::RVec<FCCAnalysesJetConstituentsData> &phi0,
-                                                                   const float Bz)
-    {
+                                                                   const rv::RVec<FCCAnalysesJetConstituentsData> &phi0){
+      // calculate signed impact parameter from provided D0, Z0 and phi0 values.
+      // note: this value is defined as:
+      //       sign(d * p) * sqrt(D0**2 + Z0**2)
+      //         where d = position vector (in 3D) from reference point to point of closest approach.
+      //         where p = momentum vector (in 3D) of the jet.
+      //         where D0 = (signed) distance to the point of closest approach in the transverse plane.
+      //         where Z0 = (signed) distance to the point of closest approach along the longitudinal axis.
+      //       hence this function returns the same absolute value as the D0 and Z0 (summed in quadrature) being passed in as an argument;
+      //       only the sign is potentially flipped depending on the angle between the PCA and the jet momentum!
+     
+      // initialize output (will have same shape as D0, Z0 and phi0)
       rv::RVec<FCCAnalysesJetConstituentsData> out;
 
+      // loop over jets and jet constituents
       for (int i = 0; i < jets.size(); ++i)
       {
         TVector3 p(jets[i].px(), jets[i].py(), jets[i].pz());
         FCCAnalysesJetConstituentsData cprojs;
         for (int j = 0; j < D0[i].size(); ++j)
         {
+          // calculate signed impact parameter
           if (D0.at(i).at(j) != -9)
           {
             TVector3 d(-D0.at(i).at(j) * TMath::Sin(phi0.at(i).at(j)), D0.at(i).at(j) * TMath::Cos(phi0.at(i).at(j)), Z0.at(i).at(j));
@@ -678,12 +672,16 @@ namespace FCCAnalyses
     rv::RVec<FCCAnalysesJetConstituentsData> get_JetDistVal(const rv::RVec<edm4hep::ReconstructedParticleData> &jets,
                                                             const rv::RVec<FCCAnalysesJetConstituents> &jcs,
                                                             const ROOT::VecOps::RVec<edm4hep::TrackState> &tracks,
-                                                            const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
-    {
+                                                            const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+      // calculate jet-distance from D0, Z0 and phi0 values.
+      // for more info on the definition of the jet-distance, see below (in get_JetDistVal_clusterV).
+
+      // get D0, Z0 and phi0
       rv::RVec<FCCAnalysesJetConstituentsData> out;
       rv::RVec<FCCAnalysesJetConstituentsData> D0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_D0);
       rv::RVec<FCCAnalysesJetConstituentsData> Z0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_Z0);
       rv::RVec<FCCAnalysesJetConstituentsData> phi0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_phi);
+      
       for (int i = 0; i < jets.size(); ++i)
       {
         FCCAnalysesJetConstituentsData tmp;
@@ -712,46 +710,37 @@ namespace FCCAnalyses
     rv::RVec<FCCAnalysesJetConstituentsData> get_JetDistVal_cluster(const rv::RVec<fastjet::PseudoJet> &jets,
                                                                     const rv::RVec<FCCAnalysesJetConstituents> &jcs,
                                                                     const ROOT::VecOps::RVec<edm4hep::TrackState> &tracks,
-                                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
-    {
+                                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+      // calculate jet-distance from D0, Z0 and phi0 values.
+      // for more info on the definition of the jet-distance, see below (in get_JetDistVal_clusterV).
+
+      // get D0, Z0 and phi0
       rv::RVec<FCCAnalysesJetConstituentsData> out;
       rv::RVec<FCCAnalysesJetConstituentsData> D0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_D0);
       rv::RVec<FCCAnalysesJetConstituentsData> Z0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_Z0);
       rv::RVec<FCCAnalysesJetConstituentsData> phi0 = cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_phi);
-      for (int i = 0; i < jets.size(); ++i)
-      {
-        FCCAnalysesJetConstituentsData tmp;
-        TVector3 p_jet(jets[i].px(), jets[i].py(), jets[i].pz());
-        FCCAnalysesJetConstituents ct = jcs.at(i);
-        for (int j = 0; j < ct.size(); ++j)
-        {
-          if (D0.at(i).at(j) != -9)
-          {
-            TVector3 d(-D0.at(i).at(j) * TMath::Sin(phi0.at(i).at(j)), D0.at(i).at(j) * TMath::Cos(phi0.at(i).at(j)), Z0.at(i).at(j));
-            TVector3 p_ct(ct[j].momentum.x, ct[j].momentum.y, ct[j].momentum.z);
-            TVector3 r_jet(0.0, 0.0, 0.0);
-            TVector3 n = p_ct.Cross(p_jet).Unit(); // What if they are parallel?
-            tmp.push_back(n.Dot(d - r_jet));
-          }
-          else
-          {
-            tmp.push_back(-9);
-          }
-        }
-        out.push_back(tmp);
-      }
-      return out;
+    
+      return get_JetDistVal_clusterV(jets, jcs, D0, Z0, phi0);
     }
 
     rv::RVec<FCCAnalysesJetConstituentsData> get_JetDistVal_clusterV(const rv::RVec<fastjet::PseudoJet> &jets,
                                                                      const rv::RVec<FCCAnalysesJetConstituents> &jcs,
                                                                      const rv::RVec<FCCAnalysesJetConstituentsData> &D0,
                                                                      const rv::RVec<FCCAnalysesJetConstituentsData> &Z0,
-                                                                     const rv::RVec<FCCAnalysesJetConstituentsData> &phi0,
-                                                                     const float Bz)
-    {
+                                                                     const rv::RVec<FCCAnalysesJetConstituentsData> &phi0){
+      // calculate jet-distance from provided D0, Z0 and phi0 values.
+      // note: the jet-distance is define as:
+      //       (p_ct x p_jet).unit() * d
+      //       where p_ct is the jet constituent momentum vector,
+      //       where p_jet is the jet momentum vector,
+      //       where (p_ct x p_jet).unit() is the unit vector in the direction of the cross-product between p_ct and p_jet,
+      //       where d is the position vector from the reference point to the point of closest approach.
+      //       todo: intuitive explanation for what this means.
+      
+      // initialize output (will have same shape as D0, Z0 and phi0)
       rv::RVec<FCCAnalysesJetConstituentsData> out;
 
+      // loop over jets and jet constituents
       for (int i = 0; i < jets.size(); ++i)
       {
         FCCAnalysesJetConstituentsData tmp;
