@@ -94,6 +94,17 @@ ROOT.gInterpreter.Declare("""
         return result;
     }""")
 
+# helper function to get the MC truth-level primary vertex from the first gen-particle.
+# note: relies on the assumption that the vertex stored for the first gen-particle is the PV.
+ROOT.gInterpreter.Declare("""
+    TLorentzVector getMCPV(
+        const ROOT::VecOps::RVec<edm4hep::MCParticleData>& genParticles) {
+        TLorentzVector result = {0, 0, 0, 0};
+        if( genParticles.size() < 1 ){ return result; }
+        result = {genParticles[0].vertex.x, genParticles[0].vertex.y, genParticles[0].vertex.z, 0.};
+        return result;
+    }""")
+
 
 # main analyzer class
 class RDFanalysis():
@@ -169,6 +180,11 @@ class RDFanalysis():
                 # get event type (at generator level)
                 .Define("genEventType", "get_genEventType(Particle)")
 
+                # get true primary vertex position
+                .Define("GenPrimaryVertexP4", "getMCPV(Particle)")
+                .Define("GenPV_x", "GenPrimaryVertexP4.X()")
+                .Define("GenPV_y", "GenPrimaryVertexP4.Y()")
+                .Define("GenPV_z", "GenPrimaryVertexP4.Z()")
             )
         else:
             # set dummies (maybe later find out how to avoid the need for this)
@@ -392,7 +408,10 @@ class RDFanalysis():
         branchList += [
             'genEventType',
             'GenParticle_pdgId',
-            'GenParticle_genStatus'
+            'GenParticle_genStatus',
+            'GenPV_x',
+            'GenPV_y',
+            'GenPV_z'
         ]
 
         
