@@ -1,3 +1,5 @@
+# Plot impact parameters
+
 import os
 import sys
 import uproot
@@ -37,12 +39,16 @@ if __name__=='__main__':
 
     # do selection
     events = events[np.abs(events['pvz']-0)>1e-12] 
-    #events = events[:1000]
 
-    # calculate ips
-    d0x = -ak.flatten(-events['pfcand_d0_wrt0'], axis=None) * np.sin(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
+    # calculate coordinates of PCA
+    # note: this assumes the following conventions:
+    #   - phi is the angle of the track w.r.t. the positive x-axis at the PCA
+    #     (by definition orthogonal to the line between the reference point and the PCA).
+    #   - D0/dxy is the distance from the nominal origin / primary vertex to the PCA,
+    #     with some arbitrary sign convention to resolve the remaining ambiguity.
+    d0x = -ak.flatten(events['pfcand_d0_wrt0'], axis=None) * np.sin(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
     dx = -ak.flatten(events['pfcand_dxy'], axis=None) * np.sin(ak.flatten(events['pfcand_dphi'], axis=None))
-    d0y = ak.flatten(-events['pfcand_d0_wrt0'], axis=None) * np.cos(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
+    d0y = ak.flatten(events['pfcand_d0_wrt0'], axis=None) * np.cos(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
     dy = ak.flatten(events['pfcand_dxy'], axis=None) * np.cos(ak.flatten(events['pfcand_dphi'], axis=None))
 
     # make a distribution of z0, pvz, and dz
@@ -87,20 +93,3 @@ if __name__=='__main__':
     ax.legend()
     fig.tight_layout()
     fig.savefig('dxy.png')
-
-    # make a scatter plot of d0, pvx/pvy, and dxy
-    fig, ax = plt.subplots()
-    markersize=3
-    alpha = 1
-    d0x = np.abs(ak.flatten(events['pfcand_d0_wrt0'], axis=None)) * np.cos(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
-    d0y = np.abs(ak.flatten(events['pfcand_d0_wrt0'], axis=None)) * np.sin(ak.flatten(events['pfcand_phi0_wrt0'], axis=None))
-    dx = np.abs(ak.flatten(events['pfcand_dxy'], axis=None)) * np.cos(ak.flatten(events['pfcand_dphi'], axis=None))
-    dy = np.abs(ak.flatten(events['pfcand_dxy'], axis=None)) * np.sin(ak.flatten(events['pfcand_dphi'], axis=None))
-    ax.scatter(events['pvx'], events['pvy'], s=markersize, alpha=alpha, label='PV')
-    ax.scatter(d0x, d0y, s=markersize, alpha=alpha, label='PCA (wrt 0)')
-    ax.scatter(dx, dy, s=markersize, alpha=alpha, label='PCA (wrt PV)')
-    ax.legend()
-    ax.set_xlim(-0.2, 0.2)
-    ax.set_ylim(-0.2, 0.2)
-    fig.tight_layout()
-    fig.savefig('dxy_scatter.png')
