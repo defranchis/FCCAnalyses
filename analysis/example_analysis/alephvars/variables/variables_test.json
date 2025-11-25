@@ -1,0 +1,20 @@
+[
+{
+  "name": "btagSip2dSig",
+  "variable": "pfcand_btagSip2dSig",
+  "axtitle": "SIP2D significance",
+  "unit": "",
+  "xlow": -5,
+  "xhigh": 5,
+  "nbins": 50
+},
+{
+  "name": "btagSip3dSig",
+  "variable": "pfcand_btagSip3dSig",
+  "axtitle": "SIP3D significance",
+  "unit": "",
+  "xlow": -5,
+  "xhigh": 5,
+  "nbins": 50
+}
+]
