@@ -33,7 +33,8 @@ from analysis.systematics import format_systematic_name
 from plotting.plot import plot
 
 
-def make_histograms(dtypedict, variables,
+def make_histograms(datastruct, variables,
+        treename = 'events',
         branches_to_read = None,
         files_per_batch = None,
         objectselection = None,
@@ -44,13 +45,16 @@ def make_histograms(dtypedict, variables,
         regions = None,
         recalculate_regions = False,
         splitdict = None,
+        weights = None,
         weight_variations = None,
         xsections = None,
         lumi = None):
     '''
     Helper function for making histograms from a given set of sampledicts.
     Input arguments:
-    - dtypedict: dictionary of the form {dtype: sampledict, ...}
+    - datastruct: dictionary of the form {data type: sampledict, ...},
+      with each sampledict of the form {process name: data},
+      with data either a list of files to read, or an awkward array of already loaded events.
     - variables: list of variables to produce histograms for
     Returns:
     - dictionary with the following structure:
@@ -66,11 +70,21 @@ def make_histograms(dtypedict, variables,
 
     # loop over samples
     hists = {}
-    for dtype, sampledict in dtypedict.items():
+    for dtype, sampledict in datastruct.items():
         if sampledict is None: continue
         hists[dtype] = {}
         for process_key, files in sampledict.items():
             print(f'Now running on sample {process_key}...')
+            do_read_events = True
+
+            # case 1 (default): "files" is a list of files
+            if isinstance(files, list): pass
+            # case 2: datastruct contains already loaded events from an earlier stage
+            elif isinstance(files, ak.highlevel.Array): do_read_events = False
+            else:
+                msg = f'Data type of sample list for sample {process_key} not recognized:'
+                msg += f' {type(files)} ({files}).'
+                raise Exception(msg)
 
             # set weight variations for this sample
             # todo: make more flexible and robust against name changes
@@ -85,15 +99,28 @@ def make_histograms(dtypedict, variables,
                                          if( key=='nominal' or not key.startswith('abcdWeight') )}
 
             # set sample dict and branches to read
-            this_sampledict = {process_key: files}
-            this_branches_to_read = branches_to_read[:]
-            # remove duplicates
-            this_branches_to_read = list(set(this_branches_to_read))
+            this_sampledict = None
+            this_branches_to_read = None
+            if do_read_events:
+                this_sampledict = {process_key: files}
+                this_branches_to_read = branches_to_read[:]
+                if weights is not None and process_key in weights.keys():
+                    for weight_expression in weights[process_key]:
+                        this_branches_to_read += get_variable_names(weight_expression)
+                for weight_variation, branches in this_weight_variations.items():
+                    if weight_variation == 'nominal': continue
+                    if branches is None: continue
+                    for branch in branches: this_branches_to_read.append(branch)
+                # remove duplicates
+                this_branches_to_read = list(set(this_branches_to_read))
 
             # split files in batches if requested
             # (sometimes needed to not run out of memory...)
             this_batches = [this_sampledict] # default case of no splitting in batches
             if files_per_batch is not None:
+                if not do_read_events:
+                    msg = 'Incompatible settings used: cannot specify batches if events are already loaded.'
+                    raise Exception(msg)
                 files_per_batch = int(files_per_batch)
                 batched_files = make_batches(files, batch_size=files_per_batch)
                 this_batches = [{process_key: batch} for batch in batched_files]
@@ -102,8 +129,10 @@ def make_histograms(dtypedict, variables,
             # loop over batches
             for batch_idx, batch_sampledict in enumerate(this_batches):
                 print(f'Reading batch {batch_idx+1} / {len(this_batches)}...')
-                events = read_sampledict(batch_sampledict, treename='events',
-                           branches=this_branches_to_read, verbose=False)
+                if do_read_events:
+                    events = read_sampledict(batch_sampledict, treename=treename,
+                               branches=this_branches_to_read, verbose=False)
+                else: events = {process_key: files}
                 print(f'Read batch with {len(events[process_key])} entries'
                         + f' and {len(events[process_key].fields)} branches.')
 
@@ -149,11 +178,15 @@ def make_histograms(dtypedict, variables,
 
                 # get nominal weights
                 nominal_weights = np.ones(len(events[process_key]))
-                #if 'weight' in events[process_key].fields:
-                #    nominal_weights = events[process_key]['weight'].to_numpy()
+                # general case if weights are already stored as branches in the samples
+                #if weights is not None and process_key in weights.keys():
+                #    for weight_expression in weights[process_key]:
+                #        weight_values = eval_expression(events[process_key], weight_expression).to_numpy().astype(float)
+                #        nominal_weights = np.multiply(nominal_weights, weight_values)
+                # ad-hoc case with provided lumi and cross-section
                 if dtype=='sim':
                     # note: this will not work in bachted mode,
-                    # normalization will be done incorrectly if more than 1 batch is used.
+                    # normalization will be done incorrectly if more than 1 batch is used!
                     if xsections is not None and lumi is not None:
                         xsec = xsections[process_key]
                         nominal_weights = lumi * xsec / nevents[process_key]
@@ -235,6 +268,9 @@ def make_histograms(dtypedict, variables,
     for dtype in hists.keys():
         newhists[dtype] = {}
         processes = list(hists[dtype].keys())
+        print(hists.keys())
+        print(dtype)
+        print(processes)
         regvars = list(hists[dtype][processes[0]]['nominal'].keys())
         for regvar in regvars:
             newhists[dtype][regvar] = {}
@@ -246,6 +282,77 @@ def make_histograms(dtypedict, variables,
 
     # return result
     return hists
+
+
+def make_events(dtypedict,
+        treename='events',
+        branches_to_read = None,
+        objectselection = None,
+        eventselection = None,
+        select_processes = None,
+        regions = None,
+        recalculate_regions = False):
+    '''
+    Helper function for getting events from a given set of sampledicts.
+    Similar to make_histograms, but simplified in the sense that no binning is performed.
+    '''
+
+    # loop over samples
+    events = {}
+    for dtype, sampledict in dtypedict.items():
+        events[dtype] = {}
+        if sampledict is None: continue
+        for process_key, files in sampledict.items():
+            print(f'Now running on sample {process_key}...')
+
+            # read events
+            this_sampledict = {process_key: files}
+            print(f'Reading events...')
+            events[dtype][process_key] = read_sampledict(this_sampledict, treename=treename,
+                                           branches=branches_to_read, verbose=False)[process_key]
+            print(f'Read sample with {len(events[dtype][process_key])} entries'
+                    + f' and {len(events[dtype][process_key].fields)} branches.')
+
+            # do extra object selection
+            if objectselection is not None:
+                print('Doing extra object selection...')
+                events[dtype][process_key] = apply_objectselection(events[dtype][process_key],
+                                               objectselection[0], objectselection[1])
+
+            # do extra event selection
+            if eventselection is not None:
+
+                # check if event selection actually needs to be applied
+                # (process dependent)
+                do_selection = True
+                if select_processes is not None and len(select_processes)==0:
+                    msg = 'WARNING: found select_processes which is not None but empty;'
+                    msg += ' this is ambiguous and will be treated as None.'
+                    print(msg)
+                    select_processes = None
+                if select_processes is not None and process_key not in select_processes:
+                    do_selection = False
+
+                if do_selection:
+                    print('Doing extra event selection...')
+                    nevents = len(events[dtype][process_key])
+                    mask = get_selection_mask(events[dtype][process_key], eventselection)
+                    events[dtype][process_key] = events[dtype][process_key][mask]
+                    nselected = len(events[dtype][process_key])
+                    print(f'Selected {nselected} out of {nevents} entries.')
+
+            # recalculate regions
+            if regions is not None and recalculate_regions:
+                print('Recalculating regions...')
+                for region_name, selection_string in regions.items():
+                    mask = get_selection_mask(events[dtype][process_key], selection_string)
+                    events[dtype][process_key][f'mask-{region_name}'] = mask
+
+        # end loop over processes
+    # end loop over dtypes
+
+    # return result
+    return events
 
 
 if __name__=='__main__':
@@ -505,7 +612,7 @@ if __name__=='__main__':
         normalize = True
 
     # plot aesthetics settings
-    extracmstext = 'Preliminary'
+    extracmstext = 'Resurrected'
     lumiheaderparts = []
     if args.year is not None:
         lumiheaderparts.append(args.year)

@@ -376,7 +376,7 @@ def plot(sig=None, bkg=None, data=None,
         ax.legend(loc=loc, bbox_to_anchor=bbox_to_anchor, fontsize=10)
 
     # lower pad
-    if ratios is not None:
+    if ratios is not None and len(ratios)>0:
 
         # some plot aesthetics: modify the upper pad to remove the title and labels
         axs[0].set_xlabel('', fontsize=0)
