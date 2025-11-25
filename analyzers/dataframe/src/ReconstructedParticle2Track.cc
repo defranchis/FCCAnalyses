@@ -5,6 +5,12 @@ namespace FCCAnalyses{
 
 namespace ReconstructedParticle2Track{
 
+  /*
+  Define a switch between different detectors (fcc or aleph);
+  not the cleanest solution to hard-code it here, but good enough for now...
+  */
+  const std::string detector = "fcc"; // choose from "fcc" or "aleph"
+
   size_t getTrackIndex(const edm4hep::ReconstructedParticleData& rp,
                        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
     /*
@@ -57,7 +63,8 @@ namespace ReconstructedParticle2Track{
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
     // (see formula above, and also accounting for r in mm instead of in m).
-    cSpeed *= -10; // extra numerical factor needed for Aleph data
+    if( detector=="aleph" ){ cSpeed *= -10; }
+    // extra numerical factor needed for Aleph data
     // (because of the curvature being expressed in 1/cm instead of 1/mm,
     // and apparently flipped sign convention).
     ROOT::VecOps::RVec<float> out;
@@ -91,7 +98,8 @@ namespace ReconstructedParticle2Track{
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
     // (see formula above, and also accounting for r in mm instead of in m).
-    cSpeed *= -10; // extra numerical factor needed for Aleph data
+    if( detector=="aleph" ){ cSpeed *= -10; }
+    // extra numerical factor needed for Aleph data
     // (because of the curvature being expressed in 1/cm instead of 1/mm,
     // and apparently flipped sign convention).
     double Bz = -9; // dummy value if no valid result found
@@ -122,7 +130,8 @@ namespace ReconstructedParticle2Track{
     // initializations
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
-    cSpeed *= -10; // extra numerical factor needed for Aleph data
+    if( detector=="aleph" ){ cSpeed *= -10; }
+    // extra numerical factor needed for Aleph data, see Bz calculation
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
@@ -130,7 +139,8 @@ namespace ReconstructedParticle2Track{
       if(trackIndex < trackStates.size()){
 
         // note: extra sign flip for D0 seems to be needed for Aleph data
-        float D0_wrt0 = -trackStates.at(trackIndex).D0;
+        float D0_wrt0 = trackStates.at(trackIndex).D0;
+        if( detector=="aleph" ){ D0_wrt0 *= -1; }
         float Z0_wrt0 = trackStates.at(trackIndex).Z0;
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
@@ -148,7 +158,7 @@ namespace ReconstructedParticle2Track{
         if (pt * pt - 2 * a * cross + a * a * r2 > 0) {
           double T = TMath::Sqrt(pt * pt - 2 * a * cross + a * a * r2);
       	  if (pt < 10.0) D = (T - pt) / a;
-                else D = (-2 * cross + a * r2) / (T + pt);
+          else D = (-2 * cross + a * r2) / (T + pt);
         }
 	    out.push_back(D);
       } else { out.push_back(-9.); }
@@ -169,7 +179,8 @@ namespace ReconstructedParticle2Track{
     // initializations
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
-    cSpeed *= -10; // extra numerical factor needed for Aleph data
+    if( detector=="aleph" ){ cSpeed *= -10; }
+    // extra numerical factor needed for Aleph data
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
@@ -177,7 +188,8 @@ namespace ReconstructedParticle2Track{
       if(trackIndex < trackStates.size()){
 
         // note: extra sign flip for D0 seems to be needed for Aleph data
-        float D0_wrt0 = -trackStates.at(trackIndex).D0;
+        float D0_wrt0 = trackStates.at(trackIndex).D0;
+        if( detector=="aleph" ){ D0_wrt0 *= -1; }
         float Z0_wrt0 = trackStates.at(trackIndex).Z0;
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
@@ -223,7 +235,8 @@ namespace ReconstructedParticle2Track{
     // initializations
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
-    cSpeed *= -10; // extra numerical factor needed for Aleph data
+    if( detector=="aleph" ){ cSpeed *= -10; }
+    // extra numerical factor needed for Aleph data
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
@@ -231,7 +244,8 @@ namespace ReconstructedParticle2Track{
       if(trackIndex < trackStates.size()){
 
         // note: extra sign flip for D0 seems to be needed for Aleph data
-        float D0_wrt0 = -trackStates.at(trackIndex).D0;
+        float D0_wrt0 = trackStates.at(trackIndex).D0;
+        if( detector=="aleph" ){ D0_wrt0 *= -1; }
         float Z0_wrt0 = trackStates.at(trackIndex).Z0;
         float phi0_wrt0 = trackStates.at(trackIndex).phi;
 
@@ -312,7 +326,9 @@ getRP2TRK_D0(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,
     size_t trackIndex = getTrackIndex(p, reco2track_links);
     if (trackIndex < trackStates.size()){
       // note: extra sign flip for D0 seems to be needed for Aleph data
-      result.push_back(-trackStates.at(trackIndex).D0);
+      float D0_wrt0 = trackStates.at(trackIndex).D0;
+      if( detector=="aleph" ){ D0_wrt0 *= -1; }
+      result.push_back(D0_wrt0);
     }
     else result.push_back(-9.);
   }
@@ -343,7 +359,9 @@ getRP2TRK_D0_sig(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,
     size_t trackIndex = getTrackIndex(p, reco2track_links);
     if (trackIndex < trackStates.size()){
       // note: extra sign flip for D0 seems to be needed for Aleph data
-      result.push_back(-trackStates.at(trackIndex).D0/sqrt(trackStates.at(trackIndex).covMatrix[0]));
+      float D0_wrt0 = trackStates.at(trackIndex).D0;
+      if( detector=="aleph" ){ D0_wrt0 *= -1; }
+      result.push_back(D0_wrt0/sqrt(trackStates.at(trackIndex).covMatrix[0]));
     }
     else result.push_back(-9.);
   }

@@ -193,6 +193,9 @@ class RDFanalysis():
                 .Define("GenParticle_pdgId", "0")
                 .Define("GenParticle_genStatus", "0")
                 .Define("genEventType", "-1")
+                .Define("GenPV_x", "-1")
+                .Define("GenPV_y", "-1")
+                .Define("GenPV_z", "-1")
             )
 
         # do reco-level event type
@@ -208,6 +211,9 @@ class RDFanalysis():
 
             # get MC primary vertex
             #.Define("PrimaryVertexP4", "FCCAnalyses::MCParticle::get_EventPrimaryVertexP4()(Particle)")
+
+            # alternative: get MC primary vertex from first particle in list of gen particles
+            #.Define("PrimaryVertexP4", "getMCPV(Particle)")
 
             # alternative for running on data: just use a dummy.
             # note: maybe later try to switch to actual reco primary vertex.
@@ -334,22 +340,8 @@ class RDFanalysis():
 
             # calculate the magnetic field strength along the z-axis from the curvature of the tracks
             .Define("JetsConstituents_Bz", "JetConstituentsUtils::get_Bz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
-        )
         
-        # for FCC sim (as opposed to Aleph sim),
-        # need to account for different unit conventions...
-        if det=='fcc':
-
-            dfout = (
-                dfout
-                .Redefine("Event_Bz", "Event_Bz * (-10)")
-                .Redefine("JetsConstituents_Bz", "JetsConstituents_Bz * (-10)")
-            )
-
-        # continue with analysis
-        dfout = (
-            dfout
-            
+            # more jet constituents
             .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
             .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
             .Define("JetsConstituents_phi0", "JetConstituentsUtils::XPtoPar_phi(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
@@ -414,7 +406,6 @@ class RDFanalysis():
             'GenPV_z'
         ]
 
-        
         # event-level variables
         branchList += [
             'recoEventType',
