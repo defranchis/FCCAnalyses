@@ -9,7 +9,7 @@ namespace ReconstructedParticle2Track{
   Define a switch between different detectors (fcc or aleph);
   not the cleanest solution to hard-code it here, but good enough for now...
   */
-  const std::string detector = "fcc"; // choose from "fcc" or "aleph"
+  const std::string detector = "aleph"; // choose from "fcc" or "aleph"
 
   size_t getTrackIndex(const edm4hep::ReconstructedParticleData& rp,
                        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
