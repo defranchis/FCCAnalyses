@@ -14,8 +14,9 @@ if __name__=='__main__':
     categories = [
       'recojet_isB',
       'recojet_isC',
-      'recojet_isUDSG',
-      'recojet_isData'
+      'recojet_isS',
+      'recojet_isUD',
+      #'recojet_isData'
     ]
     variables = [
       'recojet_pt',
@@ -50,7 +51,9 @@ if __name__=='__main__':
       'pfcand_btagSip3dSig',
       'pfcand_btagJetDistVal',
       'pfcand_btagJetDistSig',
-      
+        
+      'pfcand_dxydxy',
+      'pfcand_dzdz'      
     ]
 
     # read input files
@@ -84,7 +87,26 @@ if __name__=='__main__':
         data = {}
         for category in categories:
             this_data = events[variable][(kinematic_mask) & (category_masks[category])]
-            if this_data.layout.minmax_depth[1]>=2: this_data = ak.flatten(this_data)
+            
+            # strategies for flattening per-constituent data
+            if this_data.layout.minmax_depth[1]>=2:
+
+                # approach 1: take all constituents
+                #this_data = ak.flatten(this_data)
+
+                # approach 2: take leading constituent
+                # note: constituents do not seem to be pt-ordered by default!
+                if len(this_data)==0: this_data = ak.Array([])
+                else:
+                    len_mask = np.nonzero(ak.num(this_data))[0].to_numpy().astype(bool)
+                    this_data = this_data[len_mask]
+                    pt = events['pfcand_pt'][(kinematic_mask) & (category_masks[category])]
+                    pt = pt[len_mask]
+                    ids = ak.argmax(pt, axis=1).to_numpy()
+                    ids = np.array(list(ids))
+                    this_data = this_data[np.arange(len(this_data)), ids]
+
+            # parsing
             this_data = this_data.to_numpy()
             if np.isnan(this_data).any():
                 msg = 'WARNING: replacing NaN by 0...'
@@ -100,9 +122,16 @@ if __name__=='__main__':
             msg = 'WARNING: no instances pass mask; skipping this variable.'
             print(msg)
             continue
-        minv = np.quantile(data_array[mask], 0.1)
-        maxv = np.quantile(data_array[mask], 0.9)
+        minv = np.quantile(data_array[mask], 0.05)
+        maxv = np.quantile(data_array[mask], 0.95)
+        if minv < 0:
+            maxv = max(maxv, abs(minv))
+            minv = -maxv
         bins = np.linspace(minv, maxv, num=51)
+
+        #if variable=='pfcand_dzdz':
+        #    print(data_array)
+        #    print(np.unique(data_array))
 
         # make figure
         fig, ax = plt.subplots()

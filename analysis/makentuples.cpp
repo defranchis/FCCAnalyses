@@ -246,6 +246,9 @@ int main(int argc, char* argv[]) {
   float is_u = 0.;
   float is_d = 0.;
   float is_g = 0.;
+  float is_ud = 0.;
+  float is_udg = 0.;
+  float is_uds = 0.;
   float is_udsg = 0.;
   int nconst = 0;
   int nphotons = 0;
@@ -347,6 +350,9 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("recojet_isU", &is_u);
   ntuple->Branch("recojet_isD", &is_d);
   ntuple->Branch("recojet_isG", &is_g);
+  ntuple->Branch("recojet_isUD", &is_ud);
+  ntuple->Branch("recojet_isUDG", &is_udg);
+  ntuple->Branch("recojet_isUDS", &is_uds); 
   ntuple->Branch("recojet_isUDSG", &is_udsg);
   
   ntuple->Branch("nconst", &nconst, "nconst/I");
@@ -481,6 +487,9 @@ int main(int argc, char* argv[]) {
       is_u = (eventFlavour==2);
       is_d = (eventFlavour==1);
       is_g = (eventFlavour==0);
+      is_ud = (eventFlavour==1 || eventFlavour==2);
+      is_udg = (eventFlavour==0 || eventFlavour==1 || eventFlavour==2);
+      is_uds = (eventFlavour==1 || eventFlavour==2 || eventFlavour==3);
       is_udsg = (eventFlavour>=0 && eventFlavour<=3);
 
       // get properties
