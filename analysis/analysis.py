@@ -262,7 +262,7 @@ class RDFanalysis():
             # - sorted: sorting method (leave at default 0).
             # - recombination: how jets are summed (leave at default 0).
             # - exponent (of kT algorithm, typically -1, i.e. anti-kT).
-            .Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(2, 0, 0, 0, 0, -1)(pseudo_jets)") # inclusive
+            .Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(1.5, 0, 0, 0, 0, -1)(pseudo_jets)") # inclusive
             #.Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(1.5, 3, 2, 0, 0, -1)(pseudo_jets)") # exclusive
             # get the jets out of the struct
             .Define("jets_ee_genkt", "JetClusteringUtils::get_pseudoJets(FCCAnalysesJets_ee_genkt)")
