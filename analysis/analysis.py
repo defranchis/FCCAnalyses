@@ -303,7 +303,7 @@ class RDFanalysis():
             .Define("JetsConstituents_isGamma", "get_isGamma_from_type(JetsConstituents_Types)")
             .Define("JetsConstituents_isNeutralHad", "get_isNeutralHad_from_type(JetsConstituents_Types)")
 
-            # kinematics, displacement, PID
+            # basic kinematics
             .Define("JetsConstituents_e", "JetConstituentsUtils::get_e(JetsConstituents)")
             .Define("JetsConstituents_pt", "JetConstituentsUtils::get_pt(JetsConstituents)")
             .Define("JetsConstituents_px", "JetConstituentsUtils::get_px(JetsConstituents)")
@@ -313,6 +313,7 @@ class RDFanalysis():
             .Define("JetsConstituents_phi", "JetConstituentsUtils::get_phi(JetsConstituents)")
             .Define("JetsConstituents_charge", "JetConstituentsUtils::get_charge(JetsConstituents)")
 
+            # kinematics relative to jet
             .Define("JetsConstituents_erel", "JetConstituentsUtils::get_erel_cluster(jets_ee_genkt, JetsConstituents)")
             .Define("JetsConstituents_erel_log", "JetConstituentsUtils::get_erel_log_cluster(jets_ee_genkt, JetsConstituents)")
             .Define("JetsConstituents_ptrel", "JetConstituentsUtils::get_ptrel_cluster(jets_ee_genkt, JetsConstituents)")
@@ -320,8 +321,19 @@ class RDFanalysis():
             .Define("JetsConstituents_thetarel", "JetConstituentsUtils::get_thetarel_cluster(jets_ee_genkt, JetsConstituents)")
             .Define("JetsConstituents_phirel", "JetConstituentsUtils::get_phirel_cluster(jets_ee_genkt, JetsConstituents)") 
             
+            # PID variables
             .Define("JetsConstituents_dndx", "JetConstituentsUtils::get_dndx(JetsConstituents, EFlowTrack_2, EFlowTrack, JetsConstituents_isChargedHad)")
             #temp .Define("JetsConstituents_mtof", "JetConstituentsUtils::get_mtof(JetsConstituents, EFlowTrack_L, EFlowTrack, TrackerHits, JetsConstituents_Pids)")
+           
+            # track properties
+            .Define("JetsConstituents_trackChi2", "JetConstituentsUtils::get_chi2(JetsConstituents, EFlowTrack, Reco2TrackLinks)")
+            .Define("JetsConstituents_trackNdof", "JetConstituentsUtils::get_ndof(JetsConstituents, EFlowTrack, Reco2TrackLinks)")
+            .Define("JetsConstituents_trackChi2Normalized", "JetConstituentsUtils::get_chi2Normalized(JetsConstituents, EFlowTrack, Reco2TrackLinks)")
+
+            # number of hits
+            .Define("JetsConstituents_nTrackHits_VDET", "JetConstituentsUtils::get_nTrackHits_VDET(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
+            .Define("JetsConstituents_nTrackHits_ITC", "JetConstituentsUtils::get_nTrackHits_ITC(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
+            .Define("JetsConstituents_nTrackHits_TPC", "JetConstituentsUtils::get_nTrackHits_TPC(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
             
             # store some track parameters with respect to the nominal origin
             # (mainly for debugging? typically these variables should be re-calculated w.r.t. the primary vertex)
@@ -448,7 +460,15 @@ class RDFanalysis():
             'JetsConstituents_thetarel', 'JetsConstituents_phirel', 
             'JetsConstituents_dndx',
             #temp 'JetsConstituents_mtof',
+
+            'JetsConstituents_trackChi2',
+            'JetsConstituents_trackNdof',
+            'JetsConstituents_trackChi2Normalized',
             
+            'JetsConstituents_nTrackHits_VDET',
+            'JetsConstituents_nTrackHits_ITC',
+            'JetsConstituents_nTrackHits_TPC',
+
             'JetsConstituents_d0_wrt0',
             'JetsConstituents_z0_wrt0',
             'JetsConstituents_phi0_wrt0',

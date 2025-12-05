@@ -11,6 +11,11 @@ namespace ReconstructedParticle2Track{
   */
   const std::string detector = "aleph"; // choose from "fcc" or "aleph"
 
+
+  /*
+  Indexing methods
+  */ 
+
   size_t getTrackIndex(const edm4hep::ReconstructedParticleData& rp,
                        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
     /*
@@ -24,6 +29,11 @@ namespace ReconstructedParticle2Track{
     }
     return 9999;
   }
+
+
+  /*
+  General
+  */
 
   ROOT::VecOps::RVec<float> 
   getRP2TRK_mom(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,
@@ -48,6 +58,160 @@ namespace ReconstructedParticle2Track{
     }
     return result;
   }
+
+  ROOT::VecOps::RVec<float>
+  getRP2TRK_chi2(const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& in,
+                   const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                   const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+    // get chi2 of track fit
+    
+    // initializations
+    ROOT::VecOps::RVec<float> result;
+
+    // loop over reco particles
+    for (auto & p: in) {
+        bool valid = false;
+        // find track
+        size_t trackIndex = getTrackIndex(p, reco2track_links);
+        if(trackIndex < tracks.size()){
+            edm4hep::TrackData tr = tracks.at(trackIndex);
+            float chi2 = tr.chi2;
+            result.push_back(chi2);
+            valid = true;
+        }
+        if(!valid){ result.push_back( -1 ); }
+    }
+    return result;
+  }
+
+  ROOT::VecOps::RVec<int>
+  getRP2TRK_ndof(const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& in,
+                   const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                   const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+    // get number of degrees of freedom of track fit
+
+    // initializations
+    ROOT::VecOps::RVec<int> result;
+
+    // loop over reco particles
+    for (auto & p: in) {
+        bool valid = false;
+        // find track
+        size_t trackIndex = getTrackIndex(p, reco2track_links);
+        if(trackIndex < tracks.size()){
+            edm4hep::TrackData tr = tracks.at(trackIndex);
+            int ndof = tr.ndf;
+            result.push_back(ndof);
+            valid = true;
+        }
+        if(!valid){ result.push_back( -1 ); }
+    }
+    return result;
+  }
+
+  ROOT::VecOps::RVec<float>
+  getRP2TRK_chi2Normalized(const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& in,
+                   const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                   const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+    // get chi2 of track fit
+
+    // initializations
+    ROOT::VecOps::RVec<float> result;
+
+    // loop over reco particles
+    for (auto & p: in) {
+        bool valid = false;
+        // find track
+        size_t trackIndex = getTrackIndex(p, reco2track_links);
+        if(trackIndex < tracks.size()){
+            edm4hep::TrackData tr = tracks.at(trackIndex);
+            float chi2 = tr.chi2;
+            int ndof = tr.ndf;
+            if(ndof > 0){
+                result.push_back(chi2 / (float)ndof);
+                valid = true;
+            }
+        }
+        if(!valid){ result.push_back( -1 ); }
+    }
+    return result;
+  }
+
+
+  /*
+  Get number of hits in subdetectors.
+  Note: custom addition for Aleph files, not sure how to use for FCC.
+  */
+  
+  ROOT::VecOps::RVec<int> getRP2TRK_nTrackHits(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+        const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+        const int subdetectorNumber,
+        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+    // Get number of track hits for a given set of reco particles
+    // for a given subdetector number
+
+    // initializations
+    ROOT::VecOps::RVec<float> out;
+
+    // loop over reco particles
+    for(auto & p: rps) {
+        bool valid = false;
+        // find track
+        size_t trackIndex = getTrackIndex(p, reco2track_links);
+        if(trackIndex < tracks.size()){
+            edm4hep::TrackData tr = tracks.at(trackIndex);
+            // find index in hit collection
+            size_t hitIdx = tr.subdetectorHitNumbers_begin + subdetectorNumber;
+            if(hitIdx < subdetectorHitNumbers.size()){
+                int nHits = subdetectorHitNumbers.at(hitIdx);
+                out.push_back(nHits);
+                valid = true;
+            }
+        }
+        if(!valid){ out.push_back( -1 ); }
+    }
+    return out;
+  }
+
+  ROOT::VecOps::RVec<int> getRP2TRK_nTrackHits_VDET(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+        const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+    // Get number of VDET (vertex detector) hits for a given set of reco particles.
+    // Note: assumes inside-out numbering of the subdetectors,
+    // such that VDET is at index 0 (to check).
+    return getRP2TRK_nTrackHits(rps, tracks, subdetectorHitNumbers, 0, reco2track_links);
+  }
+
+  ROOT::VecOps::RVec<int> getRP2TRK_nTrackHits_ITC(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+        const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+    // Get number of ITC (inner tracking chamber) hits for a given set of reco particles.
+    // Note: assumes inside-out numbering of the subdetectors,
+    // such that ITC is at index 1 (to check).
+    return getRP2TRK_nTrackHits(rps, tracks, subdetectorHitNumbers, 1, reco2track_links);
+  }
+
+  ROOT::VecOps::RVec<int> getRP2TRK_nTrackHits_TPC(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+        const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+    // Get number of TPC (time projection chamber) hits for a given set of reco particles.
+    // Note: assumes inside-out numbering of the subdetectors,
+    // such that TPC is at index 2 (to check).
+    return getRP2TRK_nTrackHits(rps, tracks, subdetectorHitNumbers, 2, reco2track_links);
+  }
+
+
+  /*
+  Magnetic field from track parameters
+  */
 
   ROOT::VecOps::RVec<float> getRP2TRK_Bz(
         const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
@@ -117,6 +281,11 @@ namespace ReconstructedParticle2Track{
     }
     return Bz;
   }
+
+
+  /*
+  Impact parameters
+  */
 
   ROOT::VecOps::RVec<float> XPtoPar_dxy(
       const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& in,
@@ -634,6 +803,11 @@ getRP2TRK_z0_tanlambda_cov(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData
   }
   return result;
 }
+
+
+/*
+Other undocumented garbage
+*/
 
 ROOT::VecOps::RVec<edm4hep::TrackState>
 getRP2TRK( ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,

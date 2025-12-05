@@ -130,13 +130,7 @@ namespace FCCAnalyses
       return out;
     };
 
-    rv::RVec<FCCAnalysesJetConstituentsData> get_Bz(const rv::RVec<FCCAnalysesJetConstituents> &jcs,
-                                                    const ROOT::VecOps::RVec<edm4hep::TrackState> &trackStates,
-                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
-    {
-      return cast_constituent_3(jcs, trackStates, reco2track_links, ReconstructedParticle2Track::getRP2TRK_Bz);
-    }
-
+    // basic getters
     rv::RVec<FCCAnalysesJetConstituentsData> get_pt(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
     {
       return cast_constituent(jcs, ReconstructedParticle::get_pt);
@@ -220,7 +214,76 @@ namespace FCCAnalyses
       return out;
     }
 
-    // displacement (wrt (0,0,0))
+    // get basic track properties
+    rv::RVec<FCCAnalysesJetConstituentsData> get_chi2(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
+    {
+      return cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_chi2);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_ndof(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
+    {
+      return cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_ndof);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_chi2Normalized(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
+    {
+      return cast_constituent_3(jcs, tracks, reco2track_links, ReconstructedParticle2Track::getRP2TRK_chi2Normalized);
+    }
+
+    // get number of track hits in subdetectors
+    rv::RVec<FCCAnalysesJetConstituentsData> get_nTrackHits(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+                                                    const int subdetectorNumber,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
+    {
+      return cast_constituent_5(jcs, tracks, subdetectorHitNumbers, subdetectorNumber, reco2track_links,
+                                ReconstructedParticle2Track::getRP2TRK_nTrackHits);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_nTrackHits_VDET(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
+    {
+      return cast_constituent_4(jcs, tracks, subdetectorHitNumbers, reco2track_links,
+                                ReconstructedParticle2Track::getRP2TRK_nTrackHits_VDET);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_nTrackHits_ITC(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
+    {
+      return cast_constituent_4(jcs, tracks, subdetectorHitNumbers, reco2track_links,
+                                ReconstructedParticle2Track::getRP2TRK_nTrackHits_ITC);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_nTrackHits_TPC(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
+    {
+      return cast_constituent_4(jcs, tracks, subdetectorHitNumbers, reco2track_links,
+                                ReconstructedParticle2Track::getRP2TRK_nTrackHits_TPC);
+    }
+
+
+    // get magnetic field
+    rv::RVec<FCCAnalysesJetConstituentsData> get_Bz(const rv::RVec<FCCAnalysesJetConstituents> &jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackState> &trackStates,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links)
+    {
+      return cast_constituent_3(jcs, trackStates, reco2track_links, ReconstructedParticle2Track::getRP2TRK_Bz);
+    }
+
+    // get displacement (w.r.t. nominal origin)
     rv::RVec<FCCAnalysesJetConstituentsData> get_d0(
         const rv::RVec<FCCAnalysesJetConstituents> &jcs,
         const ROOT::VecOps::RVec<edm4hep::TrackState> &trackStates,
@@ -261,6 +324,7 @@ namespace FCCAnalyses
       return cast_constituent_3(jcs, trackStates, reco2track_links, ReconstructedParticle2Track::getRP2TRK_tanLambda);
     }
 
+    // get impact parameters (w.r.t. primary vertex)
     rv::RVec<FCCAnalysesJetConstituentsData> XPtoPar_dxy(const rv::RVec<FCCAnalysesJetConstituents> &jcs,
                                                          const ROOT::VecOps::RVec<edm4hep::TrackState> &tracks,
                                                          const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links,

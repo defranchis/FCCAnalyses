@@ -51,6 +51,7 @@ namespace FCCAnalyses {
                                                     const ROOT::VecOps::RVec<edm4hep::TrackState>& trackStates,
                                                     const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
 
+    // get basic properties
     rv::RVec<FCCAnalysesJetConstituentsData> get_pt(const rv::RVec<FCCAnalysesJetConstituents>&);
     rv::RVec<FCCAnalysesJetConstituentsData> get_px(const rv::RVec<FCCAnalysesJetConstituents>&);
     rv::RVec<FCCAnalysesJetConstituentsData> get_py(const rv::RVec<FCCAnalysesJetConstituents>&);
@@ -61,6 +62,37 @@ namespace FCCAnalyses {
     rv::RVec<FCCAnalysesJetConstituentsData> get_phi(const rv::RVec<FCCAnalysesJetConstituents>&);
     rv::RVec<FCCAnalysesJetConstituentsData> get_type(const rv::RVec<FCCAnalysesJetConstituents>&);
     rv::RVec<FCCAnalysesJetConstituentsData> get_charge(const rv::RVec<FCCAnalysesJetConstituents>&);
+
+    // get basic track properties
+    rv::RVec<FCCAnalysesJetConstituentsData> get_chi2(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+    rv::RVec<FCCAnalysesJetConstituentsData> get_ndof(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+    rv::RVec<FCCAnalysesJetConstituentsData> get_chi2Normalized(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+
+    // track hits
+    rv::RVec<FCCAnalysesJetConstituentsData> get_nTrackHits(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+                                                    const int subdetectorNumber,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+    rv::RVec<FCCAnalysesJetConstituentsData> get_nTrackHits_VDET(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+    rv::RVec<FCCAnalysesJetConstituentsData> get_nTrackHits_ITC(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+    rv::RVec<FCCAnalysesJetConstituentsData> get_nTrackHits_TPC(const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+                                                    const ROOT::VecOps::RVec<int>& subdetectorHitNumbers,
+                                                    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+
 
     //displacement
     rv::RVec<FCCAnalysesJetConstituentsData> get_d0(const rv::RVec<FCCAnalysesJetConstituents>&,
