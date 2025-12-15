@@ -105,6 +105,22 @@ ROOT.gInterpreter.Declare("""
         return result;
     }""")
 
+# helper function to make dummy jet constituent variables
+# (e.g. for variables that are available for aleph but not for fcc or the other way round)
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> makeDummyJetConstituentVariable(
+        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>>& jcs, float dummyValue){
+        ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> out;
+        for (const auto &jc : jcs){
+            ROOT::VecOps::RVec<float> temp;
+            for (const auto &el : jc){
+                temp.emplace_back(dummyValue);
+            }
+            out.emplace_back(temp);
+        }
+        return out;
+    }""")
+
 
 # main analyzer class
 class RDFanalysis():
@@ -223,7 +239,7 @@ class RDFanalysis():
             # use reco primary vertex.
             # note: not sure how to make this work for FCC sim; there doesn't seem to be an equivalent collection.
             .Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
-
+            
             # alternative: recalculate reco primary vertex
             #.Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1)")
 
@@ -232,6 +248,9 @@ class RDFanalysis():
             .Define("PV_x", "PrimaryVertexP4.X()")
             .Define("PV_y", "PrimaryVertexP4.Y()")
             .Define("PV_z", "PrimaryVertexP4.Z()")
+
+            # temp for testing
+            #.Redefine("PrimaryVertexP4", "TLorentzVector(GenPV_x, GenPV_y, GenPV_z, 0)")
 
             # define the momentum, energy, mass and charge of all reconstructed particles.
             .Define("RP_px",          "ReconstructedParticle::get_px(ReconstructedParticles)")
@@ -329,12 +348,28 @@ class RDFanalysis():
             .Define("JetsConstituents_trackChi2", "JetConstituentsUtils::get_chi2(JetsConstituents, EFlowTrack, Reco2TrackLinks)")
             .Define("JetsConstituents_trackNdof", "JetConstituentsUtils::get_ndof(JetsConstituents, EFlowTrack, Reco2TrackLinks)")
             .Define("JetsConstituents_trackChi2Normalized", "JetConstituentsUtils::get_chi2Normalized(JetsConstituents, EFlowTrack, Reco2TrackLinks)")
+        )
 
-            # number of hits
-            .Define("JetsConstituents_nTrackHits_VDET", "JetConstituentsUtils::get_nTrackHits_VDET(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
-            .Define("JetsConstituents_nTrackHits_ITC", "JetConstituentsUtils::get_nTrackHits_ITC(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
-            .Define("JetsConstituents_nTrackHits_TPC", "JetConstituentsUtils::get_nTrackHits_TPC(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
+        # number of hits in tracking detectors
+        if det=='fcc':
+            dfout = (
+                dfout
+                .Define("JetsConstituents_nTrackHits_VDET", "makeDummyJetConstituentVariable(JetsConstituents, 0)")
+                .Define("JetsConstituents_nTrackHits_ITC", "makeDummyJetConstituentVariable(JetsConstituents, 0)")
+                .Define("JetsConstituents_nTrackHits_TPC", "makeDummyJetConstituentVariable(JetsConstituents, 0)")
+            )
+
+        elif det=='aleph':
+            dfout = (
+                dfout
+                .Define("JetsConstituents_nTrackHits_VDET", "JetConstituentsUtils::get_nTrackHits_VDET(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
+                .Define("JetsConstituents_nTrackHits_ITC", "JetConstituentsUtils::get_nTrackHits_ITC(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
+                .Define("JetsConstituents_nTrackHits_TPC", "JetConstituentsUtils::get_nTrackHits_TPC(JetsConstituents, EFlowTrack, _Tracks_subdetectorHitNumbers, Reco2TrackLinks)")
+            )
             
+        dfout = (
+            dfout
+
             # store some track parameters with respect to the nominal origin
             # (mainly for debugging? typically these variables should be re-calculated w.r.t. the primary vertex)
             # note: the parameters have the following meaning:
@@ -376,12 +411,12 @@ class RDFanalysis():
             .Define("JetsConstituents_omega_d0_cov", "JetConstituentsUtils::get_omega_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_omega_z0_cov", "JetConstituentsUtils::get_omega_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             
-            .Define("JetsConstituents_Sip2dVal", "JetConstituentsUtils::get_Sip2dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_phi0)")
+            .Define("JetsConstituents_Sip2dVal", "JetConstituentsUtils::get_Sip2dVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_phi0)")
             .Define("JetsConstituents_Sip2dSig", "JetConstituentsUtils::get_Sip2dSig(JetsConstituents_Sip2dVal, JetsConstituents_d0_cov)")
-            .Define("JetsConstituents_Sip3dVal", "JetConstituentsUtils::get_Sip3dVal_clusterV(jets_ee_genkt, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0)")
+            .Define("JetsConstituents_Sip3dVal", "JetConstituentsUtils::get_Sip3dVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0)")
             .Define("JetsConstituents_Sip3dSig", "JetConstituentsUtils::get_Sip3dSig(JetsConstituents_Sip3dVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
-            .Define("JetsConstituents_JetDistVal", "JetConstituentsUtils::get_JetDistVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0)")
-            .Define("JetsConstituents_JetDistSig", "JetConstituentsUtils::get_JetDistSig(JetsConstituents_JetDistVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
+            .Define("JetsConstituents_JetDistVal", "JetConstituentsUtils::get_JetPlaneDistVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0)")
+            .Define("JetsConstituents_JetDistSig", "JetConstituentsUtils::get_JetPlaneDistSig(JetsConstituents_JetDistVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
 
             # counting the types of particles per jet
             .Define("Jets_nConstituents", "JetConstituentsUtils::count_consts(JetsConstituents)")
