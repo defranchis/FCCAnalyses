@@ -227,10 +227,6 @@ namespace ReconstructedParticle2Track{
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
     // (see formula above, and also accounting for r in mm instead of in m).
-    if( detector=="aleph" ){ cSpeed *= -10; }
-    // extra numerical factor needed for Aleph data
-    // (because of the curvature being expressed in 1/cm instead of 1/mm,
-    // and apparently flipped sign convention).
     ROOT::VecOps::RVec<float> out;
 
     // loop over reco particles
@@ -240,7 +236,14 @@ namespace ReconstructedParticle2Track{
         if(trackIndex < trackStates.size()) {
             edm4hep::TrackState trst = trackStates.at(trackIndex); 
 	        double pt = sqrt(p.momentum.x * p.momentum.x + p.momentum.y * p.momentum.y);
-	        double Bz = trst.omega / cSpeed * pt * std::copysign(1.0, p.charge);
+            double omega = trst.omega;
+            if( detector=="aleph" ){
+                omega *= -0.1;
+                // extra numerical factor needed for Aleph data
+                // (because of the curvature being expressed in 1/cm instead of 1/mm,
+                // and apparently also flipped sign convention).
+            }
+	        double Bz = omega / cSpeed * pt * std::copysign(1.0, p.charge);
 	        out.push_back(Bz);
             valid = true;
         }
@@ -262,10 +265,6 @@ namespace ReconstructedParticle2Track{
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
     // (see formula above, and also accounting for r in mm instead of in m).
-    if( detector=="aleph" ){ cSpeed *= -10; }
-    // extra numerical factor needed for Aleph data
-    // (because of the curvature being expressed in 1/cm instead of 1/mm,
-    // and apparently flipped sign convention).
     double Bz = -9; // dummy value if no valid result found
 
     // loop over reco particles
@@ -275,6 +274,12 @@ namespace ReconstructedParticle2Track{
       edm4hep::TrackState trst = trackStates.at(trackIndex);
       double pt = sqrt(p.momentum.x * p.momentum.x + p.momentum.y * p.momentum.y);
       double omega = trst.omega;
+      if( detector=="aleph" ){
+        omega *= -0.1;
+        // extra numerical factor needed for Aleph data
+        // (because of the curvature being expressed in 1/cm instead of 1/mm,
+        // and apparently also flipped sign convention).
+      }
       Bz = omega / cSpeed * pt * std::copysign(1.0, p.charge);
       // break after the first particle with valid result
       break;
@@ -298,29 +303,34 @@ namespace ReconstructedParticle2Track{
 
     // initializations
     double cSpeed = 2.99792458e8; // speed of light in m/s
-    cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
-    if( detector=="aleph" ){ cSpeed *= -10; }
-    // extra numerical factor needed for Aleph data, see Bz calculation
+    cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units (see Bz calculation)
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
       size_t trackIndex = getTrackIndex(rp, reco2track_links);
       if(trackIndex < trackStates.size()){
+        edm4hep::TrackState trst = trackStates.at(trackIndex);
 
         // note: extra sign flip for D0 seems to be needed for Aleph data
-        float D0_wrt0 = trackStates.at(trackIndex).D0;
+        float D0_wrt0 = trst.D0;
         if( detector=="aleph" ){ D0_wrt0 *= -1; }
-        float Z0_wrt0 = trackStates.at(trackIndex).Z0;
-        float phi0_wrt0 = trackStates.at(trackIndex).phi;
+        float Z0_wrt0 = trst.Z0;
+        float phi0_wrt0 = trst.phi;
+        float omega = trst.omega;
 
         // note: phi0 is not the position vector azimuth,
         // but the azimuth of the momentum vector at the point of closest approach!
         TVector3 X( - D0_wrt0 * TMath::Sin(phi0_wrt0) , D0_wrt0 * TMath::Cos(phi0_wrt0) , Z0_wrt0);
         TVector3 x = X - PV.Vect();
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
+        double pt = p.Pt();
 
         double a = - rp.charge * Bz * cSpeed;
-        double pt = p.Pt();
+        if( detector=="aleph" ){
+            // extra numerical factor for aleph, see Bz calculation
+            a *= -10;
+        }
+        //double a = - omega * pt; // alternative
         double r2 = x(0) * x(0) + x(1) * x(1);
         double cross = x(0) * p(1) - x(1) * p(0);
         double D=-9;
@@ -348,28 +358,33 @@ namespace ReconstructedParticle2Track{
     // initializations
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
-    if( detector=="aleph" ){ cSpeed *= -10; }
-    // extra numerical factor needed for Aleph data
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
       size_t trackIndex = getTrackIndex(rp, reco2track_links);
       if(trackIndex < trackStates.size()){
+        edm4hep::TrackState trst = trackStates.at(trackIndex);
 
         // note: extra sign flip for D0 seems to be needed for Aleph data
-        float D0_wrt0 = trackStates.at(trackIndex).D0;
+        float D0_wrt0 = trst.D0;
         if( detector=="aleph" ){ D0_wrt0 *= -1; }
-        float Z0_wrt0 = trackStates.at(trackIndex).Z0;
-        float phi0_wrt0 = trackStates.at(trackIndex).phi;
+        float Z0_wrt0 = trst.Z0;
+        float phi0_wrt0 = trst.phi;
+        float omega = trst.omega;
 
         // note: phi0 is not the position vector azimuth,
         // but the azimuth of the momentum vector at the point of closest approach!
         TVector3 X( - D0_wrt0 * TMath::Sin(phi0_wrt0) , D0_wrt0 * TMath::Cos(phi0_wrt0) , Z0_wrt0);
         TVector3 x = X - PV.Vect();
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
+        double pt = p.Pt();
 
         double a = - rp.charge * Bz * cSpeed;
-        double pt = p.Pt();
+        if( detector=="aleph" ){
+            // extra numerical factor for aleph, see Bz calculation
+            a *= -10;
+        }
+        //double a = - omega * pt;
         double C = a/(2 * pt);
         double r2 = x(0) * x(0) + x(1) * x(1);
         double cross = x(0) * p(1) - x(1) * p(0);
@@ -404,28 +419,33 @@ namespace ReconstructedParticle2Track{
     // initializations
     double cSpeed = 2.99792458e8; // speed of light in m/s
     cSpeed *= 1e-9 * 1e-3; // conversion to appropriate units
-    if( detector=="aleph" ){ cSpeed *= -10; }
-    // extra numerical factor needed for Aleph data
     ROOT::VecOps::RVec<float> out;
 
     for (const auto & rp: in) {
       size_t trackIndex = getTrackIndex(rp, reco2track_links);
       if(trackIndex < trackStates.size()){
+        edm4hep::TrackState trst = trackStates.at(trackIndex);
 
         // note: extra sign flip for D0 seems to be needed for Aleph data
-        float D0_wrt0 = trackStates.at(trackIndex).D0;
+        float D0_wrt0 = trst.D0;
         if( detector=="aleph" ){ D0_wrt0 *= -1; }
-        float Z0_wrt0 = trackStates.at(trackIndex).Z0;
-        float phi0_wrt0 = trackStates.at(trackIndex).phi;
+        float Z0_wrt0 = trst.Z0;
+        float phi0_wrt0 = trst.phi;
+        float omega = trst.omega;
 
         // note: phi0 is not the position vector azimuth,
         // but the azimuth of the momentum vector at the point of closest approach!
         TVector3 X( - D0_wrt0 * TMath::Sin(phi0_wrt0) , D0_wrt0 * TMath::Cos(phi0_wrt0) , Z0_wrt0);
         TVector3 x = X - PV.Vect();
         TVector3 p(rp.momentum.x, rp.momentum.y, rp.momentum.z);
+        double pt = p.Pt();
 
         double a = - rp.charge * Bz * cSpeed;
-        double pt = p.Pt();
+        if( detector=="aleph" ){
+            // extra numerical factor for aleph, see Bz calculation
+            a *= -10;
+        }
+        //double a = - omega * pt;
         double r2 = x(0) * x(0) + x(1) * x(1);
         double cross = x(0) * p(1) - x(1) * p(0);
         double T = TMath::Sqrt(pt * pt - 2 * a * cross + a * a * r2);
