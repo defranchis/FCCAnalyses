@@ -217,6 +217,7 @@ namespace FCCAnalyses {
                                                                   const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
 
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip2dVal_clusterV(const rv::RVec<fastjet::PseudoJet>& jets,
+                                                                   const rv::RVec<FCCAnalysesJetConstituents>& jcs,
                                                                    const rv::RVec<FCCAnalysesJetConstituentsData>& D0,
                                                                    const rv::RVec<FCCAnalysesJetConstituentsData>& phi0);
 
@@ -235,6 +236,7 @@ namespace FCCAnalyses {
                                                                   const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
 
     rv::RVec<FCCAnalysesJetConstituentsData> get_Sip3dVal_clusterV(const rv::RVec<fastjet::PseudoJet>& jets,
+                                                                   const rv::RVec<FCCAnalysesJetConstituents>& jcs,
                                                                    const rv::RVec<FCCAnalysesJetConstituentsData>& D0,
                                                                    const rv::RVec<FCCAnalysesJetConstituentsData>& Z0,
                                                                    const rv::RVec<FCCAnalysesJetConstituentsData>& phi0);
@@ -243,23 +245,43 @@ namespace FCCAnalyses {
                                                           const rv::RVec<FCCAnalysesJetConstituentsData>& err2_D0,
                                                           const rv::RVec<FCCAnalysesJetConstituentsData>& err2_Z0);
 
-    rv::RVec<FCCAnalysesJetConstituentsData> get_JetDistVal(const rv::RVec<edm4hep::ReconstructedParticleData>& jets,
+    rv::RVec<FCCAnalysesJetConstituentsData> get_JetPlaneDistVal(const rv::RVec<edm4hep::ReconstructedParticleData>& jets,
                                                             const rv::RVec<FCCAnalysesJetConstituents>& jcs,
                                                             const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
                                                             const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
 
-    rv::RVec<FCCAnalysesJetConstituentsData> get_JetDistVal_cluster(const rv::RVec<fastjet::PseudoJet>& jets,
+    rv::RVec<FCCAnalysesJetConstituentsData> get_JetPlaneDistVal_cluster(const rv::RVec<fastjet::PseudoJet>& jets,
                                                                     const rv::RVec<FCCAnalysesJetConstituents>& jcs,
                                                                     const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
                                                                     const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
 
-    rv::RVec<FCCAnalysesJetConstituentsData> get_JetDistVal_clusterV(const rv::RVec<fastjet::PseudoJet>& jets,
+    rv::RVec<FCCAnalysesJetConstituentsData> get_JetPlaneDistVal_clusterV(const rv::RVec<fastjet::PseudoJet>& jets,
                                                                      const rv::RVec<FCCAnalysesJetConstituents>& jcs,
                                                                      const rv::RVec<FCCAnalysesJetConstituentsData>& D0,
                                                                      const rv::RVec<FCCAnalysesJetConstituentsData>& Z0,
                                                                      const rv::RVec<FCCAnalysesJetConstituentsData>& phi0);
 
-    rv::RVec<FCCAnalysesJetConstituentsData> get_JetDistSig(const rv::RVec<FCCAnalysesJetConstituentsData>& JetDistVal,
+    rv::RVec<FCCAnalysesJetConstituentsData> get_JetPlaneDistSig(const rv::RVec<FCCAnalysesJetConstituentsData>& JetDistVal,
+                                                            const rv::RVec<FCCAnalysesJetConstituentsData>& err2_D0,
+                                                            const rv::RVec<FCCAnalysesJetConstituentsData>& err2_Z0);
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_JetOrthogonalDistVal_clusterV(const rv::RVec<fastjet::PseudoJet>& jets,
+                                                                     const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                                     const rv::RVec<FCCAnalysesJetConstituentsData>& D0,
+                                                                     const rv::RVec<FCCAnalysesJetConstituentsData>& Z0,
+                                                                     const rv::RVec<FCCAnalysesJetConstituentsData>& phi0);
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_JetOrthogonalDistSig(const rv::RVec<FCCAnalysesJetConstituentsData>& JetDistVal,
+                                                            const rv::RVec<FCCAnalysesJetConstituentsData>& err2_D0,
+                                                            const rv::RVec<FCCAnalysesJetConstituentsData>& err2_Z0);
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_JetParallelDistVal_clusterV(const rv::RVec<fastjet::PseudoJet>& jets,
+                                                                     const rv::RVec<FCCAnalysesJetConstituents>& jcs,
+                                                                     const rv::RVec<FCCAnalysesJetConstituentsData>& D0,
+                                                                     const rv::RVec<FCCAnalysesJetConstituentsData>& Z0,
+                                                                     const rv::RVec<FCCAnalysesJetConstituentsData>& phi0);
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_JetParallelDistSig(const rv::RVec<FCCAnalysesJetConstituentsData>& JetDistVal,
                                                             const rv::RVec<FCCAnalysesJetConstituentsData>& err2_D0,
                                                             const rv::RVec<FCCAnalysesJetConstituentsData>& err2_Z0);
 
