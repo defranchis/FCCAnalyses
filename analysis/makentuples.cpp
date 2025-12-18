@@ -501,7 +501,6 @@ int main(int argc, char* argv[]) {
     pvx = (float)PV_x;
     pvy = (float)PV_y;
     pvz = (float)PV_z;
-    std::cout << pvx << std::endl;
     int eventFlavour = genEventType;
 
     // do some printouts to track progress
