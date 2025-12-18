@@ -506,6 +506,10 @@ namespace ReconstructedParticle2Track{
   }
 
 
+/*
+Simple track parameter getter functions
+*/
+
 ROOT::VecOps::RVec<float>
 getRP2TRK_D0(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,
              ROOT::VecOps::RVec<edm4hep::TrackState> trackStates,
@@ -635,8 +639,11 @@ getRP2TRK_omega(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in,
   ROOT::VecOps::RVec<float> result;
   for (auto & p: in) {
     size_t trackIndex = getTrackIndex(p, reco2track_links);
-    if (trackIndex<trackStates.size())
-      result.push_back(trackStates.at(trackIndex).omega);
+    if (trackIndex<trackStates.size()){
+      float omega = trackStates.at(trackIndex).omega;
+      if( detector=="aleph" ){ omega *= -1; }
+      result.push_back(omega);
+    }
     else result.push_back(-9);
   }
   return result;
