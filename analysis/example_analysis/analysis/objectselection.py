@@ -20,7 +20,7 @@ def load_objectselection(selectionjson):
     for expected_key in expect:
         if expected_key not in keys:
             msg = f'Expected key {expected_key} not found in {selectionjson}.'
-            raise Exception
+            raise Exception(msg)
 
     # format selection
     sel = selection['selection']

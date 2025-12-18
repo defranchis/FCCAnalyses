@@ -191,11 +191,11 @@ if __name__=='__main__':
         'pfcand_dz',
         'pfcand_dxydxy',
         'pfcand_dzdz',
-        'pfcand_btagSip3dVal',
+        'pfcand_Sip3dVal',
         'pfcand_pt',
         'pfcand_thetarel',
-        'pfcand_btagJetDistVal',
-        'pfcand_btagJetDistSig',
+        'pfcand_JetDistVal',
+        'pfcand_JetDistSig',
     ])
 
     # get luminosity from year
@@ -257,8 +257,8 @@ if __name__=='__main__':
             events = events_combined[dtype][process_key]
             
             # get impact parameter significance
-            ipsig2d = events['pfcand_btagSip2dSig']
-            ipsig3d = events['pfcand_btagSip3dSig']
+            ipsig2d = events['pfcand_Sip2dSig']
+            ipsig3d = events['pfcand_Sip3dSig']
             charged_mask = (np.abs(ipsig2d-(-9))>1e-12)
             ipsig2d = ipsig2d[charged_mask]
             ipsig3d = ipsig3d[charged_mask]
@@ -273,10 +273,10 @@ if __name__=='__main__':
             normchi2 = events['pfcand_trackChi2Normalized'][charged_mask]
             pt = events['pfcand_pt'][charged_mask]
             thetarel = events['pfcand_thetarel'][charged_mask]
-            ip3d = events['pfcand_btagSip3dVal'][charged_mask]
+            ip3d = events['pfcand_Sip3dVal'][charged_mask]
             ip3derr = np.divide(ip3d, ipsig3d)
-            jetdist = events['pfcand_btagJetDistVal'][charged_mask]
-            jetdistsig = events['pfcand_btagJetDistSig'][charged_mask]
+            jetdist = events['pfcand_JetDistVal'][charged_mask]
+            jetdistsig = events['pfcand_JetDistSig'][charged_mask]
            
             # do track filtering
             mask = (
@@ -326,10 +326,10 @@ if __name__=='__main__':
             events['recojet_pj3d'] = pj3d
             events['recojet_pj2dlog'] = pj2dlog
             events['recojet_pj3dlog'] = pj3dlog
-            events['pfcand_btagSip2dSigProb'] = ipsig2d_prob
-            events['pfcand_btagSip3dSigProb'] = ipsig3d_prob
-            events['pfcand_btagSip2dSig'] = ipsig2d # overwrite after selection
-            events['pfcand_btagSip3dSig'] = ipsig3d # overwrite after selection
+            events['pfcand_Sip2dSigProb'] = ipsig2d_prob
+            events['pfcand_Sip3dSigProb'] = ipsig3d_prob
+            events['pfcand_Sip2dSig'] = ipsig2d # overwrite after selection
+            events['pfcand_Sip3dSig'] = ipsig3d # overwrite after selection
             variables.append(
                 HistogramVariable.fromdict({
                   'name': 'pj2d',
@@ -376,8 +376,8 @@ if __name__=='__main__':
             )
             variables.append(
                 HistogramVariable.fromdict({
-                  'name': 'btagSip2dSigProb',
-                  'variable': 'pfcand_btagSip2dSigProb',
+                  'name': 'Sip2dSigProb',
+                  'variable': 'pfcand_Sip2dSigProb',
                   'axtitle': 'SIP2D significance probability',
                   'unit': None,
                   'nbins': 100,
@@ -387,8 +387,8 @@ if __name__=='__main__':
             )
             variables.append(
                 HistogramVariable.fromdict({
-                  'name': 'btagSip3dSigProb',
-                  'variable': 'pfcand_btagSip3dSigProb',
+                  'name': 'Sip3dSigProb',
+                  'variable': 'pfcand_Sip3dSigProb',
                   'axtitle': 'SIP3D significance probability',
                   'unit': None,
                   'nbins': 100,
