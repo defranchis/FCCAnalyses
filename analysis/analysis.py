@@ -249,8 +249,9 @@ class RDFanalysis():
             .Define("PV_y", "PrimaryVertexP4.Y()")
             .Define("PV_z", "PrimaryVertexP4.Z()")
 
-            # temp for testing
-            #.Redefine("PrimaryVertexP4", "TLorentzVector(GenPV_x, GenPV_y, GenPV_z, 0)")
+            # make a copy of the primary vertex as a 3-vector rather than a 4-vector
+            # (needed in some functions below)
+            .Define("PrimaryVertexP3", "TVector3(PV_x, PV_y, PV_z)")
 
             # define the momentum, energy, mass and charge of all reconstructed particles.
             .Define("RP_px",          "ReconstructedParticle::get_px(ReconstructedParticles)")
@@ -289,6 +290,9 @@ class RDFanalysis():
             .Define("jetconstituents_ee_genkt", "JetClusteringUtils::get_constituents(FCCAnalysesJets_ee_genkt)")
 
             # define jet-level observables
+            .Define("Jets_px", "JetClusteringUtils::get_px(jets_ee_genkt)")
+            .Define("Jets_py", "JetClusteringUtils::get_py(jets_ee_genkt)")
+            .Define("Jets_pz", "JetClusteringUtils::get_pz(jets_ee_genkt)")
             .Define("Jets_pt", "JetClusteringUtils::get_pt(jets_ee_genkt)")
             .Define("Jets_e", "JetClusteringUtils::get_e(jets_ee_genkt)")
             .Define("Jets_mass", "JetClusteringUtils::get_m(jets_ee_genkt)")
@@ -371,11 +375,11 @@ class RDFanalysis():
             dfout
 
             # store some track parameters with respect to the nominal origin
-            # (mainly for debugging? typically these variables should be re-calculated w.r.t. the primary vertex)
+            # (mainly for debugging; typically these variables should be re-calculated w.r.t. the primary vertex)
             # note: the parameters have the following meaning:
             #  - d0: transverse impact parameter, i.e. signed transverse distance of closest approach of track to origin
             #  - z0: longitudinal impact parameter, i.e. z-coordinate of the point of closest approach of the track to origin
-            #  - phi0: ?
+            #  - phi0: azimuthal angle of track at the point of closest approach of the track to the origin
             #  - omega: track curvature (does not depend on reference point?)
             #  - tan(lambda): pz / pT (related to theta) (does not depend on reference point?)
             # note: the functions below don't do any calculations, they are just getters for the values stored.
@@ -388,13 +392,12 @@ class RDFanalysis():
             # calculate the magnetic field strength along the z-axis from the curvature of the tracks
             .Define("JetsConstituents_Bz", "JetConstituentsUtils::get_Bz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
         
-            # more jet constituents
+            # impact parameters (with respect to the primary vertex) and related quantities (including their uncertainties)
             .Define("JetsConstituents_dxy", "JetConstituentsUtils::XPtoPar_dxy(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
             .Define("JetsConstituents_dz", "JetConstituentsUtils::XPtoPar_dz(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
             .Define("JetsConstituents_phi0", "JetConstituentsUtils::XPtoPar_phi(JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP4, Event_Bz)")
             .Define("JetsConstituents_C", "JetConstituentsUtils::XPtoPar_C(JetsConstituents, EFlowTrack_1, Event_Bz)")
             .Define("JetsConstituents_ct", "JetConstituentsUtils::XPtoPar_ct(JetsConstituents, EFlowTrack_1, Event_Bz)")
-
             .Define("JetsConstituents_omega_cov", "JetConstituentsUtils::get_omega_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_d0_cov", "JetConstituentsUtils::get_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_z0_cov", "JetConstituentsUtils::get_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
@@ -411,12 +414,34 @@ class RDFanalysis():
             .Define("JetsConstituents_omega_d0_cov", "JetConstituentsUtils::get_omega_d0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             .Define("JetsConstituents_omega_z0_cov", "JetConstituentsUtils::get_omega_z0_cov(JetsConstituents, EFlowTrack_1, Reco2TrackLinks)")
             
+            # FCC-style signed impact parameters
             .Define("JetsConstituents_Sip2dVal", "JetConstituentsUtils::get_Sip2dVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_phi0)")
             .Define("JetsConstituents_Sip2dSig", "JetConstituentsUtils::get_Sip2dSig(JetsConstituents_Sip2dVal, JetsConstituents_d0_cov)")
             .Define("JetsConstituents_Sip3dVal", "JetConstituentsUtils::get_Sip3dVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0)")
             .Define("JetsConstituents_Sip3dSig", "JetConstituentsUtils::get_Sip3dSig(JetsConstituents_Sip3dVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
             .Define("JetsConstituents_JetDistVal", "JetConstituentsUtils::get_JetPlaneDistVal_clusterV(jets_ee_genkt, JetsConstituents, JetsConstituents_dxy, JetsConstituents_dz, JetsConstituents_phi0)")
             .Define("JetsConstituents_JetDistSig", "JetConstituentsUtils::get_JetPlaneDistSig(JetsConstituents_JetDistVal, JetsConstituents_d0_cov, JetsConstituents_z0_cov)")
+
+            # ALEPH-style signed impact parameters
+            .Define("trackToJetAxisPCAs", "IPAlephTools::getTrackToJetAxisPCA(jets_ee_genkt, JetsConstituents, EFlowTrack_1, Reco2TrackLinks, PrimaryVertexP3)")
+            .Define("JetsConstituents_linearSignedIP3D", "IPAlephTools::signedIP3D(trackToJetAxisPCAs, jets_ee_genkt, PrimaryVertexP3)")
+            .Define("JetsConstituents_linearSignedIP3DSig", "IPAlephTools::signedIP3DSig(trackToJetAxisPCAs, jets_ee_genkt, PrimaryVertexP3)")
+            .Define("JetsConstituents_transverseJetDistance", "IPAlephTools::transverseJetDistance(trackToJetAxisPCAs)")
+            .Define("JetsConstituents_longitudinalJetDistance", "IPAlephTools::longitudinalJetDistance(trackToJetAxisPCAs, PrimaryVertexP3)")
+
+            # extension of the above: store coordinates of PCAs (only for checking and debugging)
+            .Define("trackPCAToJetAxis", "IPAlephTools::getTrackPCAToJetAxis(trackToJetAxisPCAs)")
+            .Define("jetAxisPCAToTrack", "IPAlephTools::getJetAxisPCAToTrack(trackToJetAxisPCAs)")
+            .Define("linePCAToPrimaryVertex", "IPAlephTools::getLinePCAToPrimaryVertex(trackToJetAxisPCAs)")
+            .Define("JetsConstituents_trackPCAToJetAxis_x", "IPAlephTools::getPCA_x(trackPCAToJetAxis)")
+            .Define("JetsConstituents_trackPCAToJetAxis_y", "IPAlephTools::getPCA_y(trackPCAToJetAxis)")
+            .Define("JetsConstituents_trackPCAToJetAxis_z", "IPAlephTools::getPCA_z(trackPCAToJetAxis)")
+            .Define("JetsConstituents_jetAxisPCAToTrack_x", "IPAlephTools::getPCA_x(jetAxisPCAToTrack)")
+            .Define("JetsConstituents_jetAxisPCAToTrack_y", "IPAlephTools::getPCA_y(jetAxisPCAToTrack)")
+            .Define("JetsConstituents_jetAxisPCAToTrack_z", "IPAlephTools::getPCA_z(jetAxisPCAToTrack)")
+            .Define("JetsConstituents_linePCAToPrimaryVertex_x", "IPAlephTools::getPCA_x(linePCAToPrimaryVertex)")
+            .Define("JetsConstituents_linePCAToPrimaryVertex_y", "IPAlephTools::getPCA_y(linePCAToPrimaryVertex)")
+            .Define("JetsConstituents_linePCAToPrimaryVertex_z", "IPAlephTools::getPCA_z(linePCAToPrimaryVertex)")
 
             # counting the types of particles per jet
             .Define("Jets_nConstituents", "JetConstituentsUtils::count_consts(JetsConstituents)")
@@ -473,6 +498,9 @@ class RDFanalysis():
             'Jets_e',
             'Jets_mass',
             'Jets_pt',
+            'Jets_px',
+            'Jets_py',
+            'Jets_pz',
             'Jets_phi',
             'Jets_eta',
             'Jets_theta',
@@ -531,12 +559,29 @@ class RDFanalysis():
             'JetsConstituents_omega_phi0_cov',
             'JetsConstituents_omega_d0_cov',
             'JetsConstituents_omega_z0_cov', 
+            
             'JetsConstituents_Sip2dVal',
             'JetsConstituents_Sip2dSig', 
             'JetsConstituents_Sip3dVal',
             'JetsConstituents_Sip3dSig', 
             'JetsConstituents_JetDistVal',
             'JetsConstituents_JetDistSig',
+
+            'JetsConstituents_linearSignedIP3D',
+            'JetsConstituents_linearSignedIP3DSig',
+            'JetsConstituents_transverseJetDistance',
+            'JetsConstituents_longitudinalJetDistance',
+
+            "JetsConstituents_trackPCAToJetAxis_x",
+            "JetsConstituents_trackPCAToJetAxis_y",
+            "JetsConstituents_trackPCAToJetAxis_z",
+            "JetsConstituents_jetAxisPCAToTrack_x",
+            "JetsConstituents_jetAxisPCAToTrack_y",
+            "JetsConstituents_jetAxisPCAToTrack_z",
+            "JetsConstituents_linePCAToPrimaryVertex_x",
+            "JetsConstituents_linePCAToPrimaryVertex_y",
+            "JetsConstituents_linePCAToPrimaryVertex_z",
+
             'JetsConstituents_isMu', 
             'JetsConstituents_isEl', 
             'JetsConstituents_isChargedHad',

@@ -135,6 +135,11 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_JetDistVal = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_JetDistSig = 0;
 
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_linearSignedIP3D = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_linearSignedIP3DSig = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_transverseJetDistance = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_longitudinalJetDistance = 0;
+
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_isMu = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_isEl = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_isChargedHad = 0;
@@ -226,6 +231,11 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("JetsConstituents_Sip3dSig", &JetsConstituents_Sip3dSig);
   ev->SetBranchAddress("JetsConstituents_JetDistVal", &JetsConstituents_JetDistVal);
   ev->SetBranchAddress("JetsConstituents_JetDistSig", &JetsConstituents_JetDistSig);
+
+  ev->SetBranchAddress("JetsConstituents_linearSignedIP3D", &JetsConstituents_linearSignedIP3D);
+  ev->SetBranchAddress("JetsConstituents_linearSignedIP3DSig", &JetsConstituents_linearSignedIP3DSig);
+  ev->SetBranchAddress("JetsConstituents_transverseJetDistance", &JetsConstituents_transverseJetDistance);
+  ev->SetBranchAddress("JetsConstituents_longitudinalJetDistance", &JetsConstituents_longitudinalJetDistance);
   
   ev->SetBranchAddress("JetsConstituents_isMu", &JetsConstituents_isMu);
   ev->SetBranchAddress("JetsConstituents_isEl", &JetsConstituents_isEl);
@@ -326,12 +336,17 @@ int main(int argc, char* argv[]) {
   float pfcand_dxyc[1000] = {0.};
   float pfcand_cdz[1000] = {0.};
 
-  float pfcand_btagSip2dVal[1000] = {0.};
-  float pfcand_btagSip2dSig[1000] = {0.};
-  float pfcand_btagSip3dVal[1000] = {0.};
-  float pfcand_btagSip3dSig[1000] = {0.};
-  float pfcand_btagJetDistVal[1000] = {0.};
-  float pfcand_btagJetDistSig[1000] = {0.};
+  float pfcand_Sip2dVal[1000] = {0.};
+  float pfcand_Sip2dSig[1000] = {0.};
+  float pfcand_Sip3dVal[1000] = {0.};
+  float pfcand_Sip3dSig[1000] = {0.};
+  float pfcand_JetDistVal[1000] = {0.};
+  float pfcand_JetDistSig[1000] = {0.};
+
+  float pfcand_linearSignedIP3D[1000] = {0.};
+  float pfcand_linearSignedIP3DSig[1000] = {0.};
+  float pfcand_transverseJetDistance[1000] = {0.};
+  float pfcand_longitudinalJetDistance[1000] = {0.};
 
   float pfcand_isMu[1000] = {0.};
   float pfcand_isEl[1000] = {0.};
@@ -439,12 +454,17 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("pfcand_dxyc", pfcand_dxyc, "pfcand_dxyc[nconst]/F");
   ntuple->Branch("pfcand_cdz", pfcand_cdz, "pfcand_cdz[nconst]/F");
 
-  ntuple->Branch("pfcand_btagSip2dVal", pfcand_btagSip2dVal, "pfcand_btagSip2dVal[nconst]/F");
-  ntuple->Branch("pfcand_btagSip2dSig", pfcand_btagSip2dSig, "pfcand_btagSip2dSig[nconst]/F");
-  ntuple->Branch("pfcand_btagSip3dVal", pfcand_btagSip3dVal, "pfcand_btagSip3dVal[nconst]/F");
-  ntuple->Branch("pfcand_btagSip3dSig", pfcand_btagSip3dSig, "pfcand_btagSip3dSig[nconst]/F");
-  ntuple->Branch("pfcand_btagJetDistVal", pfcand_btagJetDistVal, "pfcand_btagJetDistVal[nconst]/F");
-  ntuple->Branch("pfcand_btagJetDistSig", pfcand_btagJetDistSig, "pfcand_btagJetDistSig[nconst]/F");
+  ntuple->Branch("pfcand_Sip2dVal", pfcand_Sip2dVal, "pfcand_Sip2dVal[nconst]/F");
+  ntuple->Branch("pfcand_Sip2dSig", pfcand_Sip2dSig, "pfcand_Sip2dSig[nconst]/F");
+  ntuple->Branch("pfcand_Sip3dVal", pfcand_Sip3dVal, "pfcand_Sip3dVal[nconst]/F");
+  ntuple->Branch("pfcand_Sip3dSig", pfcand_Sip3dSig, "pfcand_Sip3dSig[nconst]/F");
+  ntuple->Branch("pfcand_JetDistVal", pfcand_JetDistVal, "pfcand_JetDistVal[nconst]/F");
+  ntuple->Branch("pfcand_JetDistSig", pfcand_JetDistSig, "pfcand_JetDistSig[nconst]/F");
+
+  ntuple->Branch("pfcand_linearSignedIP3D", pfcand_linearSignedIP3D, "pfcand_linearSignedIP3D[nconst]/F");
+  ntuple->Branch("pfcand_linearSignedIP3DSig", pfcand_linearSignedIP3DSig, "pfcand_linearSignedIP3DSig[nconst]/F");
+  ntuple->Branch("pfcand_transverseJetDistance", pfcand_transverseJetDistance, "pfcand_transverseJetDistance[nconst]/F");
+  ntuple->Branch("pfcand_longitudinalJetDistance", pfcand_longitudinalJetDistance, "pfcand_longitudinalJetDistance[nconst]/F");
 
   ntuple->Branch("pfcand_isMu", pfcand_isMu, "pfcand_isMu[nconst]/F");
   ntuple->Branch("pfcand_isEl", pfcand_isEl, "pfcand_isEl[nconst]/F");
@@ -600,12 +620,17 @@ int main(int argc, char* argv[]) {
         pfcand_dxyc[k] = (JetsConstituents_omega_d0_cov->at(j))[k];
         pfcand_cdz[k] = (JetsConstituents_omega_z0_cov->at(j))[k];
         
-        pfcand_btagSip2dVal[k] = (JetsConstituents_Sip2dVal->at(j))[k];
-        pfcand_btagSip2dSig[k] = (JetsConstituents_Sip2dSig->at(j))[k];
-        pfcand_btagSip3dVal[k] = (JetsConstituents_Sip3dVal->at(j))[k];
-        pfcand_btagSip3dSig[k] = (JetsConstituents_Sip3dSig->at(j))[k];
-        pfcand_btagJetDistVal[k] = (JetsConstituents_JetDistVal->at(j))[k];
-        pfcand_btagJetDistSig[k] = (JetsConstituents_JetDistSig->at(j))[k];
+        pfcand_Sip2dVal[k] = (JetsConstituents_Sip2dVal->at(j))[k];
+        pfcand_Sip2dSig[k] = (JetsConstituents_Sip2dSig->at(j))[k];
+        pfcand_Sip3dVal[k] = (JetsConstituents_Sip3dVal->at(j))[k];
+        pfcand_Sip3dSig[k] = (JetsConstituents_Sip3dSig->at(j))[k];
+        pfcand_JetDistVal[k] = (JetsConstituents_JetDistVal->at(j))[k];
+        pfcand_JetDistSig[k] = (JetsConstituents_JetDistSig->at(j))[k];
+
+        pfcand_linearSignedIP3D[k] = (JetsConstituents_linearSignedIP3D->at(j))[k];
+        pfcand_linearSignedIP3DSig[k] = (JetsConstituents_linearSignedIP3DSig->at(j))[k];
+        pfcand_transverseJetDistance[k] = (JetsConstituents_transverseJetDistance->at(j))[k];
+        pfcand_longitudinalJetDistance[k] = (JetsConstituents_longitudinalJetDistance->at(j))[k];
 
         pfcand_isMu[k] = (JetsConstituents_isMu->at(j))[k];
         pfcand_isEl[k] = (JetsConstituents_isEl->at(j))[k];
