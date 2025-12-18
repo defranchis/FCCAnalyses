@@ -184,12 +184,18 @@ if __name__=='__main__':
 
     # add extra variables to read by hand
     variablelist += ([
+        'pfcand_nTrackHits_VDET',
+        'pfcand_nTrackHits_TPC',
+        'pfcand_trackChi2Normalized',
         'pfcand_dxy',
         'pfcand_dz',
         'pfcand_dxydxy',
         'pfcand_dzdz',
         'pfcand_btagSip3dVal',
-        'pfcand_pt'
+        'pfcand_pt',
+        'pfcand_thetarel',
+        'pfcand_btagJetDistVal',
+        'pfcand_btagJetDistSig',
     ])
 
     # get luminosity from year
@@ -258,26 +264,40 @@ if __name__=='__main__':
             ipsig3d = ipsig3d[charged_mask]
 
             # get auxiliary variables (used in selection)
+            vdethits = events['pfcand_nTrackHits_VDET'][charged_mask]
+            tpchits = events['pfcand_nTrackHits_TPC'][charged_mask]
             dxy = events['pfcand_dxy'][charged_mask]
             dz = events['pfcand_dz'][charged_mask]
             dxyerr = np.sqrt(events['pfcand_dxydxy'][charged_mask])
             dzerr = np.sqrt(events['pfcand_dzdz'][charged_mask])
+            normchi2 = events['pfcand_trackChi2Normalized'][charged_mask]
             pt = events['pfcand_pt'][charged_mask]
+            thetarel = events['pfcand_thetarel'][charged_mask]
             ip3d = events['pfcand_btagSip3dVal'][charged_mask]
             ip3derr = np.divide(ip3d, ipsig3d)
+            jetdist = events['pfcand_btagJetDistVal'][charged_mask]
+            jetdistsig = events['pfcand_btagJetDistSig'][charged_mask]
            
             # do track filtering
             mask = (
-                (np.abs(dxy) < 0.5)
+                (vdethits >= 1)
+                & (tpchits >= 4)
+                & (np.abs(dxy) < 0.5)
                 & (np.abs(dz) < 0.5)
                 & (dxyerr < 0.1)
                 & (dzerr < 0.1)
+                & (normchi2 < 5)
                 & (pt > 0.4)
+                & (np.cos(thetarel) > 0.7)
                 & (np.abs(ip3d) < 0.25)
                 & (ip3derr < 0.075)
+                & (np.abs(jetdist) < 0.04)
+                & (np.abs(jetdistsig) < 10)
             )
             ipsig2d = ipsig2d[mask]
             ipsig3d = ipsig3d[mask]
+            flatmask = ak.flatten(mask).to_numpy()
+            print(f'Selected {np.sum(flatmask.astype(int))} out of {len(flatmask)} jet constituents.')
  
             # convert to probability
             ipsig2d_prob = ipsig_prob(ipsig2d)
@@ -288,8 +308,18 @@ if __name__=='__main__':
             pj3d = jet_ipsig_prob(ipsig3d, prob=ipsig3d_prob)
 
             # take log for easier plotting
+            pj2d = np.where(pj2d < 1e-10, 1e-10, pj2d)
+            pj3d = np.where(pj3d < 1e-10, 1e-10, pj3d)
             pj2dlog = -np.log10(pj2d)
             pj3dlog = -np.log10(pj3d)
+
+            # printouts for debugging
+            #print(len(pj3d))
+            #print(np.amin(pj3d))
+            #print(np.amax(pj3d))
+            #print(len(pj3dlog))
+            #print(np.amin(pj3dlog))
+            #print(np.amax(pj3dlog))
 
             # add variable for plotting
             events['recojet_pj2d'] = pj2d
@@ -306,7 +336,7 @@ if __name__=='__main__':
                   'variable': 'recojet_pj2d',
                   'axtitle': 'PJ2D',
                   'unit': None,
-                  'nbins': 50,
+                  'nbins': 100,
                   'xlow': 0,
                   'xhigh': 1
                 })
@@ -317,7 +347,7 @@ if __name__=='__main__':
                   'variable': 'recojet_pj3d',
                   'axtitle': 'PJ3D',
                   'unit': None,
-                  'nbins': 50,
+                  'nbins': 100,
                   'xlow': 0,
                   'xhigh': 1
                 })
@@ -328,7 +358,7 @@ if __name__=='__main__':
                   'variable': 'recojet_pj2dlog',
                   'axtitle': '-log(PJ2D)',
                   'unit': None,
-                  'nbins': 50,
+                  'nbins': 100,
                   'xlow': 0,
                   'xhigh': 10
                 })
@@ -339,7 +369,7 @@ if __name__=='__main__':
                   'variable': 'recojet_pj3dlog',
                   'axtitle': '-log(PJ3D)',
                   'unit': None,
-                  'nbins': 50,
+                  'nbins': 100,
                   'xlow': 0,
                   'xhigh': 10
                 })
@@ -350,7 +380,7 @@ if __name__=='__main__':
                   'variable': 'pfcand_btagSip2dSigProb',
                   'axtitle': 'SIP2D significance probability',
                   'unit': None,
-                  'nbins': 50,
+                  'nbins': 100,
                   'xlow': -1,
                   'xhigh': 1
                 })
@@ -361,11 +391,27 @@ if __name__=='__main__':
                   'variable': 'pfcand_btagSip3dSigProb',
                   'axtitle': 'SIP3D significance probability',
                   'unit': None,
-                  'nbins': 50,
+                  'nbins': 100,
                   'xlow': -1,
                   'xhigh': 1
                 })
             )
+
+    # calculate discriminating power
+    this_events = events_combined['sim']['qqb']
+    for variable in ['recojet_pj2dlog', 'recojet_pj3dlog']:
+        values = {}
+        for subprocess_name, subprocess_selection in splitdict['qqb'].items():
+            mask = get_selection_mask(this_events, subprocess_selection).to_numpy().astype(bool)
+            this_values = this_events[variable][mask].to_numpy()
+            values[subprocess_name] = this_values
+        signame = 'bb'
+        sigeff = 0.2
+        cutoff = np.quantile(values[signame], 1-sigeff)
+        effs = {}
+        for subprocess_name in splitdict['qqb'].keys():
+            effs[subprocess_name] = np.sum((values[subprocess_name] > cutoff).astype(int))/len(values[subprocess_name])
+        print(f'Efficiencies for {variable} (target: {signame}, {sigeff})')
 
     # make histograms
     hists_combined = make_histograms(events_combined, variables,
