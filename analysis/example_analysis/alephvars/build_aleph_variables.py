@@ -191,11 +191,11 @@ if __name__=='__main__':
         'pfcand_dz',
         'pfcand_dxydxy',
         'pfcand_dzdz',
-        'pfcand_Sip3dVal',
         'pfcand_pt',
         'pfcand_thetarel',
-        'pfcand_JetDistVal',
-        'pfcand_JetDistSig',
+        'pfcand_linearSignedIP3D',
+        'pfcand_transverseJetDistance',
+        'pfcand_longitudinalJetDistance',
     ])
 
     # get luminosity from year
@@ -259,9 +259,11 @@ if __name__=='__main__':
             # get impact parameter significance
             ipsig2d = events['pfcand_Sip2dSig']
             ipsig3d = events['pfcand_Sip3dSig']
+            linipsig3d = events['pfcand_linearSignedIP3DSig']
             charged_mask = (np.abs(ipsig2d-(-9))>1e-12)
             ipsig2d = ipsig2d[charged_mask]
             ipsig3d = ipsig3d[charged_mask]
+            linipsig3d = linipsig3d[charged_mask]
 
             # get auxiliary variables (used in selection)
             vdethits = events['pfcand_nTrackHits_VDET'][charged_mask]
@@ -273,10 +275,10 @@ if __name__=='__main__':
             normchi2 = events['pfcand_trackChi2Normalized'][charged_mask]
             pt = events['pfcand_pt'][charged_mask]
             thetarel = events['pfcand_thetarel'][charged_mask]
-            ip3d = events['pfcand_Sip3dVal'][charged_mask]
-            ip3derr = np.divide(ip3d, ipsig3d)
-            jetdist = events['pfcand_JetDistVal'][charged_mask]
-            jetdistsig = events['pfcand_JetDistSig'][charged_mask]
+            linip3d = events['pfcand_linearSignedIP3D'][charged_mask]
+            linip3derr = np.divide(linip3d, linipsig3d)
+            transjetdist = events['pfcand_transverseJetDistance'][charged_mask]
+            lonjetdist = events['pfcand_longitudinalJetDistance'][charged_mask]
            
             # do track filtering
             mask = (
@@ -289,29 +291,34 @@ if __name__=='__main__':
                 & (normchi2 < 5)
                 & (pt > 0.4)
                 & (np.cos(thetarel) > 0.7)
-                & (np.abs(ip3d) < 0.25)
-                & (ip3derr < 0.075)
-                & (np.abs(jetdist) < 0.04)
-                & (np.abs(jetdistsig) < 10)
+                & (np.abs(linip3d) < 0.25)
+                & (linip3derr < 0.075)
+                & (transjetdist < 0.04)
+                & (lonjetdist < 1)
             )
             ipsig2d = ipsig2d[mask]
             ipsig3d = ipsig3d[mask]
+            linipsig3d = linipsig3d[mask]
             flatmask = ak.flatten(mask).to_numpy()
             print(f'Selected {np.sum(flatmask.astype(int))} out of {len(flatmask)} jet constituents.')
  
             # convert to probability
             ipsig2d_prob = ipsig_prob(ipsig2d)
             ipsig3d_prob = ipsig_prob(ipsig3d)
+            linipsig3d_prob = ipsig_prob(linipsig3d)
 
             # from per-constituent to per-jet variable
             pj2d = jet_ipsig_prob(ipsig2d, prob=ipsig2d_prob)
             pj3d = jet_ipsig_prob(ipsig3d, prob=ipsig3d_prob)
+            linpj3d = jet_ipsig_prob(linipsig3d, prob=linipsig3d_prob)
 
             # take log for easier plotting
             pj2d = np.where(pj2d < 1e-10, 1e-10, pj2d)
             pj3d = np.where(pj3d < 1e-10, 1e-10, pj3d)
+            inpj3d = np.where(linpj3d < 1e-10, 1e-10, linpj3d)
             pj2dlog = -np.log10(pj2d)
             pj3dlog = -np.log10(pj3d)
+            linpj3dlog = -np.log(linpj3d)
 
             # printouts for debugging
             #print(len(pj3d))
@@ -324,12 +331,16 @@ if __name__=='__main__':
             # add variable for plotting
             events['recojet_pj2d'] = pj2d
             events['recojet_pj3d'] = pj3d
+            events['recojet_linpj3d'] = linpj3d
             events['recojet_pj2dlog'] = pj2dlog
             events['recojet_pj3dlog'] = pj3dlog
+            events['recojet_linpj3dlog'] = linpj3dlog
             events['pfcand_Sip2dSigProb'] = ipsig2d_prob
             events['pfcand_Sip3dSigProb'] = ipsig3d_prob
+            events['pfcand_linearSignedIP3DSigProb'] = linipsig3d_prob
             events['pfcand_Sip2dSig'] = ipsig2d # overwrite after selection
             events['pfcand_Sip3dSig'] = ipsig3d # overwrite after selection
+            events['pfcand_linearSignedIP3DSig'] = linipsig3d # overwrite after selection
             variables.append(
                 HistogramVariable.fromdict({
                   'name': 'pj2d',
@@ -346,6 +357,17 @@ if __name__=='__main__':
                   'name': 'pj3d',
                   'variable': 'recojet_pj3d',
                   'axtitle': 'PJ3D',
+                  'unit': None,
+                  'nbins': 100,
+                  'xlow': 0,
+                  'xhigh': 1
+                })
+            )
+            variables.append(
+                HistogramVariable.fromdict({
+                  'name': 'linpj3d',
+                  'variable': 'recojet_linpj3d',
+                  'axtitle': 'PJ3D (ALEPH-style)',
                   'unit': None,
                   'nbins': 100,
                   'xlow': 0,
@@ -376,6 +398,17 @@ if __name__=='__main__':
             )
             variables.append(
                 HistogramVariable.fromdict({
+                  'name': 'linpj3dlog',
+                  'variable': 'recojet_linpj3dlog',
+                  'axtitle': '-log(PJ3D) (ALEPH-style)',
+                  'unit': None,
+                  'nbins': 100,
+                  'xlow': 0,
+                  'xhigh': 10
+                })
+            )
+            variables.append(
+                HistogramVariable.fromdict({
                   'name': 'Sip2dSigProb',
                   'variable': 'pfcand_Sip2dSigProb',
                   'axtitle': 'SIP2D significance probability',
@@ -396,10 +429,21 @@ if __name__=='__main__':
                   'xhigh': 1
                 })
             )
+            variables.append(
+                HistogramVariable.fromdict({
+                  'name': 'linearSignedIP3DSigProb',
+                  'variable': 'pfcand_linearSignedIP3DSigProb',
+                  'axtitle': 'SIP3D significance probability (ALEPH-style)',
+                  'unit': None,
+                  'nbins': 100,
+                  'xlow': -1,
+                  'xhigh': 1
+                })
+            )
 
     # calculate discriminating power
     this_events = events_combined['sim']['qqb']
-    for variable in ['recojet_pj2dlog', 'recojet_pj3dlog']:
+    for variable in ['recojet_pj2dlog', 'recojet_pj3dlog', 'recojet_linpj3dlog']:
         values = {}
         for subprocess_name, subprocess_selection in splitdict['qqb'].items():
             mask = get_selection_mask(this_events, subprocess_selection).to_numpy().astype(bool)
@@ -412,6 +456,7 @@ if __name__=='__main__':
         for subprocess_name in splitdict['qqb'].keys():
             effs[subprocess_name] = np.sum((values[subprocess_name] > cutoff).astype(int))/len(values[subprocess_name])
         print(f'Efficiencies for {variable} (target: {signame}, {sigeff})')
+        print(effs)
 
     # make histograms
     hists_combined = make_histograms(events_combined, variables,
