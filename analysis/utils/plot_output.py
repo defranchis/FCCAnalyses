@@ -45,12 +45,18 @@ if __name__=='__main__':
       'pfcand_z0_wrt0',
       'pfcand_dxy',
       'pfcand_dz',
-      'pfcand_btagSip2dVal',
-      'pfcand_btagSip2dSig',
-      'pfcand_btagSip3dVal',
-      'pfcand_btagSip3dSig',
-      'pfcand_btagJetDistVal',
-      'pfcand_btagJetDistSig',
+
+      'pfcand_Sip2dVal',
+      'pfcand_Sip2dSig',
+      'pfcand_Sip3dVal',
+      'pfcand_Sip3dSig',
+      'pfcand_JetDistVal',
+      'pfcand_JetDistSig',
+
+      'pfcand_linearSignedIP3D',
+      'pfcand_linearSignedIP3DSig',
+      'pfcand_transverseJetDistance',
+      'pfcand_longitudinalJetDistance',
         
       'pfcand_dxydxy',
       'pfcand_dzdz'      
@@ -114,6 +120,12 @@ if __name__=='__main__':
                 np.nan_to_num(this_data, copy=False, nan=0)
             data[category] = this_data
 
+        # optional: ignore dummy values
+        for category in categories:
+            this_data = data[category]
+            mask = (np.abs(this_data+9)>1e-3).astype(bool)
+            data[category] = this_data[mask]
+
         # determine suitable binning
         data_array = np.concatenate(list(data.values()))
         mask = (np.abs(data_array+9)>1e-3).astype(bool)
@@ -128,10 +140,6 @@ if __name__=='__main__':
             maxv = max(maxv, abs(minv))
             minv = -maxv
         bins = np.linspace(minv, maxv, num=51)
-
-        #if variable=='pfcand_dzdz':
-        #    print(data_array)
-        #    print(np.unique(data_array))
 
         # make figure
         fig, ax = plt.subplots()
