@@ -29,7 +29,7 @@ from analysis.objectselection import load_objectselection
 from analysis.objectselection import apply_objectselection
 from analysis.plot import make_histograms, make_events
 from plotting.plot import plot
-from alephvars import ipsig_prob, jet_ipsig_prob
+from alephvars import ipsig_prob, jet_ipsig_prob, mass_ipsig_prob
 
 
 if __name__=='__main__':
@@ -184,6 +184,11 @@ if __name__=='__main__':
 
     # add extra variables to read by hand
     variablelist += ([
+        'pfcand_pt',
+        'pfcand_px',
+        'pfcand_py',
+        'pfcand_pz',
+        'pfcand_e',
         'pfcand_nTrackHits_VDET',
         'pfcand_nTrackHits_TPC',
         'pfcand_trackChi2Normalized',
@@ -191,7 +196,6 @@ if __name__=='__main__':
         'pfcand_dz',
         'pfcand_dxydxy',
         'pfcand_dzdz',
-        'pfcand_pt',
         'pfcand_thetarel',
         'pfcand_linearSignedIP3D',
         'pfcand_transverseJetDistance',
@@ -318,7 +322,7 @@ if __name__=='__main__':
             inpj3d = np.where(linpj3d < 1e-10, 1e-10, linpj3d)
             pj2dlog = -np.log10(pj2d)
             pj3dlog = -np.log10(pj3d)
-            linpj3dlog = -np.log(linpj3d)
+            linpj3dlog = -np.log10(linpj3d)
 
             # printouts for debugging
             #print(len(pj3d))
@@ -328,13 +332,25 @@ if __name__=='__main__':
             #print(np.amin(pj3dlog))
             #print(np.amax(pj3dlog))
 
+            # alternative per-jet variable using invariant mass
+            track_vectors = ak.zip({
+                "px": events["pfcand_px"][mask],
+                "py": events["pfcand_py"][mask],
+                "pz": events["pfcand_pz"][mask],
+                "e": events["pfcand_e"][mask]})
+            linmuj3d = mass_ipsig_prob(linipsig3d, track_vectors, prob=linipsig3d_prob)
+            linmuj3d = np.where(linmuj3d < 1e-10, 1e-10, linmuj3d)
+            linmuj3dlog = -np.log10(linmuj3d)
+
             # add variable for plotting
             events['recojet_pj2d'] = pj2d
             events['recojet_pj3d'] = pj3d
             events['recojet_linpj3d'] = linpj3d
+            events['recojet_linmuj3d'] = linmuj3d
             events['recojet_pj2dlog'] = pj2dlog
             events['recojet_pj3dlog'] = pj3dlog
             events['recojet_linpj3dlog'] = linpj3dlog
+            events['recojet_linmuj3dlog'] = linmuj3dlog
             events['pfcand_Sip2dSigProb'] = ipsig2d_prob
             events['pfcand_Sip3dSigProb'] = ipsig3d_prob
             events['pfcand_linearSignedIP3DSigProb'] = linipsig3d_prob
@@ -376,6 +392,17 @@ if __name__=='__main__':
             )
             variables.append(
                 HistogramVariable.fromdict({
+                  'name': 'linmuj3d',
+                  'variable': 'recojet_linmuj3d',
+                  'axtitle': 'MJ3D (ALEPH-style)',
+                  'unit': None,
+                  'nbins': 100,
+                  'xlow': 0,
+                  'xhigh': 1
+                })
+            )
+            variables.append(
+                HistogramVariable.fromdict({
                   'name': 'pj2dlog',
                   'variable': 'recojet_pj2dlog',
                   'axtitle': '-log(PJ2D)',
@@ -405,6 +432,17 @@ if __name__=='__main__':
                   'nbins': 100,
                   'xlow': 0,
                   'xhigh': 10
+                })
+            )
+            variables.append(
+                HistogramVariable.fromdict({
+                  'name': 'linmuj3dlog',
+                  'variable': 'recojet_linmuj3dlog',
+                  'axtitle': '-log(MJ3D) (ALEPH-style)',
+                  'unit': None,
+                  'nbins': 100,
+                  'xlow': 0,
+                  'xhigh': 4
                 })
             )
             variables.append(

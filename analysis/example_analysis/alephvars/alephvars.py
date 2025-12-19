@@ -72,13 +72,22 @@ def jet_ipsig_prob(ipsig, prob=None):
     # make product
     p = ak.prod(prob, axis=1).to_numpy()
 
-    # calculate normalization factors
+    # calculate terms for normalization factor
+    # note: do this in fixed-length array style for speed;
+    #       need to take sums only up to appropriate value later!
     n = ak.num(prob).to_numpy()
     maxn = np.amax(n)
     normfactors = np.ones((len(n), maxn))
     for j in range(1, maxn):
         normfactors[:, j] = np.power(-np.log(p), j)/math.factorial(j)
-    normfactors = ak.fill_none(ak.pad_none(prob, maxn, axis=1), 0).to_numpy()
+
+    # set superfluous values to zero before taking sum
+    mask = ak.ones_like(prob)
+    mask = ak.fill_none(ak.pad_none(mask, maxn, axis=1), 0).to_numpy()
+    normfactors = np.multiply(normfactors, mask)
+    normfactors[:, 0] = 1
+
+    # take the sum to obtain the normalization factor
     normfactors = np.sum(normfactors, axis=1)
 
     # normalization
@@ -88,3 +97,60 @@ def jet_ipsig_prob(ipsig, prob=None):
     pj = np.clip(pj, a_min=0, a_max=1)
     
     return pj
+
+def mass_ipsig_prob(ipsig, track_vectors, prob=None, threshold=1.8):
+    '''
+    Alternative method of combining per-track impact parameter probabilities
+    into a per-jet probability, using the invariant mass.
+    '''
+
+    # recalculate per-track probabilities if needed
+    if prob is None: prob = ipsig_prob(ipsig)
+
+    # select only positive probabilities
+    mask = (prob>0)
+    prob = prob[mask]
+    track_vectors = track_vectors[mask]
+
+    # sort tracks inversely to their probability
+    sorted_ids = ak.argsort(prob, ascending=True)
+    prob = prob[sorted_ids]
+    track_vectors = track_vectors[sorted_ids]
+
+    # approach 1: naive (slow)
+    '''
+    def invmass(vectors):
+        mass = (np.sqrt(np.square(np.sum(vectors.e))
+                - np.square(np.sum(vectors.px))
+                - np.square(np.sum(vectors.py))
+                - np.square(np.sum(vectors.pz))
+               ))
+        return mass
+
+    # loop over jets and combinations of tracks
+    res = np.ones(len(track_vectors))
+    for jetidx in range(len(track_vectors)):
+        for trackidx in range(len(track_vectors[jetidx])):
+            mass = invmass(track_vectors[jetidx, :trackidx+1])
+            if mass > threshold:
+                res[jetidx] = prob[jetidx, trackidx]
+                break
+    '''
+
+    # approach 2
+    def invmass(vectors, maxidx):
+        mass = (np.sqrt(np.square(np.sum(vectors[:,:maxidx+1].e, axis=1))
+                - np.square(np.sum(vectors[:,:maxidx+1].px, axis=1))
+                - np.square(np.sum(vectors[:,:maxidx+1].py, axis=1))
+                - np.square(np.sum(vectors[:,:maxidx+1].pz, axis=1))
+               ))
+        return mass
+    masses = np.zeros((len(track_vectors), 5))
+    for maxidx in range(5): masses[:, maxidx] = invmass(track_vectors, maxidx)
+    ids = np.argmax(masses>threshold, axis=1)
+    res = np.ones(len(prob))
+    for jetidx in range(len(prob)):
+        if len(prob[jetidx]) > 0 and ids[jetidx]>0:
+            res[jetidx] = prob[jetidx, ids[jetidx]]
+
+    return res
