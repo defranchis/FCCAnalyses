@@ -81,16 +81,35 @@ ROOT.gInterpreter.Declare("""
 ROOT.gInterpreter.Declare("""
     TLorentzVector fitRecoPrimaryVertex(
         ROOT::VecOps::RVec<edm4hep::TrackState> tracks){
+        double beamspotX = 0; // to change for data!
+        double beamspotY = 0; // to change for data!
+        double beamspotZ = 0; // to change for data!
+        double sigma_beamspotX = 20; // unit: 10 micrometer
+        double sigma_beamspotY = 1; // unit: 10 micrometer
+        double sigma_beamspotZ = 2000; // unit: 10 micrometer
         ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse;
-        for(const auto& track: tracks){
-            //if( std::abs(track.omega) < 0.015 ){ continue; }
-            tracksToUse.push_back(track);
+        for (const auto& trk : tracks) {
+            const auto& c = trk.covMatrix;
+            if (c[0] <= 0 || c[2] <= 0 || c[9] <= 0) continue;
+            if (c[0] < 1e-6 || c[2] < 1e-6 || c[9] <= 1e-6) continue;
+            if (!std::isfinite(c[0]) || !std::isfinite(c[2]) || !std::isfinite(c[9])) continue;
+            if (std::abs(trk.D0)>0.75 || std::abs(trk.Z0)>2) continue;
+            tracksToUse.push_back(trk);
         }
-        TLorentzVector result = {0., 0., 0., 0.};
-        if( tracksToUse.size() < 5 ){ return result; }
-        FCCAnalyses::VertexingUtils::FCCAnalysesVertex fitresult = FCCAnalyses::VertexFitterSimple::VertexFitter_Tk(0, tracksToUse);
-        edm4hep::VertexData vertex = fitresult.vertex;
-        result = {vertex.position.x, vertex.position.y, vertex.position.z, 0.};
+        if( tracksToUse.size() < 2 ){ return TLorentzVector(beamspotX, beamspotY, beamspotZ, 0); }
+        ROOT::VecOps::RVec<edm4hep::TrackState> primaryTracks;
+        primaryTracks = FCCAnalyses::VertexFitterSimple::get_PrimaryTracks(tracksToUse,
+            true,
+            sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
+            beamspotX, beamspotY, beamspotZ);
+        if( primaryTracks.size() < 2 ){ return TLorentzVector(beamspotX, beamspotY, beamspotZ, 0); }
+        FCCAnalyses::VertexingUtils::FCCAnalysesVertex fitresult;
+        fitresult = FCCAnalyses::VertexFitterSimple::VertexFitter_Tk(
+            1, primaryTracks,
+            sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
+            beamspotX, beamspotY, beamspotZ);
+        edm4hep::VertexData vertex = FCCAnalyses::VertexingUtils::get_VertexData(fitresult);
+        TLorentzVector result = {vertex.position.x, vertex.position.y, vertex.position.z, 0.};
         return result;
     }""")
 
@@ -238,10 +257,10 @@ class RDFanalysis():
             # alternative for running on data or circumventing other issues with the MC primary vertex:
             # use reco primary vertex.
             # note: not sure how to make this work for FCC sim; there doesn't seem to be an equivalent collection.
-            .Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
+            #.Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
             
             # alternative: recalculate reco primary vertex
-            #.Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1)")
+            .Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1)")
 
             # store the primary vertex coordinates
             # (mainly for debugging)
