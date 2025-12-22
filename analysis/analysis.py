@@ -105,7 +105,7 @@ ROOT.gInterpreter.Declare("""
         if( primaryTracks.size() < 2 ){ return TLorentzVector(beamspotX, beamspotY, beamspotZ, 0); }
         FCCAnalyses::VertexingUtils::FCCAnalysesVertex fitresult;
         fitresult = FCCAnalyses::VertexFitterSimple::VertexFitter_Tk(
-            1, primaryTracks,
+            1, primaryTracks, true,
             sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
             beamspotX, beamspotY, beamspotZ);
         edm4hep::VertexData vertex = FCCAnalyses::VertexingUtils::get_VertexData(fitresult);
