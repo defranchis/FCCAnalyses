@@ -92,7 +92,14 @@ def plot_roc_multi(categories, scores, labels,
                 # get scores for signal and background
                 sig_score_branch = signal_category_settings['score']
                 bkg_score_branch = background_category_settings['score']
-                this_scores = np.divide(scores[sig_score_branch], scores[sig_score_branch] + scores[bkg_score_branch])
+
+                # binarization
+                #this_scores = np.divide(scores[sig_score_branch],
+                #                 scores[sig_score_branch] + scores[bkg_score_branch])
+                # alternative: just use signal score
+                this_scores = scores[sig_score_branch]
+
+                this_scores = np.nan_to_num(this_scores, nan=0, posinf=0, neginf=0)
                 scores_sig = this_scores[labels[signal_category_name]]
                 scores_bkg = this_scores[labels[background_category_name]]
                 weights_sig = np.ones(len(scores_sig))
@@ -104,6 +111,7 @@ def plot_roc_multi(categories, scores, labels,
 
                 # calculate AUC
                 this_scores = np.concatenate((scores_sig, scores_bkg))
+                
                 this_weights = np.concatenate((weights_sig, weights_bkg))
                 this_labels = np.concatenate((np.ones(len(scores_sig)), np.zeros(len(scores_bkg))))
                 auc = roc_auc_score(this_labels, this_scores, sample_weight=np.abs(this_weights))

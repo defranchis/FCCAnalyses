@@ -19,7 +19,7 @@ if __name__=='__main__':
     outputdir = f'output_plots_model_{modeltag}'
     runmode = 'condor'
     ntuplename = f'ntuples-{ntupletag}' if ntupletag is not None else 'ntuples'
-    samples = [f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/mc/output_qqb_[0,1,2,3,4,5,6,7,8,9].root']
+    samples = [f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/mc/output_qqb_[1,2]?.root']
 
     cmds = []
     
