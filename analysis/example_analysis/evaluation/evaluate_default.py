@@ -12,11 +12,14 @@ import tools.slurmtools as st
 if __name__=='__main__':
 
     # settings
-    model = os.path.abspath('models/output_20251101_ipfix/model.onnx')
-    preprocess = model.replace('.onnx', '_preprocess.json')
-    samples = [f'/eos/user/l/llambrec/aleph-data/ntuples_eventlevel_new/mc/output_qqb_[0,1,2,3,4,5].root']
-    outputdir = 'output_test2'
+    modeltag = '20251222_fitpv'
+    ntupletag = 'fitpv'
+    model = os.path.abspath(f'models/output_{modeltag}/model.onnx')
+    preprocess = model.replace('model.onnx', 'preprocess.json')
+    outputdir = f'output_plots_model_{modeltag}'
     runmode = 'condor'
+    ntuplename = f'ntuples-{ntupletag}' if ntupletag is not None else 'ntuples'
+    samples = [f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/mc/output_qqb_[0,1,2,3,4,5,6,7,8,9].root']
 
     cmds = []
     

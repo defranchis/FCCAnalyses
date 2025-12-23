@@ -44,6 +44,7 @@ def make_histograms(datastruct, variables,
         blind_processes = None,
         regions = None,
         recalculate_regions = False,
+        external_variables = None,
         splitdict = None,
         weights = None,
         weight_variations = None,
@@ -135,6 +136,34 @@ def make_histograms(datastruct, variables,
                 else: events = {process_key: files}
                 print(f'Read batch with {len(events[process_key])} entries'
                         + f' and {len(events[process_key].fields)} branches.')
+
+                # read external variables
+                # note: preliminary implementation, to make more robust
+                if external_variables is not None:
+                    print(f'Reading external variables from {external_variables}...')
+                    temp = []
+                    variable_names = None
+                    for input_file in batch_sampledict[process_key]:
+                        tag = input_file.replace('/', '').replace('.root', '')
+                        external_variable_file = os.path.join(args.external_variables, tag+'.pkl')
+                        with open(external_variable_file, 'rb') as f:
+                            content = pickle.load(f)
+                        temp.append(content)
+                        # check if variable names are consistent
+                        candidate_variable_names = list(content.keys())
+                        if variable_names is None: variable_names = candidate_variable_names
+                        else:
+                            if variable_names != candidate_variable_names:
+                                msg = 'Inconsistent variables found:'
+                                msg += ' {candidate_variable_names} vs {variable_names}.'
+                                raise Exception(msg)
+                    # concatenate results from all files
+                    external_vars = {}
+                    for key in variable_names:
+                        external_vars[key] = np.concatenate([el[key] for el in temp])
+                    # add to events
+                    for key in variable_names:
+                        events[process_key][key] = external_vars[key]
 
                 # store number of events before any selection (for normalization later)
                 nevents = {process_key: len(events[process_key])}
@@ -268,9 +297,6 @@ def make_histograms(datastruct, variables,
     for dtype in hists.keys():
         newhists[dtype] = {}
         processes = list(hists[dtype].keys())
-        print(hists.keys())
-        print(dtype)
-        print(processes)
         regvars = list(hists[dtype][processes[0]]['nominal'].keys())
         for regvar in regvars:
             newhists[dtype][regvar] = {}
@@ -368,6 +394,7 @@ if __name__=='__main__':
     parser.add_argument('--select_processes', default=[], nargs='+')
     parser.add_argument('--regions', default=None)
     parser.add_argument('--recalculate_regions', default=False, action='store_true')
+    parser.add_argument('--external_variables', default=None)
     parser.add_argument('--files_per_batch', default=None)
     parser.add_argument('--year', default=None)
     parser.add_argument('--luminosity', default=-1, type=float)
@@ -556,6 +583,7 @@ if __name__=='__main__':
                        select_processes = select_processes,
                        regions = regions,
                        recalculate_regions = args.recalculate_regions,
+                       external_variables = args.external_variables,
                        splitdict = splitdict,
                        weight_variations = weight_variations,
                        lumi = luminosity,

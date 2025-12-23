@@ -1,0 +1,29 @@
+[
+{
+  "name": "score_isB",
+  "variable": "score_isB",
+  "axtitle": "Event classifier bb score",
+  "unit": "",
+  "xlow": 0,
+  "xhigh": 1,
+  "nbins": 50
+},
+{ 
+  "name": "score_isC",
+  "variable": "score_isC",
+  "axtitle": "Event classifier cc score",
+  "unit": "",
+  "xlow": 0,
+  "xhigh": 1,
+  "nbins": 50
+},
+{ 
+  "name": "score_isUDSG",
+  "variable": "score_isUDSG",
+  "axtitle": "Event classifier udsg score",
+  "unit": "",
+  "xlow": 0,
+  "xhigh": 1,
+  "nbins": 50
+}
+]

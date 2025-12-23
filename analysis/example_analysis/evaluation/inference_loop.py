@@ -13,14 +13,17 @@ import tools.slurmtools as st
 if __name__=='__main__':
 
     # settings
-    model = os.path.abspath('models/output_20251101_ipfix/model.onnx')
-    preprocess = model.replace('.onnx', '_preprocess.json')
-    outputdir = 'output_test'
+    modeltag = '20251222_fitpv'
+    ntupletag = 'fitpv'
+    model = os.path.abspath(f'models/output_{modeltag}/model.onnx')
+    preprocess = model.replace('model.onnx', 'preprocess.json')
+    outputdir = f'output_scores_model_{modeltag}'
     runmode = 'condor'
-    resubmit = True
+    resubmit = False
+    ntuplename = f'ntuples-{ntupletag}' if ntupletag is not None else 'ntuples'
     files = [
-      '/eos/user/l/llambrec/aleph-data/ntuples_eventlevel_new/mc/output_qqb_*.root',
-      '/eos/user/l/llambrec/aleph-data/ntuples_eventlevel_new/data/output_data_*.root',
+      f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/mc/output_qqb_*.root',
+      f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/data/output_data_*.root',
     ]
 
     # find files
