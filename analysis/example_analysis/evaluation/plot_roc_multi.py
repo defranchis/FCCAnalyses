@@ -117,7 +117,7 @@ def plot_roc_multi(categories, scores, labels,
                 auc = roc_auc_score(this_labels, this_scores, sample_weight=np.abs(this_weights))
 
                 # calculate signal and background efficiency
-                thresholds = np.linspace(np.amin(this_scores), np.amax(this_scores), num=100)
+                thresholds = np.linspace(np.amin(this_scores), np.amax(this_scores), num=1000)
                 efficiency_sig = np.zeros(len(thresholds))
                 efficiency_bkg = np.zeros(len(thresholds))
                 for idx, threshold in enumerate(thresholds):

@@ -40,13 +40,17 @@ def load_objectselection(selectionjson):
     return (sel, branches)
 
 
-def apply_objectselection(events, selection, branches):
-    object_mask = get_selection_mask(events, selection)
+def apply_objectselection_mask(events, mask, branches):
     apply_branches = []
     for available_branch in events.fields:
         for pattern in branches:
             if fnmatch(available_branch, pattern):
                 apply_branches.append(available_branch)
     for branch in apply_branches:
-        events[branch] = events[branch][object_mask]
+        events[branch] = events[branch][mask]
     return events
+
+
+def apply_objectselection(events, selection, branches):
+    object_mask = get_selection_mask(events, selection)
+    return apply_objectselection_mask(events, object_mask, branches)

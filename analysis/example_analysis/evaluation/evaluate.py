@@ -45,19 +45,19 @@ if __name__=='__main__':
     categories = {
         'bb': {
             'selection': 'genEventType==5',
-            'score': 'score_isB',
+            'score': 'Event_score_isB_prod',
             'color': 'red',
             'label': 'bb'
         },
         'cc': {
             'selection': 'genEventType==4',
-            'score': 'score_isC',
+            'score': 'Event_score_isC_prod',
             'color': 'blue',
             'label': 'cc'
         },
         'other': {
             'selection': 'genEventType<4',
-            'score': 'score_isUDSG',
+            'score': 'Event_score_isUDSG_prod',
             'color': 'green',
             'label': 'other'
         }
@@ -202,6 +202,8 @@ if __name__=='__main__':
 
                 # explicitly free up some memory (is this needed? or even useful?)
                 del this_events
+
+                #break # break after 1 batch (for testing)
 
         # end of processing this sample, go to next one.
 

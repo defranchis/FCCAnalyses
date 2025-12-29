@@ -30,6 +30,7 @@ from analysis.objectselection import load_objectselection
 from analysis.objectselection import apply_objectselection
 from analysis.systematics import get_weight_variation
 from analysis.systematics import format_systematic_name
+from analysis.external_variables import read_external_variables
 from plotting.plot import plot
 
 
@@ -138,32 +139,15 @@ def make_histograms(datastruct, variables,
                         + f' and {len(events[process_key].fields)} branches.')
 
                 # read external variables
-                # note: preliminary implementation, to make more robust
                 if external_variables is not None:
                     print(f'Reading external variables from {external_variables}...')
-                    temp = []
-                    variable_names = None
-                    for input_file in batch_sampledict[process_key]:
-                        tag = input_file.replace('/', '').replace('.root', '')
-                        external_variable_file = os.path.join(args.external_variables, tag+'.pkl')
-                        with open(external_variable_file, 'rb') as f:
-                            content = pickle.load(f)
-                        temp.append(content)
-                        # check if variable names are consistent
-                        candidate_variable_names = list(content.keys())
-                        if variable_names is None: variable_names = candidate_variable_names
-                        else:
-                            if variable_names != candidate_variable_names:
-                                msg = 'Inconsistent variables found:'
-                                msg += ' {candidate_variable_names} vs {variable_names}.'
-                                raise Exception(msg)
-                    # concatenate results from all files
-                    external_vars = {}
-                    for key in variable_names:
-                        external_vars[key] = np.concatenate([el[key] for el in temp])
+                    external_vars = read_external_variables(
+                                      batch_sampledict[process_key],
+                                      external_variables
+                                    )
                     # add to events
-                    for key in variable_names:
-                        events[process_key][key] = external_vars[key]
+                    for key, val in external_vars.items():
+                        events[process_key][key] = val
 
                 # store number of events before any selection (for normalization later)
                 nevents = {process_key: len(events[process_key])}

@@ -189,20 +189,33 @@ def infer_jets(jets, modelname, prepdict, translation=None, batch_size=None):
 def infer_events(events, modelname, prepdict, do_add_variables=False, **kwargs):
     # do preprocessing
     if do_add_variables: events = add_variables(events)
-    # flatten events array into jets array
+    # get variables per-jet and per-constituent
     jets_vars = [varname for varname in events.fields if varname.startswith('Jets_')]
     constituents_vars = [varname for varname in events.fields if varname.startswith('JetsConstituents_')]
+    # check if at least one per-jet variable was provided (needed for flattening and un-flattening)
+    if len(jets_vars)==0:
+        msg = 'Need at least one per-jet variable in events to get the correct shape for flattening and un-flattening.'
+        raise Exception(msg)
+    # do flattening (needed for inference which is essentially per-jet level)
     jets_shape = ak.num(events[jets_vars[0]])
     jets = {varname: ak.flatten(events[varname], axis=1) for varname in constituents_vars}
     # special handling of batches with no jets
     if len(jets[constituents_vars[0]])==0:
-        outputs = {'score_' + key.split('_')[-1]: np.zeros(len(events)) for key in prepdict['output_names']}
+        outputs = {}
+        for key in prepdict['output_names']:
+            output_name = 'Jets_score_' + key.split('_')[-1]
+            outputs[output_name] = np.zeros(len(events))
         return outputs
     # run inference on jets
     outputs = infer_jets(jets, modelname, prepdict, **kwargs)
     # unflatten scores back into events shape
     outputs = {key: ak.unflatten(val, jets_shape) for key, val in outputs.items()}
     # make event score out of per-jet scores
-    # (simple product for now, maybe extend later)
-    outputs = {key: np.prod(val, axis=1).to_numpy() for key, val in outputs.items()}
-    return outputs
+    # update: store individual jet scores (in awkward array) for later more advanced combinations;
+    #         do not make standard combinations anymore as they also depend on the jet selection
+    #         (to be applied at a later stage)
+    event_outputs = {}
+    for key, val in outputs.items():
+        output_name = 'Jets_score_' + key.split('_')[-1]
+        event_outputs[output_name] = val
+    return event_outputs

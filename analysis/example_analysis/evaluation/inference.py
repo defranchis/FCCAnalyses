@@ -66,6 +66,8 @@ if __name__=='__main__':
     # add branches needed for selection
     if objectselection is not None:
         branches_to_read += get_variable_names(objectselection[0])
+    # add at least one per-jet variable (needed to get the correct shape during inference)
+    branches_to_read.append('Jets_pt')
     # remove potential duplicates
     branches_to_read = list(set(branches_to_read))
     # filter out runtime variables

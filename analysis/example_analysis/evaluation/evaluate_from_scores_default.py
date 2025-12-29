@@ -1,3 +1,5 @@
+# Looper over evaluate_from_scores.py with default settings
+
 import os
 import sys
 
@@ -14,33 +16,27 @@ if __name__=='__main__':
     # settings
     modeltag = '20251222_fitpv'
     ntupletag = 'fitpv'
-    model = os.path.abspath(f'models/output_{modeltag}/model.onnx')
-    preprocess = model.replace('model.onnx', 'preprocess.json')
     #outputdir = f'output_plots_model_{modeltag}'
     outputdir = 'output_test'
     runmode = 'local'
     ntuplename = f'ntuples-{ntupletag}' if ntupletag is not None else 'ntuples'
-    samples = [f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/mc/output_qqb_0.root']
+    samples = [f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/mc/output_qqb_*.root']
+    scoredir = f'output_scores_model_{modeltag}'
 
+    # set object and event selection
+    objectselection = 'selections/selection_jets.json'
+    eventselection = 'selections/selection.json'
+
+    # make the command
     cmds = []
-    
-    if True: 
-
-        # set object and event selection
-        objectselection = 'selections/selection_jets.json'
-        eventselection = 'selections/selection.json'
-
-        # make the command
-        cmd = 'python evaluate.py'
-        cmd += ' -s {}'.format(' '.join(samples))
-        cmd += f' -m {model}'
-        cmd += f' -p {preprocess}'
-        cmd += f' -o {outputdir}'
-        cmd += ' -t events'
-        cmd += f' --objectselection {objectselection}'
-        cmd += f' --eventselection {eventselection}'
-        cmd += ' --translation translations/translations.json'
-        cmds.append(cmd)
+    cmd = 'python evaluate_from_scores.py'
+    cmd += ' -s {}'.format(' '.join(samples))
+    cmd += f' -o {outputdir}'
+    cmd += ' -t events'
+    cmd += f' --scoredir {scoredir}'
+    cmd += f' --objectselection {objectselection}'
+    cmd += f' --eventselection {eventselection}'
+    cmds.append(cmd)
 
     # run commands
     if runmode=='local':

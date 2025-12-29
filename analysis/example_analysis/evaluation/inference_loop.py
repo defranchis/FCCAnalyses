@@ -13,8 +13,8 @@ import tools.slurmtools as st
 if __name__=='__main__':
 
     # settings
-    modeltag = '20251222_fitpv'
-    ntupletag = 'fitpv'
+    modeltag = '20251101_ipfix'
+    ntupletag = None
     model = os.path.abspath(f'models/output_{modeltag}/model.onnx')
     preprocess = model.replace('model.onnx', 'preprocess.json')
     outputdir = f'output_scores_model_{modeltag}'
@@ -48,7 +48,13 @@ if __name__=='__main__':
     for f in inputfiles:
 
         # set object selection
-        objectselection = 'selections/selection_jets.json'
+        # update: do not do object (i.e. jet) selection anymore,
+        #         as we want to store the scores for individual jets as well
+        #         rather than per-event combined scores only;
+        #         but then the jet selection needs to be applied at a later stage
+        #         when making the per-event combined scores!
+        #objectselection = 'selections/selection_jets.json'
+        objectselection = None
 
         # make the command
         cmd = 'python inference.py'
@@ -57,7 +63,7 @@ if __name__=='__main__':
         cmd += f' -p {preprocess}'
         cmd += f' -o {outputdir}'
         cmd += ' -t events'
-        cmd += f' --objectselection {objectselection}'
+        if objectselection is not None: cmd += f' --objectselection {objectselection}'
         cmd += f' --translation translations/translations.json'
         cmds.append(cmd)
 
