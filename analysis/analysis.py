@@ -87,6 +87,7 @@ ROOT.gInterpreter.Declare("""
         double sigma_beamspotX = 20; // unit: 10 micrometer
         double sigma_beamspotY = 1; // unit: 10 micrometer
         double sigma_beamspotZ = 2000; // unit: 10 micrometer
+        bool doBeamSpotConstraint = false;
         ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse;
         for (const auto& trk : tracks) {
             const auto& c = trk.covMatrix;
@@ -99,13 +100,13 @@ ROOT.gInterpreter.Declare("""
         if( tracksToUse.size() < 2 ){ return TLorentzVector(beamspotX, beamspotY, beamspotZ, 0); }
         ROOT::VecOps::RVec<edm4hep::TrackState> primaryTracks;
         primaryTracks = FCCAnalyses::VertexFitterSimple::get_PrimaryTracks(tracksToUse,
-            true,
+            doBeamSpotConstraint,
             sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
             beamspotX, beamspotY, beamspotZ);
         if( primaryTracks.size() < 2 ){ return TLorentzVector(beamspotX, beamspotY, beamspotZ, 0); }
         FCCAnalyses::VertexingUtils::FCCAnalysesVertex fitresult;
         fitresult = FCCAnalyses::VertexFitterSimple::VertexFitter_Tk(
-            1, primaryTracks, true,
+            1, primaryTracks, doBeamSpotConstraint,
             sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
             beamspotX, beamspotY, beamspotZ);
         edm4hep::VertexData vertex = FCCAnalyses::VertexingUtils::get_VertexData(fitresult);
