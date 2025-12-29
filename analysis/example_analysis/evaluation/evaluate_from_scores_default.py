@@ -14,8 +14,8 @@ import tools.slurmtools as st
 if __name__=='__main__':
 
     # settings
-    modeltag = '20251222_fitpv'
-    ntupletag = 'fitpv'
+    modeltag = '20251222_fitpv_withbs'
+    ntupletag = 'fitpv-withbs'
     #outputdir = f'output_plots_model_{modeltag}'
     outputdir = 'output_test'
     runmode = 'local'

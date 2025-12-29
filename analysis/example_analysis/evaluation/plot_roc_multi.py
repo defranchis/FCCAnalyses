@@ -117,14 +117,17 @@ def plot_roc_multi(categories, scores, labels,
                 auc = roc_auc_score(this_labels, this_scores, sample_weight=np.abs(this_weights))
 
                 # calculate signal and background efficiency
-                thresholds = np.linspace(np.amin(this_scores), np.amax(this_scores), num=1000)
+                thresholds = np.concatenate((
+                    np.linspace(np.amin(this_scores), np.amax(this_scores)*0.9, num=100),
+                    np.linspace(np.amax(this_scores)*0.9, np.amax(this_scores), num=500),
+                ))
                 efficiency_sig = np.zeros(len(thresholds))
                 efficiency_bkg = np.zeros(len(thresholds))
                 for idx, threshold in enumerate(thresholds):
-                    eff_s = np.sum(weights_sig[scores_sig > threshold])
-                    efficiency_sig[idx] = eff_s
-                    eff_b = np.sum(weights_bkg[scores_bkg > threshold])
-                    efficiency_bkg[idx] = eff_b
+                    w_sig = weights_sig[scores_sig > threshold]
+                    efficiency_sig[idx] = np.sum(w_sig)
+                    w_bkg = weights_bkg[scores_bkg > threshold]
+                    efficiency_bkg[idx] = np.sum(w_bkg)
                 efficiency_sig /= np.sum(weights_sig)
                 efficiency_bkg /= np.sum(weights_bkg)
 
@@ -153,7 +156,7 @@ def plot_roc_multi(categories, scores, labels,
 
     # same with log scale on x-axis
     ax.set_xscale('log')
-    ax.set_xlim((1e-4, 1))
+    ax.set_xlim((1e-5, 1))
     fig.tight_layout()
     figname = os.path.join(outputdir, 'roc_log.png')
     fig.savefig(figname)

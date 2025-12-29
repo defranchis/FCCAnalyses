@@ -3,7 +3,7 @@ import sys
 import glob
 
 thisdir = os.path.abspath(os.path.dirname(__file__))
-topdir = os.path.abspath(os.path.join(thisdir, '../'))
+topdir = os.path.abspath(os.path.join(thisdir, '../../'))
 sys.path.append(topdir)
 
 import tools.condortools as ct
@@ -15,15 +15,14 @@ if __name__=='__main__':
     # settings
     modeltag = '20251222_fitpv_withbs'
     ntupletag = 'fitpv-withbs'
-    model = os.path.abspath(f'models/output_{modeltag}/model.onnx')
+    model = os.path.abspath(f'../models/output_{modeltag}/model.onnx')
     preprocess = model.replace('model.onnx', 'preprocess.json')
     outputdir = f'output_scores_model_{modeltag}'
     runmode = 'condor'
     resubmit = False
     ntuplename = f'ntuples-{ntupletag}' if ntupletag is not None else 'ntuples'
     files = [
-      f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/mc/output_qqb_*.root',
-      f'/eos/user/l/llambrec/aleph-data/{ntuplename}/eventlevel/data/output_data_*.root',
+      f'/eos/user/l/llambrec/aleph-data/{ntuplename}/jetlevel/mc/output_qqb_*_test.root',
     ]
 
     # find files
@@ -47,24 +46,13 @@ if __name__=='__main__':
     cmds = []
     for f in inputfiles:
 
-        # set object selection
-        # update: do not do object (i.e. jet) selection anymore,
-        #         as we want to store the scores for individual jets as well
-        #         rather than per-event combined scores only;
-        #         but then the jet selection needs to be applied at a later stage
-        #         when making the per-event combined scores!
-        #objectselection = 'selections/selection_jets.json'
-        objectselection = None
-
         # make the command
-        cmd = 'python inference.py'
+        cmd = 'python inference_jetlevel.py'
         cmd += f' -s {f}'
         cmd += f' -m {model}'
         cmd += f' -p {preprocess}'
         cmd += f' -o {outputdir}'
-        cmd += ' -t events'
-        if objectselection is not None: cmd += f' --objectselection {objectselection}'
-        cmd += f' --translation translations/translations.json'
+        cmd += ' -t tree'
         cmds.append(cmd)
 
     # run commands
@@ -73,7 +61,7 @@ if __name__=='__main__':
             print(cmd)
             os.system(cmd)
     elif runmode=='condor':
-        env_script = os.path.abspath('../../../setup.sh')
+        env_script = os.path.abspath('../../../../setup.sh')
         env_cmd = f'source {env_script}'
         ct.submitCommandsAsCondorCluster('cjob_inference', cmds,
           jobflavour='workday', conda_activate=env_cmd)

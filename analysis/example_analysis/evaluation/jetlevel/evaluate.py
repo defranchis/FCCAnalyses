@@ -1,6 +1,5 @@
-# Make score distributions and ROC curves
-# for samples with already inferred scores
-# (do not re-evaluate the model on the fly)
+# Make score distributions and ROC curves per jet from pre-calculated scores.
+# This is intended as a sanity check, to compare against the ROC curves obtained in the training framework.
 
 import os
 import sys
@@ -11,18 +10,15 @@ import awkward as ak
 import matplotlib.pyplot as plt
 
 thisdir = os.path.abspath(os.path.dirname(__file__))
-topdir = os.path.abspath(os.path.join(thisdir, '../'))
+topdir = os.path.abspath(os.path.join(thisdir, '../../'))
 sys.path.append(topdir)
 
 from tools.samplelisttools import find_files
 from tools.samplelisttools import read_sampledict
-from tools.samplelisttools import read_samplelist
 from tools.samplelisttools import read_num_entries
 from tools.plottools import merge_sampledict
-from evaluation.inferencetools import infer_events, add_variables
-from analysis.objectselection import load_objectselection
-from analysis.objectselection import apply_objectselection
 from analysis.eventselection import load_eventselection
+from analysis.eventselection import get_selection_mask
 from analysis.eventselection import get_variable_names
 from analysis.eventselection import get_selection_mask
 from analysis.external_variables import read_external_variables
@@ -37,9 +33,7 @@ if __name__=='__main__':
     parser.add_argument('-o', '--outputdir', default=None)
     parser.add_argument('-t', '--treename', default=None)
     parser.add_argument('--scoredir', default=None)
-    parser.add_argument('--objectselection', default=None)
     parser.add_argument('--eventselection', default=None)
-    parser.add_argument('--regions', default=None)
     parser.add_argument('--entry_start', default=-1, type=int)
     parser.add_argument('--entry_stop', default=-1, type=int)
     args = parser.parse_args()
@@ -47,29 +41,24 @@ if __name__=='__main__':
     # other settings (hard-coded for now, maybe read as json files later)
     categories = {
         'bb': {
-            'selection': 'genEventType==5',
-            'score': 'score_isB', # note: actual definition is hard-coded below
+            'selection': 'recojet_isB',
+            'score': 'score_isB',
             'color': 'red',
-            'label': 'bb'
+            'label': 'b'
         },
         'cc': {
-            'selection': 'genEventType==4',
-            'score': 'score_isC', # note: actual definition is hard-coded below
+            'selection': 'recojet_isC',
+            'score': 'score_isC',
             'color': 'blue',
-            'label': 'cc'
+            'label': 'c'
         },
         'other': {
-            'selection': 'genEventType<4',
-            'score': 'score_isUDSG', # note: actual definition is hard-coded below
+            'selection': 'recojet_isUDSG',
+            'score': 'score_isUDSG',
             'color': 'green',
-            'label': 'other'
+            'label': 'udsg'
         }
     }
-
-    # load the object selection dict and parse selection
-    objectselection = None
-    if args.objectselection is not None:
-        objectselection = load_objectselection(args.objectselection)
 
     # load the event selection dict and parse selection
     eventselection = None
@@ -78,27 +67,16 @@ if __name__=='__main__':
         firstkey = list(eventselection.keys())[0]
         eventselection = eventselection[firstkey]
 
-    # load the regions dict and parse selections
-    regions = None
-    if args.regions is not None:
-        regions = load_eventselection(args.regions)
-
     # define variables to read
     branches_to_read = []
     # add category selection and score variables
     for cat_settings in categories.values():
         branches_to_read += get_variable_names(cat_settings['selection'])
     # add branches needed for selection
-    if objectselection is not None:
-        branches_to_read += get_variable_names(objectselection[0])
     if eventselection is not None:
-        eventselection_branches = get_variable_names(eventselection)
-        branches_to_read += eventselection_branches
-    if regions is not None:
-        region_branches = []
-        for region_selection in regions.values():
-            region_branches += get_variable_names(region_selection)
-        branches_to_read += region_branches
+        branches_to_read += get_variable_names(eventselection)
+    # add a variable used in some steps below
+    branches_to_read.append('recojet_pt')
     # remove potential duplicates
     branches_to_read = list(set(branches_to_read))
     print('Found following branches to read:')
@@ -125,11 +103,15 @@ if __name__=='__main__':
             this_sampledict = {process_key: [file]}
             nevents = read_num_entries(this_sampledict, treename=args.treename, verbose=False)[process_key][file]
             print(f'Found {nevents} entries in this file.')
+
+            # read events
             this_events = read_sampledict(this_sampledict,
                             treename=args.treename,
                             branches=branches_to_read,
-                            verbose=False
+                            verbose=False,
                           )
+            nevents = len(this_events[process_key])
+            print(f'Read {nevents} entries from this file.')
 
             # read external variables (i.e. per-jet scores)
             if args.scoredir is not None:
@@ -144,13 +126,6 @@ if __name__=='__main__':
                 # store names
                 if external_variable_names is None: external_variable_names = list(external_vars.keys())
 
-            # do object selection
-            # note: put before adding new variables for speed,
-            # but assumes that the selection does not depend on new variables.
-            if objectselection is not None:
-                print('Doing object selection...')
-                this_events[process_key] = apply_objectselection(this_events[process_key], objectselection[0], objectselection[1])
-
             # do event selection
             if eventselection is not None:
                 print('Doing event selection...')
@@ -158,7 +133,7 @@ if __name__=='__main__':
                 mask = get_selection_mask(this_events[process_key], eventselection)
                 this_events = {process_key: this_events[process_key][mask]}
                 nselected = len(this_events[process_key])
-                print(f'  - Category {process_key}: selected {nselected} out of {nevents} events.')
+                print(f'  - Category {process_key}: selected {nselected} out of {nevents} jets.')
 
             # add to events
             if process_key not in events.keys(): events[process_key] = this_events[process_key]
@@ -170,72 +145,40 @@ if __name__=='__main__':
 
         # end of processing this sample, go to next one.
 
+    # printouts for checking
+    njets = len(events[process_key])
+    print(f'Selected {njets} jets in total.')
+
     # get scores
-    # (and also define per-event scores from per-jet scores;
-    #  to make more flexible and robust)
     scores = {}
     for process_key in events.keys():
         scores[process_key] = {}
         for cat in ['isB', 'isC', 'isUDSG']:
-            jet_scores = events[process_key][f'Jets_score_{cat}']
-            event_scores = np.prod(jet_scores, axis=1) # product
-            #event_scores = np.mean(jet_scores, axis=1) # average
-            #event_scores = np.amin(jet_scores, axis=1) # minimum
-            #event_scores = np.amax(jet_scores, axis=1) # maximum
-            scores[process_key][f'score_{cat}'] = event_scores
-
-    # get total weights
-    weights = {}
-    for process_key in events.keys():
-        weights[process_key] = np.ones(len(events[process_key]))
+            jet_scores = events[process_key][f'score_{cat}']
+            scores[process_key][f'score_{cat}'] = jet_scores.to_numpy()
 
     # get labels
     labels = {}
     for process_key in events.keys():
         labels[process_key] = {}
         for cat_name, cat_settings in categories.items():
-            labels[process_key][cat_name] = get_selection_mask(events[process_key], cat_settings['selection']).to_numpy().astype(bool)
-
-    # get region masks
-    region_masks = {}
-    if regions is None: regions = {'all': []}
-    for process_key in events.keys():
-        region_masks[process_key] = {}
-        for region_name, region_cuts in regions.items():
-            region_masks[process_key][region_name] = get_selection_mask(events[process_key], region_cuts).to_numpy().astype(bool)
+            jet_labels = get_selection_mask(events[process_key], cat_settings['selection'])
+            labels[process_key][cat_name] = jet_labels.to_numpy().astype(bool)
 
     # remove superfluous layer of dict
     del events
     scores = scores['_']
-    weights = weights['_']
     labels = labels['_']
-    region_masks = region_masks['_']
 
-    # loop over regions
-    for region_name, region_cuts in regions.items():
-        print(f'Now evaluating on region {region_name}...')
-
-        # define output directory
-        outputdir = os.path.join(args.outputdir, region_name)
-
-        # apply the mask for this region
-        nevents = len(weights)
-        mask = region_masks[region_name]
-        nselected = np.sum(mask)
-        print(f'  - Category {key}: selected {nselected} out of {nevents} events.')
-        this_scores = {key: val[mask] for key, val in scores.items()}
-        this_weights = weights[mask]
-        this_labels = {key: val[mask] for key, val in labels.items()}
-
-        # plot score distribution and ROC for multiple categories together
-        print(f'    Plotting combined ROCs...')
-        plot_scores_multi(
-                categories,
-                outputdir = outputdir,
-                scores = this_scores,
-                labels = this_labels)
-        plot_roc_multi(
-                categories,
-                outputdir = outputdir,
-                scores = this_scores,
-                labels = this_labels)
+    # plot score distribution and ROC for multiple categories together
+    print(f'Plotting combined ROCs...')
+    plot_scores_multi(
+        categories,
+        outputdir = args.outputdir,
+        scores = scores,
+        labels = labels)
+    plot_roc_multi(
+        categories,
+        outputdir = args.outputdir,
+        scores = scores,
+        labels = labels)
