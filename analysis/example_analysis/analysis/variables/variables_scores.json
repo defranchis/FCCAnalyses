@@ -1,7 +1,7 @@
 [
 {
   "name": "score_isB",
-  "variable": "score_isB",
+  "variable": "ak.prod(Jets_score_isB, axis=1)",
   "axtitle": "Event classifier bb score",
   "unit": "",
   "xlow": 0,
@@ -10,7 +10,7 @@
 },
 { 
   "name": "score_isC",
-  "variable": "score_isC",
+  "variable": "ak.prod(Jets_score_isC, axis=1)",
   "axtitle": "Event classifier cc score",
   "unit": "",
   "xlow": 0,
@@ -19,7 +19,7 @@
 },
 { 
   "name": "score_isUDSG",
-  "variable": "score_isUDSG",
+  "variable": "ak.prod(Jets_score_isUDSG, axis=1)",
   "axtitle": "Event classifier udsg score",
   "unit": "",
   "xlow": 0,
