@@ -183,6 +183,7 @@ def infer_jets(jets, modelname, prepdict, translation=None, batch_size=None):
     for key in keys:
         newname = 'score_' + key.split('_')[-1]
         outputs[newname] = outputs.pop(key)
+
     return outputs
 
 
@@ -202,12 +203,10 @@ def infer_events(events, modelname, prepdict, do_add_variables=False, **kwargs):
     # special handling of batches with no jets
     if len(jets[constituents_vars[0]])==0:
         outputs = {}
-        for key in prepdict['output_names']:
-            output_name = 'Jets_score_' + key.split('_')[-1]
-            outputs[output_name] = np.zeros(len(events))
-        return outputs
-    # run inference on jets
-    outputs = infer_jets(jets, modelname, prepdict, **kwargs)
+        for key in prepdict['output_names']: outputs[key] = np.array([])
+    else:
+        # run inference on jets
+        outputs = infer_jets(jets, modelname, prepdict, **kwargs)
     # unflatten scores back into events shape
     outputs = {key: ak.unflatten(val, jets_shape) for key, val in outputs.items()}
     # make event score out of per-jet scores
