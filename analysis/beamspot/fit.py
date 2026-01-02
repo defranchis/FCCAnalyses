@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import uproot
 import awkward as ak
 import numpy as np
@@ -47,7 +48,7 @@ if __name__=='__main__':
             batches.append(f.arrays(branches_to_read))
     events = ak.concatenate(batches)
 
-    # make mask for events with no valid primary vertex
+    # make mask for events with valid primary vertex
     pv_mask = ( 
       (np.abs(events['PV_x'])>1e-12)
       | (np.abs(events['PV_y'])>1e-12)
@@ -59,7 +60,7 @@ if __name__=='__main__':
 
     # loop over runs
     data = {}
-    for run in runs:
+    for runidx, run in enumerate(runs):
         print(f'Processing run {run}...')
 
         # make a mask for this run
@@ -68,6 +69,7 @@ if __name__=='__main__':
         if np.sum(tot_mask) < 100:
             msg = f'WARNING: skipping run {run} because too few events.'
             print(msg)
+            data[run] = None
             continue
 
         # loop over variables
@@ -81,7 +83,7 @@ if __name__=='__main__':
             data_for_plotting[varname] = values_for_plotting
 
             # calculate the central value and width
-            # note: preliminary, to replace with more advanced fitting
+            # note: preliminary, could be replaced with more advanced fitting
             data[run][varname] = fit_beamspot_simple(values)
 
         if not do_run_plots: continue
@@ -117,26 +119,75 @@ if __name__=='__main__':
         # close figures to save memory
         plt.close()
 
+    # fill runs for which no sensible measurement could be made with sensible values
+    for runidx, run in enumerate(runs):
+        if data[run] is None:
+            if runidx==0:
+                nextrunidx = runidx + 1
+                nextrun = runs[nextrunidx]
+                while data[nextrun] is None:
+                    nextrunidx += 1
+                    nextrun = runs[nextrunidx]
+                data[run] = data[nextrun]
+            else:
+                previousrunidx = runidx - 1
+                previousrun = runs[previousrunidx]
+                while data[previousrun] is None:
+                    previousrunidx -= 1
+                    previousrun = runs[previousrunidx]
+                data[run] = data[previousrun]
+
+    # parse data into format for writing
+    data_to_write = {}
+    for run, val in data.items():
+        run = int(run)
+        data_to_write[run] = {}
+        for varname, values in val.items():
+            vartag = varname.split('_')[-1]
+            data_to_write[run][vartag]= float(values[0])
+    
+    # write output data
+    with open('beamspot.json', 'w') as f:
+        json.dump(data_to_write, f, indent=2)
+
     # make a summary figure
-    fig, axs = plt.subplots(nrows=3, figsize=(12,6))
+    fig, axs = plt.subplots(nrows=6, figsize=(12,12))
+    colors = {'x': 'darkviolet', 'y': 'mediumpurple', 'z': 'blue'}
     for idx, varname in enumerate(pv_vars):
-        ax = axs[idx]
+        ax1 = axs[2*idx]
+        ax2 = axs[2*idx+1]
         means = np.array([data[run][varname][0] for run in data.keys()])
         stds = np.array([data[run][varname][1] for run in data.keys()])
         xax = np.arange(len(means))
-        ax.fill_between(xax, means+stds, y2=means-stds, color='purple', alpha=0.3)
-        ax.plot(xax, means, color='blue', linewidth=2)
 
+        coord = varname.split('_')[-1]
+        color = colors.get(coord, 'blue')
+
+        # plot means and std
+        ax1.fill_between(xax, means+stds, y2=means-stds, color=color, alpha=0.3)
+        ax1.plot(xax, means, color=color, linewidth=2)
         mean = np.mean(means)
-        ax.axhline(mean, linestyle='dashed', color='gray')
+        ax1.axhline(mean, linestyle='dashed', color='gray')
         
+        # plot std only
+        ax2.fill_between(xax, stds, color=color, alpha=0.3)
+
         # plot aesthetics
-        ax.set_xticklabels([])
-        ax.text(0.98, 0.95, varname, ha='right', va='top', transform=ax.transAxes)
+        varlabel = f'Primary vertex {coord}-coordinate'
+        ax1.set_xticklabels([])
+        ax1.set_xticks([])
+        text = ax1.text(0.98, 0.95, varlabel + ' fitted center + width', ha='right', va='top', transform=ax1.transAxes)
+        text.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white'))
+        ax2.set_xticklabels([])
+        ax2.set_xticks([])
+        text = ax2.text(0.98, 0.95, varlabel + ' width', ha='right', va='top', transform=ax2.transAxes)
+        text.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white'))
+        ax2.grid(axis='y', which='both', linestyle='dashed', color='grey')
+        ax2.set_ylim((0, ax2.get_ylim()[1]*1.2))
 
     # more plot aesthetics
-    axs[2].set_xlabel('Run')
-    axs[1].set_ylabel('Estimated beamspot center and width [cm]', labelpad=10)
+    axs[5].set_xlabel('Run')
+    fig.subplots_adjust(wspace=0, hspace=0)
 
     # save figure
     fig.tight_layout()
@@ -144,27 +195,43 @@ if __name__=='__main__':
     fig.savefig(outputfile)
 
     # make another summary figure
-    fig, axs = plt.subplots(nrows=3, figsize=(12,6))
+    fig, axs = plt.subplots(nrows=6, figsize=(12,12))
+    colors = {'x': 'darkviolet', 'y': 'mediumpurple', 'z': 'blue'}
     for idx, varname in enumerate(pv_vars):
-        ax = axs[idx]
+        ax1 = axs[2*idx]
+        ax2 = axs[2*idx + 1]
         means = np.array([data[run][varname][0] for run in data.keys()])
         uncs = np.array([data[run][varname][2] for run in data.keys()])
         xax = np.arange(len(means))
-        ax.fill_between(xax, means+uncs, y2=means-uncs, color='blue', alpha=0.3)
-        ax.plot(xax, means, color='blue')
 
+        coord = varname.split('_')[-1]
+        color = colors.get(coord, 'blue')
+
+        # plot means and uncertainty
+        ax1.fill_between(xax, means+uncs, y2=means-uncs, color=color, alpha=0.3)
+        ax1.plot(xax, means, color=color)
         mean = np.mean(means)
-        ax.axhline(mean, linestyle='dashed', color='gray')
+        ax1.axhline(mean, linestyle='dashed', color='gray')
+
+        # plot uncertainty only
+        ax2.fill_between(xax, uncs, color=color, alpha=0.3)
 
         # plot aesthetics
-        ax.set_xticklabels([])
-        ax.text(0.98, 0.95, varname, ha='right', va='top', transform=ax.transAxes)
-        ax.text(0.98, 0.8, 'Mean: {:.2e} +- {:.2e}'.format(np.mean(means), np.std(means)),
-          ha='right', va='top', transform=ax.transAxes)
+        varlabel = f'Primary vertex {coord}-coordinate'
+        ax1.set_xticklabels([])
+        ax1.set_xticks([])
+        text = ax1.text(0.98, 0.95, varlabel + ' fitted center + uncertainty', ha='right', va='top', transform=ax1.transAxes)
+        text.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white'))
+        ax2.set_xticklabels([])
+        ax2.set_xticks([])
+        text = ax2.text(0.98, 0.95, varlabel + ' uncertainty on fitted center', ha='right', va='top', transform=ax2.transAxes)
+        text.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white'))
+        ax2.grid(axis='y', which='both', linestyle='dashed', color='grey')
+        ax2.set_ylim((0, ax2.get_ylim()[1]*1.2))
 
     # more plot aesthetics
-    axs[2].set_xlabel('Run')
-    axs[1].set_ylabel('Estimated beamspot center with uncertainty [cm]', labelpad=10)
+    axs[5].set_xlabel('Run')
+    fig.subplots_adjust(wspace=0, hspace=0)
 
     # save figure
     fig.tight_layout()

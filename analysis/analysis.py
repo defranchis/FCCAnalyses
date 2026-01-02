@@ -1,6 +1,52 @@
 import os
 import sys
+import json
 import ROOT
+
+
+### handling of beamspot data (preliminary) ###
+
+# load beamspot json file
+beamspotfile = 'data/beamspot.json'
+if os.path.exists(beamspotfile):
+    print(f'Loading beamspot data from {beamspotfile}...')
+    with open(beamspotfile, 'r') as f:
+        beamspot_data = json.load(f)
+else:
+    msg = 'WARNING: trying to load beamspot data, but expected file {beamspotfile} not found.'
+    msg += ' Will skip loading beamspot data.'
+    print(msg)
+    beamspot_data = None
+
+# declare data struct in ROOT and fill it
+ROOT.gInterpreter.Declare("""
+    #include <map>
+    #include <tuple>
+    #include <string>
+
+    static std::map<int, std::tuple<double,double,double>> beamspotCoords;
+""")
+for run, coords in beamspot_data.items():
+    ROOT.beamspotCoords.emplace(
+        int(run),
+        ROOT.std.make_tuple(float(coords['x']), float(coords['y']), float(coords['z']))
+    )
+
+# declare retrieval function in ROOT
+ROOT.gInterpreter.Declare("""
+    TLorentzVector getBeamspotCoords(int run){
+        auto it = beamspotCoords.find(run);
+        if (it != beamspotCoords.end()){
+            std::tuple<double, double, double> coords = it->second;
+            return TLorentzVector(std::get<0>(coords), std::get<1>(coords), std::get<2>(coords), 0.0);
+        }
+        // fallback if run not found
+        return TLorentzVector(0.0, 0.0, 0.0, 0.0);
+    }
+""")
+
+### end of beamspot handling part ###
+
 
 # load custom analyzer for particle ID retrieval
 analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_particleid.cxx')
@@ -77,13 +123,19 @@ ROOT.gInterpreter.Declare("""
     }""")
 
 # helper function to re-calculate the primary vertex from the collection of tracks.
-# note: experimental; runs but not yet thoroughly tested.
 ROOT.gInterpreter.Declare("""
     TLorentzVector fitRecoPrimaryVertex(
-        ROOT::VecOps::RVec<edm4hep::TrackState> tracks){
-        double beamspotX = 0; // to change for data!
-        double beamspotY = 0; // to change for data!
-        double beamspotZ = 0; // to change for data!
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
+        double beamspotX = 0, double beamspotY = 0, double beamspotZ = 0){
+        // convert beamspot position units from centimeter to 10 micrometer
+        // note: the FCCAnalyses function expect these values in micrometer,
+        //       corresponding to track parameters in mm;
+        //       but since our track parameters are in cm instead of mm,
+        //       we use beamspot units of 10 micrometers.
+        beamspotX = beamspotX * 1e3;
+        beamspotY = beamspotY * 1e3;
+        beamspotZ = beamspotZ * 1e3;
+        // define beamspot width
         double sigma_beamspotX = 20; // unit: 10 micrometer
         double sigma_beamspotY = 1; // unit: 10 micrometer
         double sigma_beamspotZ = 2000; // unit: 10 micrometer
@@ -241,7 +293,25 @@ class RDFanalysis():
         elif det=='fcc':
             dfout = dfout.Define("recoEventType", "-1")
 
-        # do the actual analysis
+        # get the beamspot position
+        if dtype=='data':
+            dfout = (
+                dfout
+                .Define("BeamspotP4", "getBeamspotCoords(EventHeader.runNumber[0])")
+                .Define("Beamspot_x", "BeamspotP4.X()")
+                .Define("Beamspot_y", "BeamspotP4.Y()")
+                .Define("Beamspot_z", "BeamspotP4.Z()")
+            )
+        else:
+            # set to 0 for simulation
+            dfout = (
+                dfout
+                .Define("Beamspot_x", "0.0")
+                .Define("Beamspot_y", "0.0")
+                .Define("Beamspot_z", "0.0")
+            )
+
+        # find the primary vertex
         dfout = (
             dfout
 
@@ -261,7 +331,7 @@ class RDFanalysis():
             #.Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
             
             # alternative: recalculate reco primary vertex
-            .Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1)")
+            .Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1, Beamspot_x, Beamspot_y, Beamspot_z)")
 
             # store the primary vertex coordinates
             # (mainly for debugging)
@@ -272,6 +342,11 @@ class RDFanalysis():
             # make a copy of the primary vertex as a 3-vector rather than a 4-vector
             # (needed in some functions below)
             .Define("PrimaryVertexP3", "TVector3(PV_x, PV_y, PV_z)")
+        )
+
+        # begin the actual analysis
+        dfout = (
+            dfout
 
             # define the momentum, energy, mass and charge of all reconstructed particles.
             .Define("RP_px",          "ReconstructedParticle::get_px(ReconstructedParticles)")
