@@ -5,6 +5,7 @@ import uproot
 import awkward as ak
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
 
 
 def fit_beamspot_simple(values):
@@ -19,6 +20,35 @@ def fit_beamspot_simple(values):
     mean = np.mean(values)
     width = np.std(values)
     meanunc = width/np.sqrt(len(values))
+
+    return (mean, width, meanunc)
+
+
+def fit_beamspot_gaussian(values):
+    # estimate mean and width by fitting a gaussian
+
+    # remove outliers
+    lower_bound = np.quantile(values, 0.01)
+    upper_bound = np.quantile(values, 0.99)
+    values = values[((values>lower_bound) & (values<upper_bound))]
+
+    # binning
+    bins = np.linspace(np.amin(values), np.amax(values), num=100)
+    x = (bins[:-1] + bins[1:])/2
+    y = np.histogram(values, bins=bins)[0]
+
+    # do fit
+    def gauss(x, a, mu, sigma):
+        return a*np.exp(-0.5*np.square(np.divide((x-mu), sigma)))
+    a0 = np.amax(y)
+    mu0 = np.mean(values)
+    sigma0 = np.std(values)
+    parameters, cov = curve_fit(gauss, x, y, p0=(a0, mu0, sigma0))
+    
+    # get parameters
+    mean = parameters[1]
+    width = parameters[2]
+    meanunc = np.sqrt(cov[1,1])
 
     return (mean, width, meanunc)
 
@@ -83,8 +113,8 @@ if __name__=='__main__':
             data_for_plotting[varname] = values_for_plotting
 
             # calculate the central value and width
-            # note: preliminary, could be replaced with more advanced fitting
-            data[run][varname] = fit_beamspot_simple(values)
+            #data[run][varname] = fit_beamspot_simple(values)
+            data[run][varname] = fit_beamspot_gaussian(values)
 
         if not do_run_plots: continue
 
