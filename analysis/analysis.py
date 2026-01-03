@@ -136,10 +136,10 @@ ROOT.gInterpreter.Declare("""
         beamspotY = beamspotY * 1e3;
         beamspotZ = beamspotZ * 1e3;
         // define beamspot width
-        double sigma_beamspotX = 20; // unit: 10 micrometer
-        double sigma_beamspotY = 1; // unit: 10 micrometer
+        double sigma_beamspotX = 50; // unit: 10 micrometer
+        double sigma_beamspotY = 50; // unit: 10 micrometer
         double sigma_beamspotZ = 2000; // unit: 10 micrometer
-        bool doBeamSpotConstraint = false;
+        bool doBeamSpotConstraint = true;
         ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse;
         for (const auto& trk : tracks) {
             const auto& c = trk.covMatrix;
