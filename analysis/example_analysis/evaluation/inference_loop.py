@@ -13,8 +13,8 @@ import tools.slurmtools as st
 if __name__=='__main__':
 
     # settings
-    modeltag = '20251222_fitpv_withbs'
-    ntupletag = 'fitpv-withbs'
+    modeltag = '20260103_fitpv_withbs4'
+    ntupletag = 'fitpv-withbs4'
     model = os.path.abspath(f'models/output_{modeltag}/model.onnx')
     preprocess = model.replace('model.onnx', 'preprocess.json')
     outputdir = f'output_scores_model_{modeltag}'
