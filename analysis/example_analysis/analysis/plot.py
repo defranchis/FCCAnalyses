@@ -772,7 +772,8 @@ if __name__=='__main__':
 
                 # some more plot aesthetics
                 if np.any(histarray > 0):
-                    ymin = np.min(histarray[np.nonzero(histarray)])
+                    if not normalize: ymin = np.min(histarray[np.nonzero(histarray)])
+                    else: ymin = axs[0].get_ylim()[0]
                     axs[0].set_ylim((ymin, axs[0].get_ylim()[1]**1.4))
                 axs[0].legend(loc='upper right', fontsize=12)
                 if len(regions.keys())>1:
