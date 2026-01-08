@@ -166,7 +166,7 @@ def plot(sig=None, bkg=None, data=None,
             staterrorsum /= integral
             systerrorsum /= integral
 
-    # sim to data if requested
+    # normalize sim to data if requested
     if( normalizesim ):
         # data
         if data is None: raise Exception('Option normalizesim is not well defined without data.')

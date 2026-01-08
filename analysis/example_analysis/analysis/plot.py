@@ -25,6 +25,7 @@ from tools.plottools import merge_events, merge_sampledict
 from tools.plottools import make_batches
 from tools.processinfo import ProcessInfoCollection, ProcessCollection
 from analysis.eventselection import load_eventselection, get_variable_names
+from analysis.eventselection import eval_expression
 from analysis.eventselection import get_selection_mask, get_selection_masks
 from analysis.objectselection import load_objectselection
 from analysis.objectselection import apply_objectselection
@@ -192,12 +193,12 @@ def make_histograms(datastruct, variables,
                 # get nominal weights
                 nominal_weights = np.ones(len(events[process_key]))
                 # general case if weights are already stored as branches in the samples
-                #if weights is not None and process_key in weights.keys():
-                #    for weight_expression in weights[process_key]:
-                #        weight_values = eval_expression(events[process_key], weight_expression).to_numpy().astype(float)
-                #        nominal_weights = np.multiply(nominal_weights, weight_values)
+                if weights is not None and process_key in weights.keys():
+                    for weight_expression in weights[process_key]:
+                        weight_values = eval_expression(events[process_key], weight_expression).to_numpy().astype(float)
+                        nominal_weights = np.multiply(nominal_weights, weight_values)
                 # ad-hoc case with provided lumi and cross-section
-                if dtype=='sim':
+                elif dtype=='sim':
                     # note: this will not work in bachted mode,
                     # normalization will be done incorrectly if more than 1 batch is used!
                     if xsections is not None and lumi is not None:
@@ -301,7 +302,10 @@ def make_events(dtypedict,
         eventselection = None,
         select_processes = None,
         regions = None,
-        recalculate_regions = False):
+        recalculate_regions = False,
+        external_variables = None,
+        xsections = None,
+        lumi = None):
     '''
     Helper function for getting events from a given set of sampledicts.
     Similar to make_histograms, but simplified in the sense that no binning is performed.
@@ -320,8 +324,20 @@ def make_events(dtypedict,
             print(f'Reading events...')
             events[dtype][process_key] = read_sampledict(this_sampledict, treename=treename,
                                            branches=branches_to_read, verbose=False)[process_key]
-            print(f'Read sample with {len(events[dtype][process_key])} entries'
-                    + f' and {len(events[dtype][process_key].fields)} branches.')
+            nevents = len(events[dtype][process_key])
+            nbranches = len(events[dtype][process_key].fields)
+            print(f'Read sample with {nevents} entries and {nbranches} branches.')
+
+            # read external variables
+            if external_variables is not None:
+                print(f'Reading external variables from {external_variables}...')
+                external_vars = read_external_variables(
+                                  this_sampledict[process_key],
+                                  external_variables
+                                )
+                # add to events
+                for key, val in external_vars.items():
+                    events[dtype][process_key][key] = val
 
             # do extra object selection
             if objectselection is not None:
@@ -345,11 +361,11 @@ def make_events(dtypedict,
 
                 if do_selection:
                     print('Doing extra event selection...')
-                    nevents = len(events[dtype][process_key])
+                    norig = len(events[dtype][process_key])
                     mask = get_selection_mask(events[dtype][process_key], eventselection)
                     events[dtype][process_key] = events[dtype][process_key][mask]
                     nselected = len(events[dtype][process_key])
-                    print(f'Selected {nselected} out of {nevents} entries.')
+                    print(f'Selected {nselected} out of {norig} entries.')
 
             # recalculate regions
             if regions is not None and recalculate_regions:
@@ -358,11 +374,227 @@ def make_events(dtypedict,
                     mask = get_selection_mask(events[dtype][process_key], selection_string)
                     events[dtype][process_key][f'mask-{region_name}'] = mask
 
+            # add cross-section weight if requested
+            # (need to do here rather than later in make_histograms,
+            #  because the number of events before selections is needed for the normalization factor)
+            if dtype=='sim' and xsections is not None and lumi is not None:
+                print('Adding cross-section weights to events in branch named "weight"...')
+                xsection_weights = np.ones(len(events[dtype][process_key]))
+                xsec = xsections[process_key]
+                weights = np.ones(len(events[dtype][process_key])) * (lumi * xsec / nevents)
+                if 'weight' in events[dtype][process_key].fields:
+                    msg = 'WARNINIG: overwriting existing branch "weight"!'
+                    print(msg)
+                events[dtype][process_key]['weight'] = weights
+
         # end loop over processes
     # end loop over dtypes
 
     # return result
     return events
+
+
+def plot_hists_default(hists_combined, variables, outputdir,
+      regions=None, datatag=None,
+      colordict=None, labeldict=None, styledict=None, stacklist=None,
+      shapes=False, normalizesim=False, dolog=False,
+      extracmstext=None, lumiheader=None, event_selection_name=None, select_processes=None):
+    '''
+    Default plotting loop
+    '''
+
+    # make a list of all simulated processes
+    dummykey = list(hists_combined['sim'].keys())[0]
+    sim_processes = list(hists_combined['sim'][dummykey].keys())
+
+    # make color dict
+    if colordict is None:
+        colordict = {}
+        colordict['qqb'] = 'deepskyblue'
+        colordict['light'] = 'lightskyblue'
+        colordict['cc'] = 'deepskyblue'
+        colordict['bb'] = 'darkorchid'
+
+    # make label dict
+    if labeldict is None:
+        labeldict = {}
+        for p in sim_processes:
+            labeldict[p] = p
+
+    # set histogram styles
+    if styledict is None:
+        styledict = {}
+        for p in sim_processes: styledict[p] = 'fill'
+        if shapes:
+            for p in sim_processes: styledict[p] = 'step'
+
+    # set histogram stacking
+    if stacklist is None:    
+        stacklist = [p for p in sim_processes]
+        normalize = False
+        if shapes:
+            stacklist = []
+            normalize = True
+
+    # loop over regions and variables
+    if regions is None: regions = {'baseline': None}
+    for region_name, mask_name in regions.items():
+        for variable in variables:
+            print(f'Plotting selection {region_name}, variable {variable.name}...')
+            region_variable_key = f'{region_name}_{variable.name}'
+
+            # get nominal histograms for simulation
+            hists_sim_nominal = {}
+            for process_key in hists_combined['sim'][region_variable_key].keys():
+                hists_sim_nominal[process_key] = hists_combined['sim'][region_variable_key][process_key]['nominal']
+
+            # get histograms for data
+            hists_data = None
+            if datatag is not None:
+                hists_data = {}
+                for process_key in hists_combined['data'][region_variable_key].keys():
+                    hists_data[process_key] = hists_combined['data'][region_variable_key][process_key]['nominal']
+
+            # concatenate all histograms in a single array (for later use)
+            histarray = [h[0] for h in hists_sim_nominal.values()]
+            if hists_data is not None:
+                histarray += [h[0] for h in hists_data.values()]
+            histarray = np.array(histarray)
+
+            # split off data hist
+            data = None
+            if hists_data is not None: data = {datatag: hists_data[datatag]}
+
+            # make a ProcessCollection
+            hists_sim = {}
+            for process_key in hists_combined['sim'][region_variable_key].keys():
+                for systematic_key, hist in hists_combined['sim'][region_variable_key][process_key].items():
+                    histname = f'{process_key}_{region_variable_key}_{systematic_key}'
+                    hists_sim[histname] = hist
+            pic = ProcessInfoCollection.fromhistlist(list(hists_sim.keys()), region_variable_key)
+            pc = ProcessCollection(pic, hists_sim)
+            print(pic)
+
+            # extract the systematic uncertainties (per process)
+            systematics = {}
+            for process_key in hists_combined['sim'][region_variable_key].keys():
+                systematic = pc.get_systematics_rss(processes=[process_key])[0]
+                systematics[process_key] = (hists_sim_nominal[process_key][0], systematic)
+
+            # define ratios to plot
+            ratios = []
+            if datatag is not None: ratios.append([datatag, stacklist])
+
+            # modify label dict to include the yield per process
+            this_labeldict = labeldict.copy()
+            print_yield = True # maybe later add as argument
+            if print_yield:
+                for process_key, hist in hists_sim_nominal.items():
+                    old_label = labeldict.get(process_key, None)
+                    if old_label is None: continue
+                    process_yield = np.sum(hist[0])
+                    new_label = old_label + ' ({:.2e})'.format(process_yield)
+                    this_labeldict[process_key] = new_label
+
+            # do plotting
+            yaxtitle = 'Events'
+            if normalize: yaxtitle += ' (normalized)'
+            fig, axs = plot(bkg=hists_sim_nominal,
+                       data=data,
+                       systematics=systematics,
+                       variable=variable,
+                       stacklist=stacklist,
+                       colordict=colordict,
+                       labeldict=this_labeldict,
+                       styledict=styledict,
+                       multdict=None,
+                       normalize=normalize,
+                       normalizesim=normalizesim,
+                       extracmstext=extracmstext,
+                       lumiheader=lumiheader,
+                       yaxtitle=yaxtitle,
+                       dolegend=False,
+                       ratios=ratios)
+
+            # some more plot aesthetics
+            axs[0].set_ylim((0, axs[0].get_ylim()[1]*1.4))
+            axs[0].legend(loc='upper right', fontsize=12)
+            if len(regions.keys())>1:
+                axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
+                    transform=axs[0].transAxes)
+            if event_selection_name is not None:
+                label = event_selection_name
+                if select_processes is not None and len(select_processes)>0:
+                    label += ' (for {})'.format(', '.join(select_processes))
+                axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
+                  transform=axs[0].transAxes)
+            if normalizesim:
+                axs[0].text(0.05, 0.8, 'Simulation normalized to data', ha='left', va='top', fontsize=12,
+                  transform=axs[0].transAxes)
+            # data ratio pad
+            if datatag is not None: axs[1].set_ylim((0, 2))
+
+            # save the figure
+            fig.tight_layout()
+            figname = region_name + '_' + variable.name + '.png'
+            figname = os.path.join(outputdir, figname)
+            if not os.path.exists(outputdir): os.makedirs(outputdir)
+            fig.savefig(figname)
+            plt.close(fig)
+            print(f'Figure saved to {figname}.')
+            del axs
+            del fig
+
+            # same with log scale
+            if dolog:
+                fig, axs = plot(bkg=hists_sim_nominal,
+                       data=data,
+                       systematics=systematics,
+                       variable=variable,
+                       stacklist=stacklist,
+                       colordict=colordict,
+                       labeldict=this_labeldict,
+                       styledict=styledict,
+                       logscale=True,
+                       multdict=None,
+                       normalize=normalize,
+                       normalizesim=normalizesim,
+                       extracmstext=extracmstext,
+                       lumiheader=lumiheader,
+                       yaxtitle=yaxtitle,
+                       dolegend=False,
+                       ratios=ratios)
+
+                # some more plot aesthetics
+                if np.any(histarray > 0):
+                    if not normalize: ymin = np.min(histarray[np.nonzero(histarray)])
+                    else: ymin = axs[0].get_ylim()[0]
+                    axs[0].set_ylim((ymin, axs[0].get_ylim()[1]**1.4))
+                axs[0].legend(loc='upper right', fontsize=12)
+                if len(regions.keys())>1:
+                    axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
+                        transform=axs[0].transAxes)
+                if event_selection_name is not None:
+                    label = event_selection_name
+                    if select_processes is not None and len(select_processes)>0:
+                        label += ' (for {})'.format(', '.join(select_processes))
+                    axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
+                      transform=axs[0].transAxes)
+                if normalizesim:
+                    axs[0].text(0.05, 0.8, 'Simulation normalized to data', ha='left', va='top', fontsize=12,
+                      transform=axs[0].transAxes)
+                # data ratio pad
+                if datatag is not None: axs[1].set_ylim((0, 2))
+
+                # save the figure
+                fig.tight_layout()
+                figname = region_name + '_' + variable.name + '_log.png'
+                figname = os.path.join(outputdir, figname)
+                fig.savefig(figname)
+                plt.close(fig)
+                print(f'Figure saved to {figname}.')
+                del axs
+                del fig
 
 
 if __name__=='__main__':
@@ -579,15 +811,6 @@ if __name__=='__main__':
     if regions is not None:
         regions = {region_name: f'mask-{region_name}' for region_name in regions.keys()}
 
-    # some more parsing
-    # (make a list of all simulated processes after potential splitting)
-    sim_processes = list(dtypedict['sim'].keys())
-    if splitdict is not None:
-        for key, this_splitdict in splitdict.items():
-            vals = list(this_splitdict.keys())
-            sim_processes.remove(key)
-            sim_processes += vals
-
     # check number of data categories
     # (only one is supported for now)
     datatag = None
@@ -598,31 +821,6 @@ if __name__=='__main__':
             msg = f'Found unexpected number of data categories: {keys}'
             raise Exception(msg)
 
-    # make color dict
-    colordict = {}
-    colordict['qqb'] = 'deepskyblue'
-    colordict['light'] = 'lightskyblue'
-    colordict['cc'] = 'deepskyblue'
-    colordict['bb'] = 'darkorchid'
-
-    # make label dict
-    labeldict = {}
-    for p in sim_processes:
-        labeldict[p] = p
-
-    # set histogram styles and stacking
-    styledict = {}
-    stacklist = []
-    # default case: stack all simulation as filled histograms
-    for p in sim_processes: styledict[p] = 'fill'
-    stacklist = [p for p in sim_processes]
-    normalize = False
-    # shape comparison mode: no stacking, line histograms, normalized
-    if args.shapes:
-        for p in sim_processes: styledict[p] = 'step'
-        stacklist = []
-        normalize = True
-
     # plot aesthetics settings
     extracmstext = 'Resurrected'
     lumiheaderparts = []
@@ -632,171 +830,12 @@ if __name__=='__main__':
         lumiheaderparts.append('{:.2f}'.format(luminosity) + ' pb$^{-1}$')
     lumiheader = ', '.join(lumiheaderparts)
 
-    # settings for multiplying the signal
-    multdict = None
-    if multdict is not None:
-        for key, val in multdict.items():
-            if not key in labeldict: continue
-            labeldict[key] = labeldict[key] + f' (x {val})'
-
     # make output directory
     if not os.path.exists(args.outputdir): os.makedirs(args.outputdir)
 
-    # loop over regions and variables
-    if regions is None: regions = {'baseline': None}
-    for region_name, mask_name in regions.items():
-        for variable in variables:
-            print(f'Plotting selection {region_name}, variable {variable.name}...')
-            region_variable_key = f'{region_name}_{variable.name}'
-
-            # get nominal histograms for simulation
-            hists_sim_nominal = {}
-            for process_key in hists_combined['sim'][region_variable_key].keys():
-                hists_sim_nominal[process_key] = hists_combined['sim'][region_variable_key][process_key]['nominal']
-
-            # get histograms for data
-            hists_data = None
-            if datatag is not None:
-                hists_data = {}
-                for process_key in hists_combined['data'][region_variable_key].keys():
-                    hists_data[process_key] = hists_combined['data'][region_variable_key][process_key]['nominal']
-
-            # concatenate all histograms in a single array (for later use)
-            histarray = [h[0] for h in hists_sim_nominal.values()]
-            if hists_data is not None:
-                histarray += [h[0] for h in hists_data.values()]
-            histarray = np.array(histarray)
-
-            # split off data hist
-            data = None
-            if hists_data is not None: data = {datatag: hists_data[datatag]}
-
-            # make a ProcessCollection
-            hists_sim = {}
-            for process_key in hists_combined['sim'][region_variable_key].keys():
-                for systematic_key, hist in hists_combined['sim'][region_variable_key][process_key].items():
-                    histname = f'{process_key}_{region_variable_key}_{systematic_key}'
-                    hists_sim[histname] = hist
-            pic = ProcessInfoCollection.fromhistlist(list(hists_sim.keys()), region_variable_key)
-            pc = ProcessCollection(pic, hists_sim)
-            print(pic)
-
-            # extract the systematic uncertainties (per process)
-            systematics = {}
-            for process_key in hists_combined['sim'][region_variable_key].keys():
-                systematic = pc.get_systematics_rss(processes=[process_key])[0]
-                systematics[process_key] = (hists_sim_nominal[process_key][0], systematic)
-
-            # define ratios to plot
-            ratios = []
-            if datatag is not None: ratios.append([datatag, stacklist])
-
-            # modify label dict to include the yield per process
-            this_labeldict = labeldict.copy()
-            print_yield = True # maybe later add as argument
-            if print_yield:
-                for process_key, hist in hists_sim_nominal.items():
-                    old_label = labeldict.get(process_key, None)
-                    if old_label is None: continue
-                    process_yield = np.sum(hist[0])
-                    new_label = old_label + ' ({:.2e})'.format(process_yield)
-                    this_labeldict[process_key] = new_label
-
-            # do plotting
-            yaxtitle = 'Events'
-            if normalize: yaxtitle += ' (normalized)'
-            fig, axs = plot(bkg=hists_sim_nominal,
-                       data=data,
-                       systematics=systematics,
-                       variable=variable,
-                       stacklist=stacklist,
-                       colordict=colordict,
-                       labeldict=this_labeldict,
-                       styledict=styledict,
-                       multdict=multdict,
-                       normalize=normalize,
-                       normalizesim=args.normalizesim,
-                       extracmstext=extracmstext,
-                       lumiheader=lumiheader,
-                       yaxtitle=yaxtitle,
-                       dolegend=False,
-                       ratios=ratios)
-
-            # some more plot aesthetics
-            axs[0].set_ylim((0, axs[0].get_ylim()[1]*1.4))
-            axs[0].legend(loc='upper right', fontsize=12)
-            if len(regions.keys())>1:
-                axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
-                    transform=axs[0].transAxes)
-            if event_selection_name is not None:
-                label = event_selection_name
-                if select_processes is not None and len(args.select_processes)>0:
-                    label += ' (for {})'.format(', '.join(select_processes))
-                axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
-                  transform=axs[0].transAxes)
-            if args.normalizesim:
-                axs[0].text(0.05, 0.8, 'Simulation normalized to data', ha='left', va='top', fontsize=12,
-                  transform=axs[0].transAxes)
-            # data ratio pad
-            if datatag is not None: axs[1].set_ylim((0, 2))
-
-            # save the figure
-            fig.tight_layout()
-            figname = region_name + '_' + variable.name + '.png'
-            figname = os.path.join(args.outputdir, figname)
-            fig.savefig(figname)
-            plt.close(fig)
-            print(f'Figure saved to {figname}.')
-            del axs
-            del fig
-
-            # same with log scale
-            if args.dolog:
-                fig, axs = plot(bkg=hists_sim_nominal,
-                       data=data,
-                       systematics=systematics,
-                       variable=variable,
-                       stacklist=stacklist,
-                       colordict=colordict,
-                       labeldict=this_labeldict,
-                       styledict=styledict,
-                       logscale=True,
-                       multdict=multdict,
-                       normalize=normalize,
-                       normalizesim=args.normalizesim,
-                       extracmstext=extracmstext,
-                       lumiheader=lumiheader,
-                       yaxtitle=yaxtitle,
-                       dolegend=False,
-                       ratios=ratios)
-
-                # some more plot aesthetics
-                if np.any(histarray > 0):
-                    if not normalize: ymin = np.min(histarray[np.nonzero(histarray)])
-                    else: ymin = axs[0].get_ylim()[0]
-                    axs[0].set_ylim((ymin, axs[0].get_ylim()[1]**1.4))
-                axs[0].legend(loc='upper right', fontsize=12)
-                if len(regions.keys())>1:
-                    axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
-                        transform=axs[0].transAxes)
-                if event_selection_name is not None:
-                    label = event_selection_name
-                    if select_processes is not None and len(select_processes)>0:
-                        label += ' (for {})'.format(', '.join(select_processes))
-                    axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
-                      transform=axs[0].transAxes)
-                if args.normalizesim:
-                    axs[0].text(0.05, 0.8, 'Simulation normalized to data', ha='left', va='top', fontsize=12,
-                      transform=axs[0].transAxes)
-                # data ratio pad
-                if datatag is not None: axs[1].set_ylim((0, 2))
-
-                # save the figure
-                fig.tight_layout()
-                figname = region_name + '_' + variable.name + '_log.png'
-                figname = os.path.join(args.outputdir, figname)
-                fig.savefig(figname)
-                plt.close(fig)
-                print(f'Figure saved to {figname}.')
-                del axs
-                del fig
+    # plotting loop
+    plot_hists_default(hists_combined, variables, args.outputdir,
+      regions=regions, datatag=datatag,
+      shapes=args.shapes, normalizesim=args.normalizesim, dolog=args.dolog,
+      extracmstext=extracmstext, lumiheader=lumiheader,
+      event_selection_name=event_selection_name, select_processes=select_processes)
