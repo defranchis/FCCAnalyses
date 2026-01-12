@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import uproot
+import argparse
 import awkward as ak
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,10 +56,17 @@ def fit_beamspot_gaussian(values):
 
 if __name__=='__main__':
 
-    # settings
-    inputfiles = sys.argv[1:]
-    outputdir = 'output_plots'
-    do_run_plots = False
+    # read command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--inputfiles', required=True, nargs='+',
+      help='Input files, usually the output of the previous step (run).')
+    parser.add_argument('-o', '--outputdir', required=True,
+      help='Output directory.')
+    parser.add_argument('--do_run_plots', default=False, action='store_true',
+      help='Make per-run plots of distributions of PV coordinates')
+    parser.add_argument('--sim', default=False, action='store_true',
+      help='Run in simulation mode with fake run numbers')
+    args = parser.parse_args()
 
     # fixed settings
     treename = 'events'
@@ -66,20 +74,32 @@ if __name__=='__main__':
     id_vars = ['runNumber']
 
     # make output directory
-    if not os.path.exists(outputdir): os.makedirs(outputdir)
+    if not os.path.exists(args.outputdir): os.makedirs(args.outputdir)
 
     # read input files
     batches = []
     branches_to_read = pv_vars + id_vars
-    for idx, inputfile in enumerate(inputfiles):
-        print(f'Reading file {idx+1} / {len(inputfiles)}', end='\r')
+    for idx, inputfile in enumerate(args.inputfiles):
+        print(f'Reading file {idx+1} / {len(args.inputfiles)}', end='\r')
         readstr = ':'.join([inputfile, treename])
         with uproot.open(readstr) as f:
             batches.append(f.arrays(branches_to_read))
     events = ak.concatenate(batches)
 
+    # simulation mode: divide in fake runs
+    if args.sim:
+        run_size = 800 # typically about 800 events with valid PV per run in data
+        run_numbers = []
+        counter = 1
+        while len(run_numbers)*run_size < len(events):
+            run_numbers.append(np.ones(run_size)*counter)
+            counter += 1
+        run_numbers = np.concatenate(run_numbers).astype(int)
+        run_numbers = run_numbers[:len(events)]
+        events['runNumber'] = run_numbers
+
     # make mask for events with valid primary vertex
-    pv_mask = ( 
+    pv_mask = (
       (np.abs(events['PV_x'])>1e-12)
       | (np.abs(events['PV_y'])>1e-12)
       | (np.abs(events['PV_z'])>1e-12)
@@ -91,19 +111,26 @@ if __name__=='__main__':
     # loop over runs
     data = {}
     for runidx, run in enumerate(runs):
-        print(f'Processing run {run}...')
+        data[run] = {}
+        print(f'Processing run {run} ({runidx+1} / {len(runs)})...', end='\r')
 
         # make a mask for this run
         run_mask = np.squeeze((events['runNumber']==run).to_numpy()).astype(bool)
         tot_mask = (pv_mask & run_mask)
-        if np.sum(tot_mask) < 100:
+
+        # store number of events and number of events with valid primary vertex
+        data[run]['nevents'] = int(np.sum(run_mask.astype(int)))
+        data[run]['npvs'] = int(np.sum(tot_mask.astype(int)))
+
+        # safety for too small runs
+        if np.sum(tot_mask.astype(int)) < 100:
             msg = f'WARNING: skipping run {run} because too few events.'
             print(msg)
-            data[run] = None
+            data[run]['fits'] = None
             continue
 
         # loop over variables
-        data[run] = {}
+        data[run]['fits'] = {}
         data_for_plotting = {}
         for varname in pv_vars:
             values = events[varname][tot_mask].to_numpy()
@@ -114,9 +141,9 @@ if __name__=='__main__':
 
             # calculate the central value and width
             #data[run][varname] = fit_beamspot_simple(values)
-            data[run][varname] = fit_beamspot_gaussian(values)
+            data[run]['fits'][varname] = fit_beamspot_gaussian(values)
 
-        if not do_run_plots: continue
+        if not args.do_run_plots: continue
 
         # make figure
         fig, axs = plt.subplots(nrows=3)
@@ -143,127 +170,46 @@ if __name__=='__main__':
 
         # save figure
         fig.tight_layout()
-        outputfile = os.path.join(outputdir, f'run_{run}.png')
+        outputfile = os.path.join(args.outputdir, f'run_{run}.png')
         fig.savefig(outputfile)
 
         # close figures to save memory
         plt.close()
+    print()
 
     # fill runs for which no sensible measurement could be made with sensible values
     for runidx, run in enumerate(runs):
-        if data[run] is None:
+        if data[run]['fits'] is None:
             if runidx==0:
                 nextrunidx = runidx + 1
                 nextrun = runs[nextrunidx]
-                while data[nextrun] is None:
+                while data[nextrun]['fits'] is None:
                     nextrunidx += 1
                     nextrun = runs[nextrunidx]
-                data[run] = data[nextrun]
+                data[run]['fits'] = data[nextrun]['fits']
             else:
                 previousrunidx = runidx - 1
                 previousrun = runs[previousrunidx]
-                while data[previousrun] is None:
+                while data[previousrun]['fits'] is None:
                     previousrunidx -= 1
                     previousrun = runs[previousrunidx]
-                data[run] = data[previousrun]
+                data[run]['fits'] = data[previousrun]['fits']
 
     # parse data into format for writing
-    data_to_write = {}
+    data_to_write = {} # only center position, for easy reading
+    data_to_write_ext = {} # more information, for later plotting
     for run, val in data.items():
         run = int(run)
         data_to_write[run] = {}
-        for varname, values in val.items():
+        data_to_write_ext[run] = data[run]
+        for varname, values in val['fits'].items():
             vartag = varname.split('_')[-1]
-            data_to_write[run][vartag]= float(values[0])
+            data_to_write[run][vartag] = float(values[0])
     
     # write output data
-    with open('beamspot.json', 'w') as f:
+    outputfile = os.path.join(args.outputdir, 'beamspot.json')
+    with open(outputfile, 'w') as f:
         json.dump(data_to_write, f, indent=2)
-
-    # make a summary figure
-    fig, axs = plt.subplots(nrows=6, figsize=(12,12))
-    colors = {'x': 'darkviolet', 'y': 'mediumpurple', 'z': 'blue'}
-    for idx, varname in enumerate(pv_vars):
-        ax1 = axs[2*idx]
-        ax2 = axs[2*idx+1]
-        means = np.array([data[run][varname][0] for run in data.keys()])
-        stds = np.array([data[run][varname][1] for run in data.keys()])
-        xax = np.arange(len(means))
-
-        coord = varname.split('_')[-1]
-        color = colors.get(coord, 'blue')
-
-        # plot means and std
-        ax1.fill_between(xax, means+stds, y2=means-stds, color=color, alpha=0.3)
-        ax1.plot(xax, means, color=color, linewidth=2)
-        mean = np.mean(means)
-        ax1.axhline(mean, linestyle='dashed', color='gray')
-        
-        # plot std only
-        ax2.fill_between(xax, stds, color=color, alpha=0.3)
-
-        # plot aesthetics
-        varlabel = f'Primary vertex {coord}-coordinate'
-        ax1.set_xticklabels([])
-        ax1.set_xticks([])
-        text = ax1.text(0.98, 0.95, varlabel + ' fitted center + width', ha='right', va='top', transform=ax1.transAxes)
-        text.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white'))
-        ax2.set_xticklabels([])
-        ax2.set_xticks([])
-        text = ax2.text(0.98, 0.95, varlabel + ' width', ha='right', va='top', transform=ax2.transAxes)
-        text.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white'))
-        ax2.grid(axis='y', which='both', linestyle='dashed', color='grey')
-        ax2.set_ylim((0, ax2.get_ylim()[1]*1.2))
-
-    # more plot aesthetics
-    axs[5].set_xlabel('Run')
-    fig.subplots_adjust(wspace=0, hspace=0)
-
-    # save figure
-    fig.tight_layout()
-    outputfile = os.path.join(outputdir, f'summary.png')
-    fig.savefig(outputfile)
-
-    # make another summary figure
-    fig, axs = plt.subplots(nrows=6, figsize=(12,12))
-    colors = {'x': 'darkviolet', 'y': 'mediumpurple', 'z': 'blue'}
-    for idx, varname in enumerate(pv_vars):
-        ax1 = axs[2*idx]
-        ax2 = axs[2*idx + 1]
-        means = np.array([data[run][varname][0] for run in data.keys()])
-        uncs = np.array([data[run][varname][2] for run in data.keys()])
-        xax = np.arange(len(means))
-
-        coord = varname.split('_')[-1]
-        color = colors.get(coord, 'blue')
-
-        # plot means and uncertainty
-        ax1.fill_between(xax, means+uncs, y2=means-uncs, color=color, alpha=0.3)
-        ax1.plot(xax, means, color=color)
-        mean = np.mean(means)
-        ax1.axhline(mean, linestyle='dashed', color='gray')
-
-        # plot uncertainty only
-        ax2.fill_between(xax, uncs, color=color, alpha=0.3)
-
-        # plot aesthetics
-        varlabel = f'Primary vertex {coord}-coordinate'
-        ax1.set_xticklabels([])
-        ax1.set_xticks([])
-        text = ax1.text(0.98, 0.95, varlabel + ' fitted center + uncertainty', ha='right', va='top', transform=ax1.transAxes)
-        text.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white'))
-        ax2.set_xticklabels([])
-        ax2.set_xticks([])
-        text = ax2.text(0.98, 0.95, varlabel + ' uncertainty on fitted center', ha='right', va='top', transform=ax2.transAxes)
-        text.set_bbox(dict(facecolor='white', alpha=0.7, edgecolor='white'))
-        ax2.grid(axis='y', which='both', linestyle='dashed', color='grey')
-        ax2.set_ylim((0, ax2.get_ylim()[1]*1.2))
-
-    # more plot aesthetics
-    axs[5].set_xlabel('Run')
-    fig.subplots_adjust(wspace=0, hspace=0)
-
-    # save figure
-    fig.tight_layout()
-    outputfile = os.path.join(outputdir, f'summary2.png')
-    fig.savefig(outputfile)
+    outputfile = os.path.join(args.outputdir, 'fitresults.json')
+    with open(outputfile, 'w') as f:
+        json.dump(data_to_write_ext, f, indent=2)
