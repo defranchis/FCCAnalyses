@@ -28,16 +28,24 @@ namespace FCCAnalyses {
     using FCCAnalysesJetConstituents = rv::RVec<edm4hep::ReconstructedParticleData>;
     using FCCAnalysesJetConstituentsData = rv::RVec<float>;
 
-    /// Build the collection of constituents (mapping jet -> reconstructed particles) for all jets in event
+    // Build the collection of constituents (mapping jet -> reconstructed particles) for all jets in event
     rv::RVec<FCCAnalysesJetConstituents> build_constituents(const rv::RVec<edm4hep::ReconstructedParticleData>&,
                                                             const rv::RVec<edm4hep::ReconstructedParticleData>&);
 
     rv::RVec<FCCAnalysesJetConstituents> build_constituents_cluster(const rv::RVec<edm4hep::ReconstructedParticleData>& rps,
                                                                     const std::vector<std::vector<int>>& indices);
 
-    /// Retrieve the constituents of an indexed jet in event
+    // Build the collection of track states (mapping jet -> track states of (charged) reconstructed particles)
+    rv::RVec<rv::RVec<edm4hep::TrackState>> build_trackstates_cluster(
+        const rv::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const rv::RVec<edm4hep::TrackState>& tracks,
+        const std::vector<std::vector<int>>& jet_indices,
+        const rv::RVec<podio::ObjectID>& reco2track_links
+    );
+
+    // Retrieve the constituents of an indexed jet in event
     FCCAnalysesJetConstituents get_jet_constituents(const rv::RVec<FCCAnalysesJetConstituents>&, int);
-    /// Retrieve the constituents of a collection of indexed jets in event
+    // Retrieve the constituents of a collection of indexed jets in event
     rv::RVec<FCCAnalysesJetConstituents> get_constituents(const rv::RVec<FCCAnalysesJetConstituents>&,
                                                           const rv::RVec<int>&);
 

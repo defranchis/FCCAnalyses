@@ -30,6 +30,12 @@ namespace FCCAnalyses{
 
 namespace ReconstructedParticle2Track{
 
+  // get all track states for a set of given reconstructed particles
+  ROOT::VecOps::RVec<edm4hep::TrackState> getRP2TRK_trackState(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
+        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+
   // get the momentum of a track to a reconstructed particle
   ROOT::VecOps::RVec<float> getRP2TRK_mom(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> in, 
 					   ROOT::VecOps::RVec<edm4hep::TrackState> tracks);

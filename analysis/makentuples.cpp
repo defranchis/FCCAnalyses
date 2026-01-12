@@ -75,6 +75,10 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<int>* count_ChargedHad = 0;
   ROOT::VecOps::RVec<int>* count_Photon = 0;
   ROOT::VecOps::RVec<int>* count_NeutralHad = 0;
+
+  // secondary vertices properties
+  ROOT::VecOps::RVec<float> *SecondaryVertices_chi2 = 0;
+  ROOT::VecOps::RVec<float> *SecondaryVertices_chi2Normalized = 0;
  
   // jet constituent properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_e = 0;
@@ -172,6 +176,10 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Jets_nChargedHad", &count_ChargedHad);
   ev->SetBranchAddress("Jets_nPhoton", &count_Photon);
   ev->SetBranchAddress("Jets_nNeutralHad", &count_NeutralHad);
+
+  // secondary vertices properties
+  ev->SetBranchAddress("SecondaryVertices_chi2", &SecondaryVertices_chi2);
+  ev->SetBranchAddress("SecondaryVertices_chi2Normalized", &SecondaryVertices_chi2Normalized);
 
   // jet constituent properties
   ev->SetBranchAddress("JetsConstituents_e", &JetsConstituents_e);
@@ -283,6 +291,10 @@ int main(int argc, char* argv[]) {
   int nneutralhad = 0;
   int nel = 0;
   int nmu = 0;
+
+  // secondary vertices variables
+  float recojet_sv_chi2 = 0;
+  float recojet_sv_chi2Normalized = 0;
 
   // jet constituent variables
   float pfcand_e[1000] = {0.};
@@ -401,6 +413,10 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("nchargedhad", &nchargedhad, "nchargedhad/I");
   ntuple->Branch("nel", &nel, "nel/I");
   ntuple->Branch("nmu", &nmu, "nmu/I");
+
+  // secondary vertices variables
+  ntuple->Branch("recojet_sv_chi2", &recojet_sv_chi2);
+  ntuple->Branch("recojet_sv_chi2Normalized", &recojet_sv_chi2Normalized);
 
   // jet constituent variables
   ntuple->Branch("pfcand_e", pfcand_e, "pfcand_e[nconst]/F");
@@ -556,6 +572,10 @@ int main(int argc, char* argv[]) {
       nchargedhad = (count_ChargedHad->at(j));
       nphotons = (count_Photon->at(j));
       nneutralhad = (count_NeutralHad->at(j));
+
+      // secondary vertex properties
+      recojet_sv_chi2 = (*SecondaryVertices_chi2)[j];
+      recojet_sv_chi2Normalized = (*SecondaryVertices_chi2Normalized)[j];
       
       // do some printouts
       /*if(i % 10000 == 0) {

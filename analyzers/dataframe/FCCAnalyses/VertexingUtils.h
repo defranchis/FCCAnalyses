@@ -278,8 +278,8 @@ namespace VertexingUtils{
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<TVector3>> get_p_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_pMag_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_VertexNtrk( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_chi2_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_norm_chi2_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_chi2_SV_jets( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_norm_chi2_SV_jets( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_nDOF_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_theta_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_phi_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );

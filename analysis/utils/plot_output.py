@@ -33,6 +33,9 @@ if __name__=='__main__':
       'nel',
       'nmu',
 
+      'recojet_sv_chi2',
+      'recojet_sv_chi2Normalized',
+
       'pfcand_pt',
       'pfcand_e',
       'pfcand_ptrel_log',
@@ -139,6 +142,8 @@ if __name__=='__main__':
         if minv < 0:
             maxv = max(maxv, abs(minv))
             minv = -maxv
+        # special cases (hard-coded)
+        if variable == 'recojet_sv_chi2Normalized': (minv, maxv) = (-2, 25)
         bins = np.linspace(minv, maxv, num=51)
 
         # make figure

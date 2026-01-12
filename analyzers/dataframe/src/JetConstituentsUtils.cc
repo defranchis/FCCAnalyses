@@ -30,6 +30,9 @@ namespace FCCAnalyses
     rv::RVec<FCCAnalysesJetConstituents> build_constituents(const rv::RVec<edm4hep::ReconstructedParticleData> &jets,
                                                             const rv::RVec<edm4hep::ReconstructedParticleData> &rps)
     {
+      /*
+      Build the collection of constituents (mapping jet -> reconstructed particles) for all jets in event
+      */
       rv::RVec<FCCAnalysesJetConstituents> jcs;
       for (const auto &jet : jets)
       {
@@ -48,6 +51,9 @@ namespace FCCAnalyses
     rv::RVec<FCCAnalysesJetConstituents> build_constituents_cluster(const rv::RVec<edm4hep::ReconstructedParticleData> &rps,
                                                                     const std::vector<std::vector<int>> &indices)
     {
+      /*
+      Build the collection of constituents (mapping jet -> reconstructed particles) for all jets in event
+      */
       rv::RVec<FCCAnalysesJetConstituents> jcs;
       for (const auto &jet_index : indices)
       {
@@ -59,6 +65,32 @@ namespace FCCAnalyses
         jcs.push_back(jc);
       }
       return jcs;
+    }
+
+    rv::RVec<rv::RVec<edm4hep::TrackState>> build_trackstates_cluster(
+        const rv::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const rv::RVec<edm4hep::TrackState>& tracks,
+        const std::vector<std::vector<int>>& jet_indices,
+        const rv::RVec<podio::ObjectID>& reco2track_links){
+        /*
+        Build the collection of track states (mapping jet -> track states of (charged) reconstructed particles)
+        */
+        rv::RVec<rv::RVec<edm4hep::TrackState>> tracks_perjet;
+        // loop over jets
+        for (const auto &this_jet_indices : jet_indices){
+            // get constituents for this jet
+            FCCAnalysesJetConstituents constituents;
+            for (const auto &constituent_index : this_jet_indices){
+                constituents.push_back(rps.at(constituent_index));
+            }
+            // get track states for these constituents
+            rv::RVec<edm4hep::TrackState> this_jet_tracks;
+            this_jet_tracks = ReconstructedParticle2Track::getRP2TRK_trackState(
+                constituents, tracks, reco2track_links
+            );
+            tracks_perjet.push_back(this_jet_tracks);
+        }
+        return tracks_perjet;
     }
 
     FCCAnalysesJetConstituents get_jet_constituents(const rv::RVec<FCCAnalysesJetConstituents> &csts, int jet)

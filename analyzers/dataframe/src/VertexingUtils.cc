@@ -1191,7 +1191,7 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_VertexNtrk(
 }
 
 // SV chi2
-ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_chi2_SV(
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_chi2_SV_jets(
     ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
   ROOT::VecOps::RVec<double> i_result;
@@ -1210,7 +1210,7 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_chi2_SV(
 }
 
 // SV normalised chi2
-ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_norm_chi2_SV(
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_norm_chi2_SV_jets(
     ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
   ROOT::VecOps::RVec<double> i_result;
