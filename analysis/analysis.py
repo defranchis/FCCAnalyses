@@ -124,7 +124,7 @@ ROOT.gInterpreter.Declare("""
 
 # helper function to re-calculate the primary vertex from the collection of tracks.
 ROOT.gInterpreter.Declare("""
-    TLorentzVector fitRecoPrimaryVertex(
+    edm4hep::VertexData fitRecoPrimaryVertex(
         const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
         double beamspotX = 0, double beamspotY = 0, double beamspotZ = 0){
         // convert beamspot position units from centimeter to 10 micrometer
@@ -136,10 +136,16 @@ ROOT.gInterpreter.Declare("""
         beamspotY = beamspotY * 1e3;
         beamspotZ = beamspotZ * 1e3;
         // define beamspot width
-        double sigma_beamspotX = 50; // unit: 10 micrometer
-        double sigma_beamspotY = 50; // unit: 10 micrometer
+        double sigma_beamspotX = 20; // unit: 10 micrometer
+        double sigma_beamspotY = 10; // unit: 10 micrometer
         double sigma_beamspotZ = 2000; // unit: 10 micrometer
         bool doBeamSpotConstraint = true;
+        // define dummy vertex in case the fit cannot be performed
+        edm4hep::VertexData dummyVertex;
+        dummyVertex.chi2 = -1;
+        dummyVertex.ndf = 0;
+        dummyVertex.position = edm4hep::Vector3f(beamspotX, beamspotY, beamspotZ);
+        // track filtering
         ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse;
         for (const edm4hep::TrackState& trk : tracks) {
             const auto& c = trk.covMatrix;
@@ -149,21 +155,21 @@ ROOT.gInterpreter.Declare("""
             if (std::abs(trk.D0)>0.75 || std::abs(trk.Z0)>2) continue;
             tracksToUse.push_back(trk);
         }
-        if( tracksToUse.size() < 2 ){ return TLorentzVector(beamspotX, beamspotY, beamspotZ, 0); }
+        if( tracksToUse.size() < 2 ){ return dummyVertex; }
+        // more track filtering
         ROOT::VecOps::RVec<edm4hep::TrackState> primaryTracks;
         primaryTracks = FCCAnalyses::VertexFitterSimple::get_PrimaryTracks(tracksToUse,
             doBeamSpotConstraint,
             sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
             beamspotX, beamspotY, beamspotZ);
-        if( primaryTracks.size() < 2 ){ return TLorentzVector(beamspotX, beamspotY, beamspotZ, 0); }
+        if( primaryTracks.size() < 2 ){ return dummyVertex; }
         FCCAnalyses::VertexingUtils::FCCAnalysesVertex fitresult;
         fitresult = FCCAnalyses::VertexFitterSimple::VertexFitter_Tk(
             1, primaryTracks, doBeamSpotConstraint,
             sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
             beamspotX, beamspotY, beamspotZ);
         edm4hep::VertexData vertex = FCCAnalyses::VertexingUtils::get_VertexData(fitresult);
-        TLorentzVector result = {vertex.position.x, vertex.position.y, vertex.position.z, 0.};
-        return result;
+        return vertex;
     }""")
 
 # helper function to find tracks compatible with primary vertex.
@@ -182,8 +188,8 @@ ROOT.gInterpreter.Declare("""
         beamspotY = beamspotY * 1e3;
         beamspotZ = beamspotZ * 1e3;
         // define beamspot width
-        double sigma_beamspotX = 50; // unit: 10 micrometer
-        double sigma_beamspotY = 50; // unit: 10 micrometer
+        double sigma_beamspotX = 20; // unit: 10 micrometer
+        double sigma_beamspotY = 10; // unit: 10 micrometer
         double sigma_beamspotZ = 2000; // unit: 10 micrometer
         bool doBeamSpotConstraint = true;
         // intitialize output
@@ -208,16 +214,18 @@ ROOT.gInterpreter.Declare("""
 
 # helper function to fit a secondary vertex to each provided set of tracks
 ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<edm4hep::VertexData> fitSecondaryVertexPerSet(
+    ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex> fitSecondaryVertexPerSet(
         const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>& tracks,
+        const TVector3 primaryVertex,
         const ROOT::VecOps::RVec<edm4hep::TrackState>& primaryTracks){
         // initialize result
-        ROOT::VecOps::RVec<edm4hep::VertexData> result;
+        ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex> result;
         // define dummy vertex in case the fit cannot be performed
-        edm4hep::VertexData dummyVertex;
-        dummyVertex.chi2 = -1;
-        dummyVertex.ndf = 0;
-        dummyVertex.position = edm4hep::Vector3f(0, 0, 0);
+        FCCAnalyses::VertexingUtils::FCCAnalysesVertex dummyVertex;
+        dummyVertex.vertex.chi2 = -1;
+        dummyVertex.vertex.ndf = 0;
+        dummyVertex.vertex.position = edm4hep::Vector3f(primaryVertex.x(), primaryVertex.y(), primaryVertex.z());
+        dummyVertex.ntracks = 0;
         // loop over sets of tracks
         for (const ROOT::VecOps::RVec<edm4hep::TrackState>& trackSet: tracks){
             // do filtering
@@ -227,7 +235,7 @@ ROOT.gInterpreter.Declare("""
                 if (c[0] <= 0 || c[2] <= 0 || c[9] <= 0) continue;
                 if (c[0] < 1e-6 || c[2] < 1e-6 || c[9] <= 1e-6) continue;
                 if (!std::isfinite(c[0]) || !std::isfinite(c[2]) || !std::isfinite(c[9])) continue;
-                if (std::abs(trk.D0)>1 || std::abs(trk.Z0)>5) continue;
+                if (std::abs(trk.D0)>3 || std::abs(trk.Z0)>5) continue;
                 tracksToUse.push_back(trk);
             }
             if( tracksToUse.size() < 2 ){
@@ -244,8 +252,7 @@ ROOT.gInterpreter.Declare("""
             FCCAnalyses::VertexingUtils::FCCAnalysesVertex fitresult;
             fitresult = FCCAnalyses::VertexFitterSimple::VertexFitter_Tk(
                 0, secondaryTracks, false, 0, 0, 0, 0, 0, 0);
-            edm4hep::VertexData vertex = FCCAnalyses::VertexingUtils::get_VertexData(fitresult);
-            result.push_back(vertex);
+            result.push_back(fitresult);
         }
         return result;
     }""")
@@ -415,7 +422,8 @@ class RDFanalysis():
             #.Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
             
             # alternative: recalculate reco primary vertex
-            .Define("PrimaryVertexP4", "fitRecoPrimaryVertex(EFlowTrack_1, Beamspot_x, Beamspot_y, Beamspot_z)")
+            .Define("PrimaryVertex", "fitRecoPrimaryVertex(EFlowTrack_1, Beamspot_x, Beamspot_y, Beamspot_z)")
+            .Define("PrimaryVertexP4", "TLorentzVector(PrimaryVertex.position.x, PrimaryVertex.position.y, PrimaryVertex.position.z, 0.)")
 
             # store the primary vertex coordinates
             # (mainly for debugging)
@@ -426,6 +434,11 @@ class RDFanalysis():
             # make a copy of the primary vertex as a 3-vector rather than a 4-vector
             # (needed in some functions below)
             .Define("PrimaryVertexP3", "TVector3(PV_x, PV_y, PV_z)")
+
+            # store properties of fitted vertex
+            # (note: only works for fitted vertex, not for other methods)
+            .Define("PV_chi2Normalized", "PrimaryVertex.chi2")
+            .Define("PV_ndof", "PrimaryVertex.ndf")
         )
 
         # do jet clustering
@@ -443,6 +456,7 @@ class RDFanalysis():
             # build "pseudo-jets", meaning each particle is converted to a jet
             # consisting of only that one particle (which can then be clustered in the next step)
             .Define("pseudo_jets",    "JetClusteringUtils::set_pseudoJets(RP_px, RP_py, RP_pz, RP_e)")
+            
             # run jet clustering
             # note: the JetClustering namespace with its functions is defined here:
             #       FCCAnalyses/addons/FastJet/src/JetClustering.cc.
@@ -458,11 +472,24 @@ class RDFanalysis():
             #   and the number of jets in exclusive clustering (?)
             #   (see FCCAnalyses/analyzers/dataframe/src/JetClusteringUtils.cc / build_jets)
             #   (see https://fastjet.fr/repo/doxygen-3.0.0/classfastjet_1_1ClusterSequence.html)
-            # - sorted: sorting method (leave at default 0).
+            # - sorted: jet sorting method; allowed values are:
+            #     - 0: sort by pt (default)
+            #     - 1: sort by energy
+            #   (see FCCAnalyses/analyzers/dataframe/src/JetClusteringUtils.cc / build_jets)
             # - recombination: how jets are summed (leave at default 0).
             # - exponent (of kT algorithm, typically -1, i.e. anti-kT).
-            .Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(1.5, 0, 0, 0, 0, -1)(pseudo_jets)") # inclusive
+            #.Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(1.5, 0, 0, 0, 0, -1)(pseudo_jets)") # inclusive
             #.Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_genkt(1.5, 3, 2, 0, 0, -1)(pseudo_jets)") # exclusive
+
+            # alternative jet clustering in sync with CERN team
+            # see here: https://github.com/Apranikstar/Aleph/blob/6fe1e52a50a22d3f1e0f978ca1c0e747488bb016/src/stage1.py#L128
+            # note: the arguments are (in order):
+            # - exclusive
+            # - cut
+            # - sorted
+            # - recombination
+            .Define("FCCAnalysesJets_ee_genkt", "JetClustering::clustering_ee_kt(2, 2, 1, 0)(pseudo_jets)")
+
             # get the jets out of the struct
             .Define("jets_ee_genkt", "JetClusteringUtils::get_pseudoJets(FCCAnalysesJets_ee_genkt)")
 
@@ -487,18 +514,22 @@ class RDFanalysis():
             dfout
 
             # find track states grouped per jet
-            # (output struct is a vector of vector of TrackState objects, one vector of TrackStates for each jet)
+            # (output struct is a vector of vectors of TrackState objects, one vector of TrackStates for each jet)
             .Define("JetsTrackConstituents", "JetConstituentsUtils::build_trackstates_cluster(ReconstructedParticles, EFlowTrack_1, jetconstituents_ee_genkt, Reco2TrackLinks)")
 
             # find tracks compatible with primary vertex
             .Define("PrimaryTracks", "getPrimaryTracks(EFlowTrack_1, Beamspot_x, Beamspot_y, Beamspot_z)")
 
             # fit secondary vertex per jet
-            .Define("SecondaryVertices", "fitSecondaryVertexPerSet(JetsTrackConstituents, PrimaryTracks)")
+            .Define("SecondaryVertices", "fitSecondaryVertexPerSet(JetsTrackConstituents, PrimaryVertexP3, PrimaryTracks)")
 
             # calculate properties of secondary vertices to store
             .Define("SecondaryVertices_chi2", "FCCAnalyses::VertexingUtils::get_chi2_SV(SecondaryVertices)")
             .Define("SecondaryVertices_chi2Normalized", "FCCAnalyses::VertexingUtils::get_norm_chi2_SV(SecondaryVertices)")
+            .Define("SecondaryVertices_ndof", "FCCAnalyses::VertexingUtils::get_nDOF_SV(SecondaryVertices)")
+            .Define("SecondaryVertices_mass", "FCCAnalyses::VertexingUtils::get_invM(SecondaryVertices)")
+            .Define("SecondaryVertices_dxy", "FCCAnalyses::VertexingUtils::get_dxy_SV_obj(SecondaryVertices, PrimaryVertexP3)")
+            .Define("SecondaryVertices_dxyz", "FCCAnalyses::VertexingUtils::get_d3d_SV_obj(SecondaryVertices, PrimaryVertexP3)")
         )
 
         # rest of the analysis
@@ -691,10 +722,16 @@ class RDFanalysis():
             'Event_de',
             'Event_dpt',
             'Event_dphi',
-            'Event_dtheta',
+            'Event_dtheta'
+        ]
+
+        # primary vertex variables
+        branchList += [
             'PV_x',
             'PV_y',
             'PV_z',
+            'PV_chi2Normalized',
+            'PV_ndof'
         ]
         
         # jet-level variables
@@ -719,7 +756,11 @@ class RDFanalysis():
         # secondary-vertex-level variables
         branchList += [
             'SecondaryVertices_chi2',
-            'SecondaryVertices_chi2Normalized'
+            'SecondaryVertices_chi2Normalized',
+            'SecondaryVertices_ndof',
+            'SecondaryVertices_mass',
+            'SecondaryVertices_dxy',
+            'SecondaryVertices_dxyz',
         ]
 
         # jet-constituent-level variables

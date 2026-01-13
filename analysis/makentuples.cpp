@@ -79,6 +79,10 @@ int main(int argc, char* argv[]) {
   // secondary vertices properties
   ROOT::VecOps::RVec<float> *SecondaryVertices_chi2 = 0;
   ROOT::VecOps::RVec<float> *SecondaryVertices_chi2Normalized = 0;
+  ROOT::VecOps::RVec<float> *SecondaryVertices_ndof = 0;
+  ROOT::VecOps::RVec<float> *SecondaryVertices_mass = 0;
+  ROOT::VecOps::RVec<float> *SecondaryVertices_dxy = 0;
+  ROOT::VecOps::RVec<float> *SecondaryVertices_dxyz = 0;
  
   // jet constituent properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_e = 0;
@@ -180,6 +184,10 @@ int main(int argc, char* argv[]) {
   // secondary vertices properties
   ev->SetBranchAddress("SecondaryVertices_chi2", &SecondaryVertices_chi2);
   ev->SetBranchAddress("SecondaryVertices_chi2Normalized", &SecondaryVertices_chi2Normalized);
+  ev->SetBranchAddress("SecondaryVertices_ndof", &SecondaryVertices_ndof);
+  ev->SetBranchAddress("SecondaryVertices_mass", &SecondaryVertices_mass);
+  ev->SetBranchAddress("SecondaryVertices_dxy", &SecondaryVertices_dxy);
+  ev->SetBranchAddress("SecondaryVertices_dxyz", &SecondaryVertices_dxyz);
 
   // jet constituent properties
   ev->SetBranchAddress("JetsConstituents_e", &JetsConstituents_e);
@@ -295,6 +303,10 @@ int main(int argc, char* argv[]) {
   // secondary vertices variables
   float recojet_sv_chi2 = 0;
   float recojet_sv_chi2Normalized = 0;
+  float recojet_sv_ndof = 0;
+  float recojet_sv_mass = 0;
+  float recojet_sv_dxy = 0;
+  float recojet_sv_dxyz = 0;
 
   // jet constituent variables
   float pfcand_e[1000] = {0.};
@@ -417,6 +429,10 @@ int main(int argc, char* argv[]) {
   // secondary vertices variables
   ntuple->Branch("recojet_sv_chi2", &recojet_sv_chi2);
   ntuple->Branch("recojet_sv_chi2Normalized", &recojet_sv_chi2Normalized);
+  ntuple->Branch("recojet_sv_ndof", &recojet_sv_ndof);
+  ntuple->Branch("recojet_sv_mass", &recojet_sv_mass);
+  ntuple->Branch("recojet_sv_dxy", &recojet_sv_dxy);
+  ntuple->Branch("recojet_sv_dxyz", &recojet_sv_dxyz);
 
   // jet constituent variables
   ntuple->Branch("pfcand_e", pfcand_e, "pfcand_e[nconst]/F");
@@ -576,6 +592,10 @@ int main(int argc, char* argv[]) {
       // secondary vertex properties
       recojet_sv_chi2 = (*SecondaryVertices_chi2)[j];
       recojet_sv_chi2Normalized = (*SecondaryVertices_chi2Normalized)[j];
+      recojet_sv_ndof = (*SecondaryVertices_ndof)[j];
+      recojet_sv_mass = (*SecondaryVertices_mass)[j];
+      recojet_sv_dxy = (*SecondaryVertices_dxy)[j];
+      recojet_sv_dxyz = (*SecondaryVertices_dxyz)[j];
       
       // do some printouts
       /*if(i % 10000 == 0) {

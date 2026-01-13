@@ -834,14 +834,49 @@ ROOT::VecOps::RVec<double>
 get_dxy_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
            FCCAnalysesVertex PV) {
   ROOT::VecOps::RVec<double> result;
-  TVector3 x_PV(PV.vertex.position[0], PV.vertex.position[1],
+  TVector3 x_PV(PV.vertex.position[0],
+                PV.vertex.position[1],
                 PV.vertex.position[2]);
   for (auto &ivtx : vertices) {
-    TVector3 x_vtx(ivtx.vertex.position[0], ivtx.vertex.position[1],
+    TVector3 x_vtx(ivtx.vertex.position[0],
+                   ivtx.vertex.position[1],
                    ivtx.vertex.position[2]);
     TVector3 x_vtx_PV = x_vtx - x_PV;
 
     result.push_back(x_vtx_PV.Perp());
+  }
+  return result;
+}
+
+// same as above, but PV in different format
+ROOT::VecOps::RVec<double>
+get_dxy_SV_obj(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
+               TVector3 object) {
+  ROOT::VecOps::RVec<double> result;
+  for (auto &ivtx : vertices) {
+    TVector3 x_vtx(ivtx.vertex.position[0],
+                   ivtx.vertex.position[1],
+                   ivtx.vertex.position[2]);
+    TVector3 x_vtx_PV = x_vtx - object;
+
+    result.push_back(x_vtx_PV.Perp());
+  }
+  return result;
+}
+
+// same as above, but PV in different format
+ROOT::VecOps::RVec<double>
+get_dxy_SV_obj(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
+               edm4hep::Vector3d object) {
+  ROOT::VecOps::RVec<double> result;
+  for (auto &ivtx : vertices) {
+    double dx = ivtx.vertex.position[0] - object.x;
+    double dy = ivtx.vertex.position[1] - object.y;
+    double dz = ivtx.vertex.position[2] - object.z;
+
+    TVector3 d3d(dx, dy, dz);
+
+    result.push_back(d3d.Perp());
   }
   return result;
 }
@@ -851,10 +886,12 @@ ROOT::VecOps::RVec<double>
 get_d3d_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
            FCCAnalysesVertex PV) {
   ROOT::VecOps::RVec<double> result;
-  TVector3 x_PV(PV.vertex.position[0], PV.vertex.position[1],
+  TVector3 x_PV(PV.vertex.position[0],
+                PV.vertex.position[1],
                 PV.vertex.position[2]);
   for (auto &ivtx : vertices) {
-    TVector3 x_vtx(ivtx.vertex.position[0], ivtx.vertex.position[1],
+    TVector3 x_vtx(ivtx.vertex.position[0],
+                   ivtx.vertex.position[1],
                    ivtx.vertex.position[2]);
     TVector3 x_vtx_PV = x_vtx - x_PV;
 
@@ -863,14 +900,14 @@ get_d3d_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
   return result;
 }
 
-// vector of distances of all reconstructed SV from given TVector3d (in mm in
-// 3D)
+// same as above, but PV in different format
 ROOT::VecOps::RVec<double>
 get_d3d_SV_obj(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
                TVector3 object) {
   ROOT::VecOps::RVec<double> result;
   for (auto &ivtx : vertices) {
-    TVector3 x_vtx(ivtx.vertex.position[0], ivtx.vertex.position[1],
+    TVector3 x_vtx(ivtx.vertex.position[0],
+                   ivtx.vertex.position[1],
                    ivtx.vertex.position[2]);
     x_vtx = x_vtx - object;
 
@@ -879,8 +916,7 @@ get_d3d_SV_obj(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
   return result;
 }
 
-// vector of distances of all reconstructed SV from given edm4hep::Vector3d (in
-// mm in 3D)
+// same as above, but PV in different format
 ROOT::VecOps::RVec<double>
 get_d3d_SV_obj(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
                edm4hep::Vector3d object) {
@@ -1095,7 +1131,7 @@ get_relPhi_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
 
 // SV invariant mass
 ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
-get_invM(ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
+get_invM_jets(ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
 
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
   ROOT::VecOps::RVec<double> i_result;
@@ -1227,7 +1263,7 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_norm_chi2_SV_jets(
 }
 
 // SV no of DOF
-ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_nDOF_SV(
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_nDOF_SV_jets(
     ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> result;
   ROOT::VecOps::RVec<int> i_result;

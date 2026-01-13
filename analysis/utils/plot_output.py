@@ -35,6 +35,10 @@ if __name__=='__main__':
 
       'recojet_sv_chi2',
       'recojet_sv_chi2Normalized',
+      'recojet_sv_ndof',
+      'recojet_sv_mass',
+      'recojet_sv_dxy',
+      'recojet_sv_dxyz',
 
       'pfcand_pt',
       'pfcand_e',
@@ -129,8 +133,19 @@ if __name__=='__main__':
             mask = (np.abs(this_data+9)>1e-3).astype(bool)
             data[category] = this_data[mask]
 
-        # determine suitable binning
+        # group categories in single array
         data_array = np.concatenate(list(data.values()))
+
+        # printouts for testing
+        print(f'--- test output for variable {variable} ---')
+        print(data_array)
+        print('min: ', np.amin(data_array))
+        print('max: ', np.amax(data_array))
+        print('mean: ', np.mean(data_array))
+        print('std: ', np.std(data_array))
+        print('-----')
+
+        # determine suitable binning
         mask = (np.abs(data_array+9)>1e-3).astype(bool)
         npass = np.sum(mask.astype(int))
         if npass==0:
