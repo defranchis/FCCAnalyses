@@ -524,12 +524,21 @@ class RDFanalysis():
             .Define("SecondaryVertices", "fitSecondaryVertexPerSet(JetsTrackConstituents, PrimaryVertexP3, PrimaryTracks)")
 
             # calculate properties of secondary vertices to store
+            .Define("SecondaryVertices_xrel", "FCCAnalyses::VertexingUtils::get_xrel_SV(SecondaryVertices, PrimaryVertexP3)")
+            .Define("SecondaryVertices_yrel", "FCCAnalyses::VertexingUtils::get_yrel_SV(SecondaryVertices, PrimaryVertexP3)")
+            .Define("SecondaryVertices_zrel", "FCCAnalyses::VertexingUtils::get_zrel_SV(SecondaryVertices, PrimaryVertexP3)")
+            .Define("SecondaryVertices_thetarel", "FCCAnalyses::VertexingUtils::get_relTheta_SV(SecondaryVertices, 1, jets_ee_genkt)")
+            .Define("SecondaryVertices_phirel", "FCCAnalyses::VertexingUtils::get_relPhi_SV(SecondaryVertices, 1, jets_ee_genkt)")
+            .Define("SecondaryVertices_p", "FCCAnalyses::VertexingUtils::get_pMag_SV(SecondaryVertices)")
+            .Define("SecondaryVertices_prel", "FCCAnalyses::VertexingUtils::get_prel_SV(SecondaryVertices, 1, jets_ee_genkt)")
             .Define("SecondaryVertices_chi2", "FCCAnalyses::VertexingUtils::get_chi2_SV(SecondaryVertices)")
             .Define("SecondaryVertices_chi2Normalized", "FCCAnalyses::VertexingUtils::get_norm_chi2_SV(SecondaryVertices)")
             .Define("SecondaryVertices_ndof", "FCCAnalyses::VertexingUtils::get_nDOF_SV(SecondaryVertices)")
+            .Define("SecondaryVertices_nTracks", "FCCAnalyses::VertexingUtils::get_VertexNtrk(SecondaryVertices)")
             .Define("SecondaryVertices_mass", "FCCAnalyses::VertexingUtils::get_invM(SecondaryVertices)")
             .Define("SecondaryVertices_dxy", "FCCAnalyses::VertexingUtils::get_dxy_SV_obj(SecondaryVertices, PrimaryVertexP3)")
             .Define("SecondaryVertices_dxyz", "FCCAnalyses::VertexingUtils::get_d3d_SV_obj(SecondaryVertices, PrimaryVertexP3)")
+            .Define("SecondaryVertices_cosPointing", "FCCAnalyses::VertexingUtils::get_pointingangle_SV(SecondaryVertices, PrimaryVertexP3)")
         )
 
         # rest of the analysis
@@ -755,12 +764,21 @@ class RDFanalysis():
 
         # secondary-vertex-level variables
         branchList += [
+            'SecondaryVertices_xrel',
+            'SecondaryVertices_yrel',
+            'SecondaryVertices_zrel',
+            'SecondaryVertices_thetarel',
+            'SecondaryVertices_phirel',
+            'SecondaryVertices_p',
+            'SecondaryVertices_prel',
             'SecondaryVertices_chi2',
             'SecondaryVertices_chi2Normalized',
             'SecondaryVertices_ndof',
+            'SecondaryVertices_nTracks',
             'SecondaryVertices_mass',
             'SecondaryVertices_dxy',
             'SecondaryVertices_dxyz',
+            'SecondaryVertices_cosPointing'
         ]
 
         # jet-constituent-level variables
