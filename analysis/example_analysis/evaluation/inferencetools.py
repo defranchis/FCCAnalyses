@@ -62,10 +62,17 @@ def add_variables(events, names_only=False):
         # (e.g. useful for deciding which branches to read)
         names = {
           'input_names': [
-            'JetsConstituents_pt', 'JetsConstituents_e', 'JetsConstituents_thetarel', 'JetsConstituents_phirel'
+            'JetsConstituents_pt', 'JetsConstituents_e',
+            'JetsConstituents_thetarel', 'JetsConstituents_phirel',
+            'Jets_pt', 'Jets_e', 'Jets_mass',
+            'SecondaryVertices_chi2Normalized'
           ],
           'output_names': [
-            'JetsConstituents_mask', 'JetsConstituents_pt_log', 'JetsConstituents_e_log', 'JetsConstituents_drrel'
+            'JetsConstituents_mask',
+            'JetsConstituents_pt_log', 'JetsConstituents_e_log',
+            'JetsConstituents_drrel',
+            'Jets_pt_log', 'Jets_e_log', 'Jets_mass_log',
+            'SecondaryVertices_mask'
           ]
         }
         return names
@@ -74,6 +81,10 @@ def add_variables(events, names_only=False):
     events['JetsConstituents_pt_log'] = np.log(events['JetsConstituents_pt'])
     events['JetsConstituents_e_log'] = np.log(events['JetsConstituents_e'])
     events['JetsConstituents_drrel'] = np.hypot(events['JetsConstituents_thetarel'], events['JetsConstituents_phirel'])
+    events['Jets_pt_log'] = np.log(events['Jets_pt'])
+    events['Jets_e_log'] = np.log(events['Jets_e'])
+    events['Jets_mass_log'] = np.log(events['Jets_mass'])
+    events['SecondaryVertices_mask'] = ( events['SecondaryVertices_chi2Normalized'] > 0. )
     return events
 
 
@@ -193,13 +204,16 @@ def infer_events(events, modelname, prepdict, do_add_variables=False, **kwargs):
     # get variables per-jet and per-constituent
     jets_vars = [varname for varname in events.fields if varname.startswith('Jets_')]
     constituents_vars = [varname for varname in events.fields if varname.startswith('JetsConstituents_')]
+    sv_vars = [varname for varname in events.fields if varname.startswith('SecondaryVertices_')]
     # check if at least one per-jet variable was provided (needed for flattening and un-flattening)
     if len(jets_vars)==0:
         msg = 'Need at least one per-jet variable in events to get the correct shape for flattening and un-flattening.'
         raise Exception(msg)
     # do flattening (needed for inference which is essentially per-jet level)
     jets_shape = ak.num(events[jets_vars[0]])
-    jets = {varname: ak.flatten(events[varname], axis=1) for varname in constituents_vars}
+    jets = {}
+    for varname in constituents_vars + jets_vars + sv_vars:
+        jets[varname] = ak.flatten(events[varname], axis=1)
     # special handling of batches with no jets
     if len(jets[constituents_vars[0]])==0:
         outputs = {}

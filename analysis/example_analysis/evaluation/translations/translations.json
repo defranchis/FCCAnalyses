@@ -40,5 +40,27 @@
   "pfcand_px": "JetsConstituents_px",
   "pfcand_py": "JetsConstituents_py",
   "pfcand_pz": "JetsConstituents_pz",
-  "pfcand_thetarel": "JetsConstituents_thetarel"
+  "pfcand_thetarel": "JetsConstituents_thetarel",
+
+  "recojet_sv_xrel": "SecondaryVertices_xrel",
+  "recojet_sv_yrel": "SecondaryVertices_yrel",
+  "recojet_sv_zrel": "SecondaryVertices_zrel",
+  "recojet_sv_thetarel": "SecondaryVertices_thetarel",
+  "recojet_sv_phirel": "SecondaryVertices_phirel",
+  "recojet_sv_p": "SecondaryVertices_p",
+  "recojet_sv_prel": "SecondaryVertices_prel",
+  "recojet_sv_nTracks": "SecondaryVertices_nTracks",
+  "recojet_sv_mass": "SecondaryVertices_mass",
+  "recojet_sv_dxy": "SecondaryVertices_dxy",
+  "recojet_sv_dxyz": "SecondaryVertices_dxyz",
+  "recojet_sv_chi2": "SecondaryVertices_chi2",
+  "recojet_sv_chi2Normalized": "SecondaryVertices_chi2Normalized",
+  "recojet_sv_cosPointing": "SecondaryVertices_cosPointing",
+  "recojet_pt": "Jets_pt",
+  "recojet_e": "Jets_e",
+  "recojet_mass": "Jets_mass",
+  "recojet_pt_log": "Jets_pt_log",
+  "recojet_e_log": "Jets_e_log",
+  "recojet_mass_log": "Jets_mass_log",
+  "recojet_sv_mask": "SecondaryVertices_mask"
 }
