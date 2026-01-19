@@ -34,5 +34,32 @@
   "xlow": -3,
   "xhigh": 3,
   "nbins": 50
+},
+{
+  "name": "jet_0_constituents_Sip2dSig",
+  "variable": "JetsConstituents_Sip2dSig[:,0,:]",
+  "axtitle": "First jet constituents signed 2D IP significance",
+  "unit": "",
+  "xlow": -5,
+  "xhigh": 5,
+  "nbins": 50
+},
+{
+  "name": "jet_0_constituents_Sip3dSig",
+  "variable": "JetsConstituents_Sip3dSig[:,0,:]",
+  "axtitle": "First jet constituents signed 3D IP significance",
+  "unit": "",
+  "xlow": -5,
+  "xhigh": 5,
+  "nbins": 50
+},
+{
+  "name": "jet_0_constituents_linearSignedIP3DSig",
+  "variable": "JetsConstituents_linearSignedIP3DSig[:,0,:]",
+  "axtitle": "First jet constituents ALEPH-style IP significance",
+  "unit": "",
+  "xlow": -5,
+  "xhigh": 5,
+  "nbins": 50
 }
 ]

@@ -24,6 +24,15 @@ if __name__=='__main__':
       'GenPV_z',
     ]
 
+    # plot aesthetic settings
+    namedict = {}
+    for varname in branches_to_read:
+        coord = varname.split('_')[-1]
+        descr = varname
+        if varname.startswith('PV_'): descr = f'Reconstructed PV {coord}-coordinate [cm]'
+        elif varname.startswith('GenPV_'): descr = f'Generated PV {coord}-coordinate [cm]'
+        namedict[varname] = descr
+
     # read input files
     batches = []
     for idx, inputfile in enumerate(inputfiles):
@@ -39,6 +48,8 @@ if __name__=='__main__':
 
         # get data
         data = events[variable].to_numpy()
+        mean = np.mean(data)
+        std = np.std(data)
 
         # determine suitable binning
         minv = np.quantile(data, 0.01)
@@ -50,9 +61,11 @@ if __name__=='__main__':
         ax.hist(data, bins=bins, density=True, histtype='step', linewidth=2, label=variable)
 
         # plot aesthetics
-        ax.set_ylabel('Events (normalized)')
-        ax.set_xlabel(variable)
-        ax.legend()
+        ax.set_ylabel('Events (normalized)', fontsize=12)
+        ax.set_xlabel(namedict[variable], fontsize=12)
+        infotxt = 'Avg: {:.3e}'.format(mean) + '\n' + 'Std: {:.3e}'.format(std)
+        ax.text(0.05, 0.95, infotxt, fontsize=12, va='top', transform=ax.transAxes)
+        #ax.legend()
 
         # save figure
         fig.tight_layout()
@@ -100,8 +113,8 @@ if __name__=='__main__':
         fig, ax = plt.subplots()
         ax.hist2d(xdata, ydata, bins=(xbins, ybins), density=True)
         ax.plot(xpred, ypred, color='r', linestyle='dashed', label='Average expectation (reco = gen)')
-        ax.legend(framealpha=0.9)
-        ax.set_xlabel(matching_variable)
-        ax.set_ylabel(variable)
+        ax.legend(framealpha=0.9, fontsize=12)
+        ax.set_xlabel(namedict[matching_variable], fontsize=12)
+        ax.set_ylabel(namedict[variable], fontsize=12)
         fig.tight_layout()
         fig.savefig(variable+'_vs_'+matching_variable+'_density.png')
