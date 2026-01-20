@@ -25,39 +25,50 @@ namespace FCCAnalyses{
 
 namespace VertexFinderLCFIPlus{
 
-  /** returns SVs reconstructed from non-primary tracks of jets
-   *  non-primary separated from all tracks using isInPrimary (bool) vector
-   *  currently not separating SVs by jet
-   */
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>> get_SV_jets( ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> recoparticles,
-											 ROOT::VecOps::RVec<edm4hep::TrackState> thetracks,
-											 VertexingUtils::FCCAnalysesVertex PV,
-											 ROOT::VecOps::RVec<bool> isInPrimary,
-											 ROOT::VecOps::RVec<fastjet::PseudoJet> jets,
-											 std::vector<std::vector<int>> jet_consti,
-											 bool V0_rej=true,
-											 double chi2_cut=9., double invM_cut=10., double chi2Tr_cut=5. ) ;
-  
-  /** returns SVs reconstructed from non-primary tracks of the event
-   *  SV finding done before jet clustering
-   *  non-primary separated from all tracks using isInPrimary (bool) vector
-   */
-  ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> get_SV_event( ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> recoparticles,
-								      ROOT::VecOps::RVec<edm4hep::TrackState> thetracks,
-								      VertexingUtils::FCCAnalysesVertex PV,
-								      ROOT::VecOps::RVec<bool> isInPrimary,
-								      bool V0_rej=true,
-								      double chi2_cut=9., double invM_cut=10., double chi2Tr_cut=5. ) ;
+    /*
+    Secondary vertex finding per jet
+    */
 
-  /** returns SVs reconstructed from non-primary tracks of the event
-   *  SV finding done before jet clustering
-   */
-  ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> get_SV_event( ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
-                                                                      ROOT::VecOps::RVec<edm4hep::TrackState> thetracks,
-								      VertexingUtils::FCCAnalysesVertex PV,
-								      bool V0_rej=true,
-								      double chi2_cut=9., double invM_cut=10., double chi2Tr_cut=5. ) ;
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>>
+    get_SV_jets(
+        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>& tracksPerJet,
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& allTracks,
+        const VertexingUtils::FCCAnalysesVertex& PV,
+        bool V0_veto=true,
+        double chi2_cut=9., double invariant_mass_cut=10., double trackChi2_cut=5.);
+
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>>
+    get_SV_jets(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& recoparticles,
+		const ROOT::VecOps::RVec<edm4hep::TrackState>& thetracks,
+		const VertexingUtils::FCCAnalysesVertex& PV,
+		ROOT::VecOps::RVec<bool> isInPrimary,
+		ROOT::VecOps::RVec<fastjet::PseudoJet> jets,
+		std::vector<std::vector<int>> jet_constituent_indices,
+		bool V0_rej=true,
+		double chi2_cut=9., double invM_cut=10., double chi2Tr_cut=5. );
   
+    /*
+    Secondary vertex finding per event (instead of per jet)
+    */
+
+    ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>
+    get_SV_event(
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& allTracks,
+        const VertexingUtils::FCCAnalysesVertex& PV,
+        bool V0_veto=true,
+        double chi2_cut=9., double invariant_mass_cut=10., double trackChi2_cut=5. ) ;
+
+    ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>
+    get_SV_event(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& recoparticles,
+		const ROOT::VecOps::RVec<edm4hep::TrackState>& allTracks,
+		const VertexingUtils::FCCAnalysesVertex& PV,
+		ROOT::VecOps::RVec<bool> isInPrimary,
+		bool V0_rej=true,
+		double chi2_cut=9., double invM_cut=10., double chi2Tr_cut=5. );
+
   /** returns indices of the best pair of tracks from a vector of (non-primary) tracks 
    *  default chi2 threshold is 9 and default invariant mass threshold is 10GeV
    */

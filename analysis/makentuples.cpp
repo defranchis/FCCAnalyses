@@ -75,23 +75,24 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<int>* count_ChargedHad = 0;
   ROOT::VecOps::RVec<int>* count_Photon = 0;
   ROOT::VecOps::RVec<int>* count_NeutralHad = 0;
+  ROOT::VecOps::RVec<int>* count_SV = 0;
 
   // secondary vertices properties
-  ROOT::VecOps::RVec<float> *SecondaryVertices_xrel = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_yrel = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_zrel = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_thetarel = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_phirel = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_p = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_prel = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_chi2 = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_chi2Normalized = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_ndof = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_nTracks = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_mass = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_dxy = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_dxyz = 0;
-  ROOT::VecOps::RVec<float> *SecondaryVertices_cosPointing = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_xrel = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_yrel = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_zrel = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_thetarel = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_phirel = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_p = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_prel = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_chi2 = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_chi2Normalized = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_ndof = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_nTracks = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_mass = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_dxy = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_dxyz = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_cosPointing = 0;
  
   // jet constituent properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_e = 0;
@@ -189,6 +190,7 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Jets_nChargedHad", &count_ChargedHad);
   ev->SetBranchAddress("Jets_nPhoton", &count_Photon);
   ev->SetBranchAddress("Jets_nNeutralHad", &count_NeutralHad);
+  ev->SetBranchAddress("Jets_nSV", &count_SV);
 
   // secondary vertices properties
   ev->SetBranchAddress("SecondaryVertices_xrel", &SecondaryVertices_xrel);
@@ -317,23 +319,24 @@ int main(int argc, char* argv[]) {
   int nneutralhad = 0;
   int nel = 0;
   int nmu = 0;
+  int nsv = 0;
 
   // secondary vertices variables
-  float recojet_sv_xrel = 0;
-  float recojet_sv_yrel = 0;
-  float recojet_sv_zrel = 0;
-  float recojet_sv_thetarel = 0;
-  float recojet_sv_phirel = 0;
-  float recojet_sv_p = 0;
-  float recojet_sv_prel = 0;
-  float recojet_sv_chi2 = 0;
-  float recojet_sv_chi2Normalized = 0;
-  float recojet_sv_ndof = 0;
-  float recojet_sv_nTracks = 0;
-  float recojet_sv_mass = 0;
-  float recojet_sv_dxy = 0;
-  float recojet_sv_dxyz = 0;
-  float recojet_sv_cosPointing = 0;
+  float sv_xrel[1000] = {0.};
+  float sv_yrel[1000] = {0.};
+  float sv_zrel[1000] = {0.};
+  float sv_thetarel[1000] = {0.};
+  float sv_phirel[1000] = {0.};
+  float sv_p[1000] = {0.};
+  float sv_prel[1000] = {0.};
+  float sv_chi2[1000] = {0.};
+  float sv_chi2Normalized[1000] = {0.};
+  float sv_ndof[1000] = {0.};
+  float sv_nTracks[1000] = {0.};
+  float sv_mass[1000] = {0.};
+  float sv_dxy[1000] = {0.};
+  float sv_dxyz[1000] = {0.};
+  float sv_cosPointing[1000] = {0.};
 
   // jet constituent variables
   float pfcand_e[1000] = {0.};
@@ -452,23 +455,24 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("nchargedhad", &nchargedhad, "nchargedhad/I");
   ntuple->Branch("nel", &nel, "nel/I");
   ntuple->Branch("nmu", &nmu, "nmu/I");
+  ntuple->Branch("nsv", &nsv, "nsv/I");
 
   // secondary vertices variables
-  ntuple->Branch("recojet_sv_xrel", &recojet_sv_xrel);
-  ntuple->Branch("recojet_sv_yrel", &recojet_sv_yrel);
-  ntuple->Branch("recojet_sv_zrel", &recojet_sv_zrel);
-  ntuple->Branch("recojet_sv_thetarel", &recojet_sv_thetarel);
-  ntuple->Branch("recojet_sv_phirel", &recojet_sv_phirel);
-  ntuple->Branch("recojet_sv_p", &recojet_sv_p);
-  ntuple->Branch("recojet_sv_prel", &recojet_sv_prel);
-  ntuple->Branch("recojet_sv_chi2", &recojet_sv_chi2);
-  ntuple->Branch("recojet_sv_chi2Normalized", &recojet_sv_chi2Normalized);
-  ntuple->Branch("recojet_sv_ndof", &recojet_sv_ndof);
-  ntuple->Branch("recojet_sv_nTracks", &recojet_sv_nTracks);
-  ntuple->Branch("recojet_sv_mass", &recojet_sv_mass);
-  ntuple->Branch("recojet_sv_dxy", &recojet_sv_dxy);
-  ntuple->Branch("recojet_sv_dxyz", &recojet_sv_dxyz);
-  ntuple->Branch("recojet_sv_cosPointing", &recojet_sv_cosPointing);
+  ntuple->Branch("sv_xrel", sv_xrel, "sv_xrel[nsv]/F");
+  ntuple->Branch("sv_yrel", sv_yrel, "sv_yrel[nsv]/F");
+  ntuple->Branch("sv_zrel", sv_zrel, "sv_zrel[nsv]/F");
+  ntuple->Branch("sv_thetarel", sv_thetarel, "sv_thetarel[nsv]/F");
+  ntuple->Branch("sv_phirel", sv_phirel, "sv_phirel[nsv]/F");
+  ntuple->Branch("sv_p", sv_p, "sv_p[nsv]/F");
+  ntuple->Branch("sv_prel", sv_prel, "sv_prel[nsv]/F");
+  ntuple->Branch("sv_chi2", sv_chi2, "sv_chi2[nsv]/F");
+  ntuple->Branch("sv_chi2Normalized", sv_chi2Normalized, "sv_chi2Normalized[nsv]/F");
+  ntuple->Branch("sv_ndof", sv_ndof, "sv_ndof[nsv]/F");
+  ntuple->Branch("sv_nTracks", sv_nTracks, "sv_nTracks[nsv]/F");
+  ntuple->Branch("sv_mass", sv_mass, "sv_mass[nsv]/F");
+  ntuple->Branch("sv_dxy", sv_dxy, "sv_dxy[nsv]/F");
+  ntuple->Branch("sv_dxyz", sv_dxyz, "sv_dxyz[nsv]/F");
+  ntuple->Branch("sv_cosPointing", sv_cosPointing, "sv_cosPointing[nsv]/F");
 
   // jet constituent variables
   ntuple->Branch("pfcand_e", pfcand_e, "pfcand_e[nconst]/F");
@@ -624,31 +628,27 @@ int main(int argc, char* argv[]) {
       nchargedhad = (count_ChargedHad->at(j));
       nphotons = (count_Photon->at(j));
       nneutralhad = (count_NeutralHad->at(j));
+      nsv = (count_SV->at(j));
 
-      // secondary vertex properties
-      recojet_sv_xrel = (*SecondaryVertices_xrel)[j];
-      recojet_sv_yrel = (*SecondaryVertices_yrel)[j];
-      recojet_sv_zrel = (*SecondaryVertices_zrel)[j];
-      recojet_sv_thetarel = (*SecondaryVertices_thetarel)[j];
-      recojet_sv_phirel = (*SecondaryVertices_phirel)[j];
-      recojet_sv_p = (*SecondaryVertices_p)[j];
-      recojet_sv_prel = (*SecondaryVertices_prel)[j];
-      recojet_sv_chi2 = (*SecondaryVertices_chi2)[j];
-      recojet_sv_chi2Normalized = (*SecondaryVertices_chi2Normalized)[j];
-      recojet_sv_ndof = (*SecondaryVertices_ndof)[j];
-      recojet_sv_nTracks = (*SecondaryVertices_nTracks)[j];
-      recojet_sv_mass = (*SecondaryVertices_mass)[j];
-      recojet_sv_dxy = (*SecondaryVertices_dxy)[j];
-      recojet_sv_dxyz = (*SecondaryVertices_dxyz)[j];
-      recojet_sv_cosPointing = (*SecondaryVertices_cosPointing)[j];
+      // loop over secondary vertices
+      for(int k = 0; k < nsv; k++){
+          sv_xrel[k] = (SecondaryVertices_xrel->at(j))[k];
+          sv_yrel[k] = (SecondaryVertices_yrel->at(j))[k];
+          sv_zrel[k] = (SecondaryVertices_zrel->at(j))[k];
+          sv_thetarel[k] = (SecondaryVertices_thetarel->at(j))[k];
+          sv_phirel[k] = (SecondaryVertices_phirel->at(j))[k];
+          sv_p[k] = (SecondaryVertices_p->at(j))[k];
+          sv_prel[k] = (SecondaryVertices_prel->at(j))[k];
+          sv_chi2[k] = (SecondaryVertices_chi2->at(j))[k];
+          sv_chi2Normalized[k] = (SecondaryVertices_chi2Normalized->at(j))[k];
+          sv_ndof[k] = (SecondaryVertices_ndof->at(j))[k];
+          sv_nTracks[k] = (SecondaryVertices_nTracks->at(j))[k];
+          sv_mass[k] = (SecondaryVertices_mass->at(j))[k];
+          sv_dxy[k] = (SecondaryVertices_dxy->at(j))[k];
+          sv_dxyz[k] = (SecondaryVertices_dxyz->at(j))[k];
+          sv_cosPointing[k] = (SecondaryVertices_cosPointing->at(j))[k];
+      }
       
-      // do some printouts
-      /*if(i % 10000 == 0) {
-          std::cout << "-> jet: " << j << " -  " << "nconst: " << nconst << "-> (JetsConstituents_e->at(j)).size(): " << (JetsConstituents_e->at(j)).size() << std::endl;
-          std::cout << "-> jet_e: " << recojet_e << " -  jet_pt: " << recojet_pt << std::endl;
-          std::cout<< "-----" << std::endl;
-      }*/
-
       // loop over constituents
       for(int k = 0; k < nconst; ++k){
         pfcand_e[k] = (JetsConstituents_e->at(j))[k];

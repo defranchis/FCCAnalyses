@@ -511,8 +511,8 @@ get_invM_pairs(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices, double m1,
   return result;
 }
 
-// invariant mass of a vertex (assuming all tracks to be pions)
 double get_invM(FCCAnalysesVertex vertex) {
+  // invariant mass of a vertex (assuming all tracks to be pions)
 
   double result;
 
@@ -534,25 +534,11 @@ double get_invM(FCCAnalysesVertex vertex) {
 
 ROOT::VecOps::RVec<double>
 get_invM(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices) {
+  // same as above, but for a vector of vertices
 
   ROOT::VecOps::RVec<double> result;
   for (auto &vertex : vertices) {
-
-    double result_i;
-    ROOT::VecOps::RVec<TVector3> p_tracks =
-        vertex.updated_track_momentum_at_vertex;
-
-    TLorentzVector p4_vtx;
-    const double m = 0.13957039; // pion mass
-
-    for (TVector3 p_tr : p_tracks) {
-      TLorentzVector p4_tr;
-      p4_tr.SetXYZM(p_tr.X(), p_tr.Y(), p_tr.Z(), m);
-      p4_vtx += p4_tr;
-    }
-
-    result_i = p4_vtx.M();
-    result.push_back(result_i);
+    result.push_back(get_invM(vertex));
   }
   return result;
 }
@@ -708,7 +694,7 @@ get_p_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices) {
   return result;
 }
 
-// vector of position of all reconstructed SV (in mm)
+// vector of position of all reconstructed SV
 ROOT::VecOps::RVec<TVector3>
 get_position_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices) {
   ROOT::VecOps::RVec<TVector3> result;
@@ -779,6 +765,79 @@ get_zrel_SV(const ROOT::VecOps::RVec<FCCAnalysesVertex>& vertices,
     ROOT::VecOps::RVec<double> result;
     for (FCCAnalysesVertex ivtx : vertices) {
         result.push_back(ivtx.vertex.position[2] - PV.z());
+    }
+    return result;
+}
+
+// vector of position of all reconstructed SV (for the case of grouping per jet)
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<TVector3>>
+get_position_SV_jets(ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<TVector3>> result;
+  for (ROOT::VecOps::RVec<FCCAnalysesVertex> this_vertices: vertices) {
+    result.push_back(get_position_SV(this_vertices));
+  }
+  return result;
+}
+
+// same as above, but only x-coordinate
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
+get_x_SV_jets(const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices) {
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+    for (ROOT::VecOps::RVec<FCCAnalysesVertex> this_vertices : vertices) {
+        result.push_back(get_x_SV(this_vertices));
+    }
+    return result;
+}
+
+// same as above, but relative to PV
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
+get_xrel_SV_jets(const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices,
+            const TVector3& PV) {
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+    for (ROOT::VecOps::RVec<FCCAnalysesVertex> this_vertices : vertices) {
+        result.push_back(get_xrel_SV(this_vertices, PV));
+    }
+    return result;
+}
+
+// same as above, but only y-coordinate
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
+get_y_SV_jets(const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices) {
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+    for (ROOT::VecOps::RVec<FCCAnalysesVertex> this_vertices : vertices) {
+        result.push_back(get_y_SV(this_vertices));
+    }
+    return result;
+}
+
+// same as above, but relative to PV
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
+get_yrel_SV_jets(const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices,
+            const TVector3& PV) {
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+    for (ROOT::VecOps::RVec<FCCAnalysesVertex> this_vertices : vertices) {
+        result.push_back(get_yrel_SV(this_vertices, PV));
+    }
+    return result;
+}
+
+// same as above, but only z-coordinate
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
+get_z_SV_jets(const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices) {
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+    for (ROOT::VecOps::RVec<FCCAnalysesVertex> this_vertices : vertices) {
+        result.push_back(get_z_SV(this_vertices));
+    }
+    return result;
+}
+
+// same as above, but relative to PV
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
+get_zrel_SV_jets(const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices,
+            const TVector3& PV) {
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+    for (ROOT::VecOps::RVec<FCCAnalysesVertex> this_vertices : vertices) {
+        result.push_back(get_zrel_SV(this_vertices, PV));
     }
     return result;
 }
@@ -1276,30 +1335,12 @@ get_relPhi_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
 ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
 get_invM_jets(ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
 
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
-  ROOT::VecOps::RVec<double> i_result;
-
-  for (unsigned int i = 0; i < vertices.size(); i++) {
-    ROOT::VecOps::RVec<FCCAnalysesVertex> i_vertices = vertices.at(i);
-
-    for (auto &vertex : i_vertices) {
-      ROOT::VecOps::RVec<TVector3> p_tracks =
-          vertex.updated_track_momentum_at_vertex;
-      //
-      TLorentzVector p4_vtx;
-      const double m = 0.13957039; // pion mass
-      //
-      for (TVector3 p_tr : p_tracks) {
-        TLorentzVector p4_tr;
-        p4_tr.SetXYZM(p_tr.X(), p_tr.Y(), p_tr.Z(), m);
-        p4_vtx += p4_tr;
-      }
-      i_result.push_back(p4_vtx.M());
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+    for (unsigned int i = 0; i < vertices.size(); i++) {
+        ROOT::VecOps::RVec<FCCAnalysesVertex> this_vertices = vertices.at(i);
+        result.push_back(get_invM(this_vertices));
     }
-    result.push_back(i_result);
-    i_result.clear();
-  }
-  return result;
+    return result;
 }
 
 // SV momentum
@@ -1328,23 +1369,57 @@ get_p_SV(ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
 }
 
 // SV momentum magnitude
-ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_pMag_SV(
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_pMag_SV_jets(
     ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices) {
+
+  // initializations
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
   ROOT::VecOps::RVec<double> i_result;
 
+  // loop over sets of vertices
   for (unsigned int i = 0; i < vertices.size(); i++) {
     ROOT::VecOps::RVec<FCCAnalysesVertex> i_vertices = vertices.at(i);
-    //
+    // loop over vertices
     for (auto &ivtx : i_vertices) {
-      ROOT::VecOps::RVec<TVector3> p_tracks =
-          ivtx.updated_track_momentum_at_vertex;
 
+      // make sum of track momenta
+      ROOT::VecOps::RVec<TVector3> p_tracks = ivtx.updated_track_momentum_at_vertex;
       TVector3 p_sum;
-      for (TVector3 p_tr : p_tracks)
-        p_sum += p_tr;
-
+      for (TVector3 p_tr : p_tracks){ p_sum += p_tr; }
       i_result.push_back(p_sum.Mag());
+    }
+    result.push_back(i_result);
+    i_result.clear();
+  }
+  return result;
+}
+
+// SV relative momentum
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_prel_SV_jets(
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices,
+    ROOT::VecOps::RVec<fastjet::PseudoJet> jets) {
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+  ROOT::VecOps::RVec<double> i_result;
+
+  // loop over jets
+  for (unsigned int i = 0; i < jets.size(); i++) {
+    ROOT::VecOps::RVec<FCCAnalysesVertex> i_vertices = vertices.at(i);
+    fastjet::PseudoJet i_jet = jets.at(i);
+    // loop over vertices
+    for (auto &ivtx : i_vertices) {
+        
+      // make sum of track momenta
+      ROOT::VecOps::RVec<TVector3> p_tracks = ivtx.updated_track_momentum_at_vertex;
+      TVector3 p_sum;
+      for (TVector3 p_tr : p_tracks){ p_sum += p_tr; }
+      double numerator = p_sum.Mag();
+
+      // get jet momentum
+      TVector3 jetP(i_jet.px(), i_jet.py(), i_jet.pz());
+      double denominator = jetP.Mag();
+
+      // take ratio
+      i_result.push_back(numerator / denominator);
     }
     result.push_back(i_result);
     i_result.clear();
@@ -1475,13 +1550,11 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_relTheta_SV(
     for (auto &ivtx : i_vertices) {
       TVector3 xyz(ivtx.vertex.position[0], ivtx.vertex.position[1],
                    ivtx.vertex.position[2]);
-      //
       i_result.push_back(xyz.Theta() - i_jet.theta());
     }
     result.push_back(i_result);
     i_result.clear();
   }
-  //
   return result;
 }
 
@@ -1499,13 +1572,11 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_relPhi_SV(
       TVector3 xyz(ivtx.vertex.position[0], ivtx.vertex.position[1],
                    ivtx.vertex.position[2]);
       TVector3 jetP(i_jet.px(), i_jet.py(), i_jet.pz());
-      //
       i_result.push_back(xyz.DeltaPhi(jetP));
     }
     result.push_back(i_result);
     i_result.clear();
   }
-  //
   return result;
 }
 

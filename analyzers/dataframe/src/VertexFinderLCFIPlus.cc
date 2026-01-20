@@ -8,144 +8,205 @@ namespace FCCAnalyses{
 
 namespace VertexFinderLCFIPlus{
 
+/*
+Global settings and constants
+*/
+
 bool debug_me = false;
 // if particle masses defined in a dedicated file, call those rather than defining here
 const double m_pi = 0.13957039; // pi+- mass [GeV]
 const double m_p  = 0.93827208; // p+- mass [GeV]
 const double m_e  = 0.00051099; // e+- mass [GeV]
-//
 
-ROOT::VecOps::RVec<ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>> get_SV_jets(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> recoparticles,
-										      ROOT::VecOps::RVec<edm4hep::TrackState> thetracks,
-										      VertexingUtils::FCCAnalysesVertex PV,
-										      ROOT::VecOps::RVec<bool> isInPrimary,
-										      ROOT::VecOps::RVec<fastjet::PseudoJet> jets,
-										      std::vector<std::vector<int>> jet_consti,
-										      bool V0_rej,
-										      double chi2_cut, double invM_cut, double chi2Tr_cut) {
 
-  // find SVs using LCFI+ (clustering first)
-  
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>> result;
+/*
+Secondary vertex finding per jet.
+*/
 
-  ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks;
 
-  // retrieve tracks from reco particles & get a vector with their indices in the reco collection
-  ROOT::VecOps::RVec<edm4hep::TrackState> tracks   = ReconstructedParticle2Track::getRP2TRK( recoparticles, thetracks );
-  ROOT::VecOps::RVec<int> reco_ind_tracks     = ReconstructedParticle2Track::get_recoindTRK( recoparticles, thetracks );
-  if(tracks.size() != reco_ind_tracks.size()) std::cout<<"ERROR: reco index vector not the same size as no of tracks"<<std::endl;
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>>
+get_SV_jets(
+        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>& tracksPerJet,
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& allTracks,
+        const VertexingUtils::FCCAnalysesVertex& PV,
+        bool V0_veto,
+        double chi2_cut, double invariant_mass_cut, double trackChi2_cut){
+    // Base function for doing per-jet secondary vertex finding.
+    // Input arguments:
+    // - tracksPerJet: tracks grouped per jet.
+    //   No further filtering is performed on this collection,
+    //   the tracks are assumed to be already selected
+    //   (e.g. sufficient quality, incompatible with primary vertex, etc).
+    //   Exception: a V0 veto can still be performed if V0_veto is set to true.
+    // - allTracks: all tracks in event; not sure why this is needed.
+    // - PV: primary vertex, not sure why this is needed.
+    // Returns:
+    // - a collection of secondary vertices per jet.
 
-  if(tracks.size() != isInPrimary.size()) std::cout<<"ERROR: isInPrimary vector size not the same as no of tracks"<<std::endl;
+    // initialize result
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>> result;
 
-  if(debug_me) std::cout<<"tracks extracted from the reco particles"<<std::endl;
+    // loop over jets
+    for(unsigned int jetIdx = 0; jetIdx < tracksPerJet.size(); jetIdx++){
 
-  // find SVs inside jet loop
-  for (unsigned int j=0; j<jets.size(); j++) {
+        // get tracks for this jet
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracksInThisJet = tracksPerJet.at(jetIdx);
 
-    // remove primary tracks & separate non-primary tracks by jet
-    std::vector<int> i_jetconsti = jet_consti[j];
-    for (int ctr=0; ctr<tracks.size(); ctr++) {
-      if(isInPrimary[ctr]) continue; // remove primary tracks
-      if(std::find(i_jetconsti.begin(), i_jetconsti.end(), reco_ind_tracks[ctr]) == i_jetconsti.end()) {
-	np_tracks.push_back(tracks[ctr]); // separate tracks by jet
-      }
+        // do V0 veto if requested
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse = V0rejection_tight(tracksInThisJet, PV, V0_veto);
+
+        // find secondary vertices
+        ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> verticesInThisJet;
+        verticesInThisJet = findSVfromTracks(tracksToUse, allTracks, PV, chi2_cut, invariant_mass_cut, trackChi2_cut);
+
+        // add to result
+        result.push_back(verticesInThisJet);
+  }
+  return result;    
+}
+
+
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>>
+get_SV_jets(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& recoparticles,
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& allTracks,
+	    const VertexingUtils::FCCAnalysesVertex& PV,
+	    ROOT::VecOps::RVec<bool> isInPrimary,
+	    ROOT::VecOps::RVec<fastjet::PseudoJet> jets,
+	    std::vector<std::vector<int>> jet_constituent_indices,
+	    bool V0_rej,
+	    double chi2_cut, double invM_cut, double chi2Tr_cut){
+    // Same as above (base function) but with more built-in input handling.
+    
+    // initializations
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> selectedTracksPerJet;
+
+    // retrieve tracks from reco particles & get a vector with their indices in the reco collection
+    ROOT::VecOps::RVec<edm4hep::TrackState> tracks = ReconstructedParticle2Track::getRP2TRK( recoparticles, allTracks );
+    ROOT::VecOps::RVec<int> reco_ind_tracks = ReconstructedParticle2Track::get_recoindTRK( recoparticles, allTracks );
+
+    // sanity checks
+    if(tracks.size() != reco_ind_tracks.size()){
+        std::cout<<"ERROR: reco index vector not the same size as no of tracks"<<std::endl;
+    }
+    if(tracks.size() != isInPrimary.size()){
+        std::cout<<"ERROR: isInPrimary vector size not the same as no of tracks"<<std::endl;
+    }
+    if(debug_me) std::cout<<"tracks extracted from the reco particles"<<std::endl;
+
+    // loop over jets
+    for(unsigned int jetIdx = 0; jetIdx < jets.size(); jetIdx++){
+
+        // get all secondary tracks for this jet
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracksInThisJet;
+        std::vector<int> this_jet_constituent_indices = jet_constituent_indices[jetIdx];
+        for (int ctr=0; ctr<tracks.size(); ctr++) {
+            // skip primary tracks
+            if(isInPrimary[ctr]) continue;
+            // skip tracks that are not belonging to this jet
+            // note: this seems to be a bug? should be != instead of == ?
+            if(std::find(this_jet_constituent_indices.begin(), this_jet_constituent_indices.end(), reco_ind_tracks[ctr])
+                == this_jet_constituent_indices.end()){
+	            tracksInThisJet.push_back(tracks[ctr]);
+            }
+        }
+    
+        if(debug_me){
+            std::cout << "primary tracks removed; there are " << tracksInThisJet.size() << " non-primary tracks";
+            std::cout << " in jet n. " << jetIdx+1 << std::endl;
+        }
+    
+        // V0 rejection (tight) - perform V0 rejection with tight constraints if user chooses
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse = V0rejection_tight(tracksInThisJet, PV, V0_rej);
+    
+        if(debug_me) {
+            std::cout<<tracksInThisJet.size()-tracksToUse.size()<<" V0 tracks removed"<<std::endl;
+            std::cout<<"now starting to find secondary vertices..."<<std::endl;
+        }
+
+        // add to selected tracks
+        selectedTracksPerJet.push_back(tracksToUse);
     }
     
-    if(debug_me) std::cout<<"primary tracks removed; there are "<<np_tracks.size()<<" non-primary tracks in jet#"<<j+1<<std::endl;
-    
-    // V0 rejection (tight) - perform V0 rejection with tight constraints if user chooses
-    ROOT::VecOps::RVec<edm4hep::TrackState> tracks_fin = V0rejection_tight(np_tracks, PV, V0_rej);
-    
+    // find secondary vertices using the selected tracks
+    return get_SV_jets(selectedTracksPerJet, allTracks, PV, V0_rej, chi2_cut, invM_cut, chi2Tr_cut); 
+}
+
+
+/*
+Secondary vertex finding per event
+*/
+
+
+ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>
+get_SV_event(
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& allTracks,
+        const VertexingUtils::FCCAnalysesVertex& PV,
+        bool V0_veto,
+        double chi2_cut, double invariant_mass_cut, double trackChi2_cut){
+    // Base function for doing per-event secondary vertex finding.
+    // Input arguments:
+    // - tracks: tracks to use.
+    //   No further filtering is performed on this collection,
+    //   the tracks are assumed to be already selected
+    //   (e.g. sufficient quality, incompatible with primary vertex, etc).
+    //   Exception: a V0 veto can still be performed if V0_veto is set to true.
+    // - allTracks: all tracks in event; not sure why this is needed.
+    // - PV: primary vertex, not sure why this is needed.
+    // Returns:
+    // - a collection of secondary vertices.
+
+    // do V0 veto if requested
+    ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse = V0rejection_tight(tracks, PV, V0_veto);
+
     if(debug_me) {
-      std::cout<<np_tracks.size()-tracks_fin.size()<<" V0 tracks removed"<<std::endl;
-      std::cout<<"now starting to find secondary vertices..."<<std::endl;
+        std::cout<<tracks.size()-tracksToUse.size()<<" V0 tracks removed"<<std::endl;
+        std::cout<<"now starting to find secondary vertices..."<<std::endl;
     }
-    
-    // start finding SVs
-    ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> i_result = findSVfromTracks(tracks_fin, thetracks, PV, chi2_cut, invM_cut, chi2Tr_cut);
-    //
-    result.push_back(i_result);
-    
-    // clean-up
-    i_result.clear();
-    np_tracks.clear();
-    tracks_fin.clear();
-  }
 
-  if(debug_me) std::cout<<"no more SVs can be reconstructed"<<std::endl;
-  
-  return result;
+    // start finding secondary vertices
+    return findSVfromTracks(tracksToUse, allTracks, PV, chi2_cut, invariant_mass_cut, trackChi2_cut);
 }
 
-ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> get_SV_event(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> recoparticles,
-								   ROOT::VecOps::RVec<edm4hep::TrackState> thetracks,
-								   VertexingUtils::FCCAnalysesVertex PV,
-								   ROOT::VecOps::RVec<bool> isInPrimary,
-								   bool V0_rej,
-								   double chi2_cut, double invM_cut, double chi2Tr_cut) {
+
+ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex>
+get_SV_event(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& recoparticles,
+		const ROOT::VecOps::RVec<edm4hep::TrackState>& allTracks,
+		VertexingUtils::FCCAnalysesVertex PV,
+		ROOT::VecOps::RVec<bool> isInPrimary,
+		bool V0_rej,
+		double chi2_cut, double invM_cut, double chi2Tr_cut){
+    // Same as above (base function) but with more built-in input handling.
     
-  // find SVs using LCFI+ (w/o clustering)
+    // retrieve the tracks associated to the recoparticles
+    ROOT::VecOps::RVec<edm4hep::TrackState> tracks = ReconstructedParticle2Track::getRP2TRK( recoparticles, allTracks );
+    if(debug_me) std::cout<<"tracks extracted from the reco particles"<<std::endl;
+
+    // sanity checks
+    if(tracks.size() != isInPrimary.size()){
+        std::cout<<"ISSUE: track vector and primary-nonprimary vector of diff sizes"<<std::endl;
+    }
+
+    // remove primary tracks
+    ROOT::VecOps::RVec<edm4hep::TrackState> secondaryTracks;
+    for(unsigned int i=0; i<tracks.size(); i++) {
+        if (!isInPrimary[i]) secondaryTracks.push_back(tracks[i]);
+    }
+
+    if(debug_me) std::cout<<"primary tracks removed; there are "<<secondaryTracks.size()<<" non-primary tracks in the event"<<std::endl;
+
+    // V0 rejection (tight) - perform V0 rejection with tight constraints if user chooses
+    ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse = V0rejection_tight(secondaryTracks, PV, V0_rej);
+
+    if(debug_me) {
+        std::cout<<secondaryTracks.size()-tracksToUse.size()<<" V0 tracks removed"<<std::endl;
+        std::cout<<"now starting to find secondary vertices..."<<std::endl;
+    }
   
-  if(debug_me) std::cout << "Starting SV finding!" << std::endl;
-
-  ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> result;
-
-  // retrieve the tracks associated to the recoparticles
-  ROOT::VecOps::RVec<edm4hep::TrackState> tracks = ReconstructedParticle2Track::getRP2TRK( recoparticles, thetracks );
-
-  if(debug_me) std::cout<<"tracks extracted from the reco particles"<<std::endl;
-
-  if(tracks.size() != isInPrimary.size()) std::cout<<"ISSUE: track vector and primary-nonprimary vector of diff sizes"<<std::endl;
-
-  // remove primary tracks
-  ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks;
-  for(unsigned int i=0; i<tracks.size(); i++) {
-    if (!isInPrimary[i]) np_tracks.push_back(tracks[i]);
-  }
-
-  if(debug_me) std::cout<<"primary tracks removed; there are "<<np_tracks.size()<<" non-primary tracks in the event"<<std::endl;
-
-  // V0 rejection (tight) - perform V0 rejection with tight constraints if user chooses
-  ROOT::VecOps::RVec<edm4hep::TrackState> tracks_fin = V0rejection_tight(np_tracks, PV, V0_rej);
-
-  if(debug_me) {
-    std::cout<<np_tracks.size()-tracks_fin.size()<<" V0 tracks removed"<<std::endl;
-    std::cout<<"now starting to find secondary vertices..."<<std::endl;
-  }
-  
-  //if(debug_me) std::cout << "tracks_fin.size() = " << tracks_fin.size() << std::endl;
-
-  // start finding SVs (only if there are 2 or more tracks)
-  result = findSVfromTracks(tracks_fin, thetracks, PV, chi2_cut, invM_cut, chi2Tr_cut);
-
-  //if(debug_me) std::cout<<"no more SVs can be reconstructed"<<std::endl;
-  
-  return result;
-}
-
-ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> get_SV_event(ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
-                                                                   ROOT::VecOps::RVec<edm4hep::TrackState> thetracks,
-								   VertexingUtils::FCCAnalysesVertex PV,
-								   bool V0_rej,
-								   double chi2_cut, double invM_cut, double chi2Tr_cut) {
-  
-  // find SVs from non-primary tracks using LCFI+ (w/o clustering)
-  // primary - non-primary separation done externally
-  
-  ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> result;
-
-  // V0 rejection (tight) - perform V0 rejection with tight constraints if user chooses
-  ROOT::VecOps::RVec<edm4hep::TrackState> tracks_fin = V0rejection_tight(np_tracks, PV, V0_rej);
-
-  if(debug_me) {
-    std::cout<<np_tracks.size()-tracks_fin.size()<<" V0 tracks removed"<<std::endl;
-    std::cout<<"now starting to find secondary vertices..."<<std::endl;
-  }
-
-  // start finding SVs (only if there are 2 or more tracks)
-  result = findSVfromTracks(tracks_fin, thetracks, PV, chi2_cut, invM_cut, chi2Tr_cut);
-  
-  return result;
+    // find secondary vertices
+    return get_SV_event(tracksToUse, allTracks, PV, V0_rej, chi2_cut, invM_cut, chi2Tr_cut);
 }
 
 
@@ -830,8 +891,8 @@ ROOT::VecOps::RVec<double> get_V0candidate(VertexingUtils::FCCAnalysesVertex &V0
 //
 // [0] -> invariant mass lower limit [GeV]
 // [1] -> invariant mass upper limit [GeV]
-// [2] -> distance from PV [mm]
-// [3] -> colinearity
+// [2] -> distance from PV lower limit [mm] (note: [cm] for ALEPH data (?))
+// [3] -> colinearity lower limit
 
 ROOT::VecOps::RVec<double> constraints_Ks(bool tight) {
 
@@ -840,17 +901,17 @@ ROOT::VecOps::RVec<double> constraints_Ks(bool tight) {
   if(tight) {
     result[0] = 0.493;
     result[1] = 0.503;
-    result[2] = 0.5;
+    result[2] = 0.05; // originally 0.5 [mm]
     result[3] = 0.999;
   }
 
   else {
     result[0] = 0.488;
     result[1] = 0.508;
-    result[2] = 0.3;
+    result[2] = 0.03; // originally 0.3 [mm]
     result[3] = 0.999;
   }
-  //
+  
   return result;
 }
 
@@ -861,17 +922,17 @@ ROOT::VecOps::RVec<double> constraints_Lambda0(bool tight) {
   if(tight) {
     result[0] = 1.111;
     result[1] = 1.121;
-    result[2] = 0.5;
+    result[2] = 0.05; // originally 0.5 [mm]
     result[3] = 0.99995;
   }
 
   else {
     result[0] = 1.106;
     result[1] = 1.126;
-    result[2] = 0.3;
+    result[2] = 0.03; // originally 0.3 [mm]
     result[3] = 0.999;
   }
-  //
+
   return result;
 }
 
@@ -881,16 +942,16 @@ ROOT::VecOps::RVec<double> constraints_Gamma(bool tight) {
 
   if(tight) {
     result[1] = 0.005;
-    result[2] = 9;
+    result[2] = 0.9; // originally 9 [mm]
     result[3] = 0.99995;
   }
 
   else {
     result[1] = 0.01;
-    result[2] = 9;
+    result[2] = 0.9; // originally 9 [mm]
     result[3] = 0.999;
   }
-  //
+
   return result;
 }
 

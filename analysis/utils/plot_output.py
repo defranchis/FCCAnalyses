@@ -32,22 +32,23 @@ if __name__=='__main__':
       'nneutralhad',
       'nel',
       'nmu',
+      'nsv',
 
-      'recojet_sv_xrel',
-      'recojet_sv_yrel',
-      'recojet_sv_zrel',
-      'recojet_sv_thetarel',
-      'recojet_sv_phirel',
-      'recojet_sv_p',
-      'recojet_sv_prel',
-      'recojet_sv_chi2',
-      'recojet_sv_chi2Normalized',
-      'recojet_sv_ndof',
-      'recojet_sv_nTracks',
-      'recojet_sv_mass',
-      'recojet_sv_dxy',
-      'recojet_sv_dxyz',
-      'recojet_sv_cosPointing',
+      'sv_xrel',
+      'sv_yrel',
+      'sv_zrel',
+      'sv_thetarel',
+      'sv_phirel',
+      'sv_p',
+      'sv_prel',
+      'sv_chi2',
+      'sv_chi2Normalized',
+      'sv_ndof',
+      'sv_nTracks',
+      'sv_mass',
+      'sv_dxy',
+      'sv_dxyz',
+      'sv_cosPointing',
 
       'pfcand_pt',
       'pfcand_e',
@@ -111,7 +112,7 @@ if __name__=='__main__':
             this_data = events[variable][(kinematic_mask) & (category_masks[category])]
             
             # strategies for flattening per-constituent data
-            if this_data.layout.minmax_depth[1]>=2:
+            if variable.startswith('pfcand_'):
 
                 # approach 1: take all constituents
                 #this_data = ak.flatten(this_data)
@@ -127,6 +128,12 @@ if __name__=='__main__':
                     ids = ak.argmax(pt, axis=1).to_numpy()
                     ids = np.array(list(ids))
                     this_data = this_data[np.arange(len(this_data)), ids]
+
+            # strategries for flattening secondary vertex data
+            if variable.startswith('sv_'):
+                
+                # approach 1: take all constituents
+                this_data = ak.flatten(this_data)
 
             # parsing
             this_data = this_data.to_numpy()

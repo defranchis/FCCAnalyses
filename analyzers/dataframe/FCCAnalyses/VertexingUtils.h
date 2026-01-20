@@ -182,16 +182,17 @@ namespace VertexingUtils{
   /// Return chi2 of all reconstructed V0s
   ROOT::VecOps::RVec<double> get_chi2_SV( FCCAnalysesV0 SV );
 
-  ///////////////////////////////////////////////////
+  /*
+  Getter functions for vectors of secondary vertices
+  */
 
-  /// Passing a vector of FCCAnalysesVertex instead of FCCAnalysesV0
-  /// Return the number of reconstructed SVs
+  // Return the number of reconstructed SVs
   int get_n_SV( ROOT::VecOps::RVec<FCCAnalysesVertex> vertices );
 
-  /// Return the momentum of all reconstructed vertices (or V0.vtx)
+  // Return the momentum of all reconstructed vertices
   ROOT::VecOps::RVec<TVector3> get_p_SV( ROOT::VecOps::RVec<FCCAnalysesVertex> vertices );
 
-  /// Return the vertex position of all reconstructed SVs (in mm)
+  // Return the vertex position of all reconstructed SVs
   ROOT::VecOps::RVec<TVector3> get_position_SV( ROOT::VecOps::RVec<FCCAnalysesVertex> vertices );
   ROOT::VecOps::RVec<double> get_x_SV( const ROOT::VecOps::RVec<FCCAnalysesVertex>& vertices );
   ROOT::VecOps::RVec<double> get_xrel_SV( const ROOT::VecOps::RVec<FCCAnalysesVertex>& vertices, const TVector3& PV );
@@ -200,7 +201,23 @@ namespace VertexingUtils{
   ROOT::VecOps::RVec<double> get_z_SV( const ROOT::VecOps::RVec<FCCAnalysesVertex>& vertices );
   ROOT::VecOps::RVec<double> get_zrel_SV( const ROOT::VecOps::RVec<FCCAnalysesVertex>& vertices, const TVector3& PV );
 
-  /// Return the momentum magnitude of all reconstructed vertices (or V0.vtx)
+  // Return the vertex position of all reconstructed SVs (for the case of grouping per jet)
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<TVector3>> get_position_SV_jets(
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_x_SV_jets(
+    const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_xrel_SV_jets(
+    const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices, const TVector3& PV );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_y_SV_jets(
+    const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_yrel_SV_jets(
+    const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices, const TVector3& PV );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_z_SV_jets(
+    const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_zrel_SV_jets(
+    const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>>& vertices, const TVector3& PV );
+
+  // Return the momentum magnitude of all reconstructed vertices
   ROOT::VecOps::RVec<double> get_pMag_SV( ROOT::VecOps::RVec<FCCAnalysesVertex> vertices );
   ROOT::VecOps::RVec<double> get_prel_SV( const ROOT::VecOps::RVec<FCCAnalysesVertex>& vertices,
                                           ROOT::VecOps::RVec<int> nSV_jet,
@@ -298,20 +315,35 @@ namespace VertexingUtils{
   // --- for get_SV_jets --- //
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_invM_jets( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<TVector3>> get_p_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_pMag_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_pMag_SV_jets( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_prel_SV_jets(
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices,
+    ROOT::VecOps::RVec<fastjet::PseudoJet> jets
+  );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_VertexNtrk( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_chi2_SV_jets( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_norm_chi2_SV_jets( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_nDOF_SV_jets( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_theta_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_phi_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices );
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_relTheta_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices, ROOT::VecOps::RVec<fastjet::PseudoJet> jets );
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_relPhi_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices, ROOT::VecOps::RVec<fastjet::PseudoJet> jets );
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_pointingangle_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices, FCCAnalysesVertex PV );
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_dxy_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices, FCCAnalysesVertex PV );
-  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_d3d_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices, FCCAnalysesVertex PV );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_relTheta_SV(
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices,
+    ROOT::VecOps::RVec<fastjet::PseudoJet> jets );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_relPhi_SV(
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices,
+    ROOT::VecOps::RVec<fastjet::PseudoJet> jets );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_pointingangle_SV(
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices,
+    FCCAnalysesVertex PV );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_dxy_SV(
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices,
+    FCCAnalysesVertex PV );
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_d3d_SV(
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices,
+    FCCAnalysesVertex PV );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> get_pdg_V0( ROOT::VecOps::RVec<int> pdg, ROOT::VecOps::RVec<int> nSV_jet );
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_invM_V0( ROOT::VecOps::RVec<double> invM, ROOT::VecOps::RVec<int> nSV_jet );
+
   /// Return the vertex position of all reconstructed SVs (in mm)
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<TVector3>> get_position_SV( ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalysesVertex>> vertices ); 
   // --- for get_SV_jets --- //
