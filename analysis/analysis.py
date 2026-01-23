@@ -288,6 +288,11 @@ ROOT.gInterpreter.Declare("""
             secondaryVerticesPerJet.push_back(temp);
         }
 
+        // note: in very rare cases, there can be secondary vertices but no jets
+        //       (even with exclusive jet clustering targeting 2 jets in every event);
+        //       reason is not yet fully understood, but in any case, need safety against it.
+        if( jets.size()==0 ){ return secondaryVerticesPerJet; }
+
         // get momenta of all vertices
         ROOT::VecOps::RVec<TVector3> vertex_momenta = FCCAnalyses::VertexingUtils::get_p_SV(secondaryVertices);
 
@@ -300,7 +305,7 @@ ROOT.gInterpreter.Declare("""
         // loop over vertices
         for( unsigned int vertex_idx=0; vertex_idx < secondaryVertices.size(); vertex_idx++ ){
             double mindR = 99.;
-            int selected_jet_idx = -1;
+            unsigned int selected_jet_idx = 0;
             FCCAnalyses::VertexingUtils::FCCAnalysesVertex vertex = secondaryVertices.at(vertex_idx);
             TVector3 vertex_momentum = vertex_momenta.at(vertex_idx);
             for( unsigned int jet_idx=0; jet_idx < jets.size(); jet_idx++){
@@ -311,7 +316,7 @@ ROOT.gInterpreter.Declare("""
                     selected_jet_idx = jet_idx;
                 }
             }
-            secondaryVerticesPerJet[selected_jet_idx].push_back(vertex);
+            secondaryVerticesPerJet.at(selected_jet_idx).push_back(vertex);
         }
         return secondaryVerticesPerJet;
     }""")
@@ -608,13 +613,13 @@ class RDFanalysis():
             # - chi2 upper bound for vertices
             # - invariant mass upper bound for vertices
             # - track chi2 cut (what does this do exactly?)
-            .Define("SecondaryVertices", "FCCAnalyses::VertexFinderLCFIPlus::get_SV_jets(SecondaryTracksPerJet, EFlowTrack_1, PrimaryVertexObject, true, 10., 10., 5.)")
+            #.Define("SecondaryVertices", "FCCAnalyses::VertexFinderLCFIPlus::get_SV_jets(SecondaryTracksPerJet, EFlowTrack_1, PrimaryVertexObject, true, 10., 10., 5.)")
             
             # alternative: fit secondary vertices per event (ignoring jets), and associate them to tracks post-rem.
             # note: not sure how to do this best, but for now do simple dR matching.
             # note: does not seem to work yet; get_SV_event gives a segmentation violation on some events, that is hard to pin down...
-            #.Define("EventSecondaryVertices", "FCCAnalyses::VertexFinderLCFIPlus::get_SV_event(SecondaryTracks, EFlowTrack_1, PrimaryVertexObject, true, 10., 10., 5.)")
-            #.Define("SecondaryVertices", "distributeSecondaryVerticesOverJets(EventSecondaryVertices, jets_ee_genkt)")
+            .Define("EventSecondaryVertices", "FCCAnalyses::VertexFinderLCFIPlus::get_SV_event(SecondaryTracks, EFlowTrack_1, PrimaryVertexObject, true, 10., 10., 5.)")
+            .Define("SecondaryVertices", "distributeSecondaryVerticesOverJets(EventSecondaryVertices, jets_ee_genkt)")
 
             # calculate properties of secondary vertices to store
             .Define("SecondaryVertices_xrel", "FCCAnalyses::VertexingUtils::get_xrel_SV_jets(SecondaryVertices, PrimaryVertexP3)")
