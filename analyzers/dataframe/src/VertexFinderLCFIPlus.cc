@@ -332,56 +332,52 @@ ROOT::VecOps::RVec<edm4hep::TrackState> V0rejection_tight(ROOT::VecOps::RVec<edm
   return result;
 }
 
-ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> findSVfromTracks(ROOT::VecOps::RVec<edm4hep::TrackState> tracks_fin,
-                                                                       const ROOT::VecOps::RVec<edm4hep::TrackState>&  alltracks,
-								       VertexingUtils::FCCAnalysesVertex PV,
-								       double chi2_cut, double invM_cut, double chi2Tr_cut) {
-
+ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> findSVfromTracks(
+    const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks_fin,
+    const ROOT::VecOps::RVec<edm4hep::TrackState>&  alltracks,
+    VertexingUtils::FCCAnalysesVertex PV,
+    double chi2_cut, double invM_cut, double chi2Tr_cut) {
   // find SVs (only if there are 2 or more tracks)
+  
+  // initialize result
   ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> result;
 
-  while(tracks_fin.size() > 1) {
-    // find vertex seed
-    ROOT::VecOps::RVec<int> vtx_seed = VertexSeed_best(tracks_fin, PV, chi2_cut, invM_cut);
-    
-    if(debug_me){
-      std::cout << "tracks_fin.size(): " << tracks_fin.size() << std::endl;
-      for(int i=0; i<vtx_seed.size();i++)
-	std::cout << "vtx_seed: " << vtx_seed[i] << std::endl;
-    }
-    if(vtx_seed.size() == 0) break;
-    
-    // add tracks to the seed, check if a track is added; if not break loop
-    ROOT::VecOps::RVec<int> vtx_fin = vtx_seed;
-    int vtx_fin_size = 0; // to start the loop
-    while(vtx_fin_size != vtx_fin.size()) {
-      vtx_fin_size = vtx_fin.size();
-      vtx_fin = addTrack_best(tracks_fin, vtx_fin, PV, chi2_cut, invM_cut, chi2Tr_cut);
-    }
-    
-    // fit tracks to SV and remove from tracks_fin
-    ROOT::VecOps::RVec<edm4hep::TrackState> tr_vtx_fin;
-    for(int i_tr : vtx_fin){
-      tr_vtx_fin.push_back(tracks_fin[i_tr]);
-      if(debug_me) std::cout << "Pushing back tracks_fin[i_tr]" << std::endl;
-    }
-    VertexingUtils::FCCAnalysesVertex sec_vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx_fin, alltracks); // flag 2 for SVs
+  // make a modifiable copy of input tracks
+  ROOT::VecOps::RVec<edm4hep::TrackState> tracks_leftover = tracks_fin;
 
-    // see if we can also get indices in the reco collection (for tracks forming an SV)
-    //sec_vtx.reco_ind = VertexFitterSimple::get_reco_ind(recoparticles,thetracks); // incorrect
+  // keep iterating as long as there are at least 2 leftover tracks
+  while(tracks_leftover.size() > 1){
+    
+    // find vertex seed and break if none can be found
+    ROOT::VecOps::RVec<int> vtx_seed_indices = VertexSeed_best(tracks_leftover, PV, chi2_cut, invM_cut);
+    if(vtx_seed_indices.size() == 0) break;
+    
+    // add tracks to the seed
+    ROOT::VecOps::RVec<int> vtx_indices = vtx_seed_indices;
+    int vtx_indices_size = 0; // dummy to start the loop
+    while(vtx_indices_size != vtx_indices.size()){
+      vtx_indices_size = vtx_indices.size();
+      vtx_indices = addTrack_best(tracks_leftover, vtx_indices, PV, chi2_cut, invM_cut, chi2Tr_cut);
+    }
+    
+    // fit secondary vertex to tracks
+    ROOT::VecOps::RVec<edm4hep::TrackState> tracks_in_vertex;
+    for(int trackidx : vtx_indices){
+      tracks_in_vertex.push_back(tracks_leftover[trackidx]);
+    }
+    VertexingUtils::FCCAnalysesVertex secondary_vertex;
+    secondary_vertex = VertexFitterSimple::VertexFitter_Tk(2, tracks_in_vertex); // flag 2 for SVs
+    result.push_back(secondary_vertex);
 
-    result.push_back(sec_vtx);
-    //
-    ROOT::VecOps::RVec<edm4hep::TrackState> temp = tracks_fin;
-    tracks_fin.clear();
-    for(unsigned int t=0; t<temp.size(); t++) {
-      if(std::find(vtx_fin.begin(), vtx_fin.end(), t) == vtx_fin.end()) tracks_fin.push_back(temp[t]);
-    }    // all this cause don't know how to remove multiple elements at once
-
-    if(debug_me) std::cout<<result.size()<<" SV found"<<std::endl;
+    // remove used tracks from collection of leftover tracks
+    ROOT::VecOps::RVec<edm4hep::TrackState> temp = tracks_leftover;
+    tracks_leftover.clear();
+    for(unsigned int trackidx = 0; trackidx < temp.size(); trackidx++) {
+      if(std::find(vtx_indices.begin(), vtx_indices.end(), trackidx) == vtx_indices.end()){
+        tracks_leftover.push_back(temp[trackidx]);
+      }
+    }
   }
-
-  //
   return result;
 }
 

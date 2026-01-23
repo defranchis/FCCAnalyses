@@ -259,15 +259,11 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
 // ---------------------------------------------------------------------------------------------------------------------------
 
 ROOT::VecOps::RVec<edm4hep::TrackState>
-get_PrimaryTracks(ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
+get_PrimaryTracks(ROOT::VecOps::RVec<edm4hep::TrackState> tracks, double chi2max,
                   bool BeamSpotConstraint, double bsc_sigmax, double bsc_sigmay,
                   double bsc_sigmaz, double bsc_x, double bsc_y, double bsc_z) {
 
-  // iterative procedure to determine the primary vertex - and the primary
-  // tracks
-
-  // Feb 2023: Avoid the recursive approach used before... else very very slow,
-  // with the new VertexFit objects
+  // iterative procedure to determine the primary vertex - and the primary tracks
 
   // Units for the beam-spot : mum
   // See
@@ -275,8 +271,6 @@ get_PrimaryTracks(ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
 
   // bool debug  = true ;
   bool debug = false;
-  float CHI2MAX = 25;
-  //  float CHI2MAX = 10;
 
   if (debug) {
     std::cout << " ... enter in VertexFitterSimple::get_PrimaryTracks   Ntr = "
@@ -323,7 +317,7 @@ get_PrimaryTracks(ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
 
   float chi2_max = 1e30;
 
-  while (chi2_max >= CHI2MAX) {
+  while (chi2_max >= chi2max) {
 
     TVectorD tracks_chi2 = theVertexFit.GetVtxChi2List();
     chi2_max = tracks_chi2.Max();

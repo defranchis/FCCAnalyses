@@ -160,7 +160,8 @@ ROOT.gInterpreter.Declare("""
 ROOT.gInterpreter.Declare("""
     ROOT::VecOps::RVec<edm4hep::TrackState> getPrimaryTracks(
         const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
-        double beamspotX = 0, double beamspotY = 0, double beamspotZ = 0){
+        double chi2max = 25.,
+        double beamspotX = 0., double beamspotY = 0., double beamspotZ = 0.){
 
         // convert beamspot position units from centimeter to 10 micrometer
         // note: the FCCAnalyses function expect these values in micrometer,
@@ -193,6 +194,7 @@ ROOT.gInterpreter.Declare("""
         // call primary track finder from FCCAnalyses
         primaryTracks = FCCAnalyses::VertexFitterSimple::get_PrimaryTracks(
             tracksToUse,
+            chi2max,
             doBeamSpotConstraint,
             sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
             beamspotX, beamspotY, beamspotZ
@@ -491,7 +493,7 @@ class RDFanalysis():
             
             # alternative: recalculate reco primary vertex
             .Define("SelectedTracks", "getSelectedTracks(EFlowTrack_1)")
-            .Define("PrimaryTracks", "getPrimaryTracks(SelectedTracks, Beamspot_x, Beamspot_y, Beamspot_z)")
+            .Define("PrimaryTracks", "getPrimaryTracks(SelectedTracks, 25., Beamspot_x, Beamspot_y, Beamspot_z)")
             .Define("PrimaryVertexObject", "fitRecoPrimaryVertex(PrimaryTracks, Beamspot_x, Beamspot_y, Beamspot_z)")
             .Define("PrimaryVertex", "FCCAnalyses::VertexingUtils::get_VertexData(PrimaryVertexObject)")
             .Define("PrimaryVertexP4", "TLorentzVector(PrimaryVertex.position.x, PrimaryVertex.position.y, PrimaryVertex.position.z, 0.)")
@@ -590,8 +592,11 @@ class RDFanalysis():
             .Define("SelectedTracksPerJet", "getSelectedTracks(TracksPerJet)")
 
             # find tracks incompatible with the primary vertex (both per event and per jet).
-            .Define("SecondaryTracks", "getSecondaryTracks(SelectedTracks, PrimaryTracks)")
-            .Define("SecondaryTracksPerJet", "getSecondaryTracks(SelectedTracksPerJet, PrimaryTracks)")
+            # note: primary tracks have already been defined before (when calculating the primary vertex),
+            #       but an alternative set is re-calculated here, possibly with a tighter chi2 cut.
+            .Define("PrimaryTracks2", "getPrimaryTracks(SelectedTracks, 5., Beamspot_x, Beamspot_y, Beamspot_z)")
+            .Define("SecondaryTracks", "getSecondaryTracks(SelectedTracks, PrimaryTracks2)")
+            .Define("SecondaryTracksPerJet", "getSecondaryTracks(SelectedTracksPerJet, PrimaryTracks2)")
 
             # fit secondary vertices per jet.
             # (output struct is a vector of vectors of FCCAnalysesVertex objects, one vector for each jet).

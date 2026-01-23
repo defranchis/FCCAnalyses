@@ -96,10 +96,11 @@ namespace VertexFinderLCFIPlus{
   /** find SVs from a set of tracks
    *  default values of thresholds for the constraints are set
    */
-  ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> findSVfromTracks( ROOT::VecOps::RVec<edm4hep::TrackState> tracks_fin,
-                                                                          const ROOT::VecOps::RVec<edm4hep::TrackState>& alltracks,
-									  VertexingUtils::FCCAnalysesVertex PV,
-									  double chi2_cut=9., double invM_cut=10., double chi2Tr_cut=5.) ;
+  ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> findSVfromTracks(
+    const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks_fin,
+    const ROOT::VecOps::RVec<edm4hep::TrackState>& alltracks,
+    VertexingUtils::FCCAnalysesVertex PV,
+	double chi2_cut=9., double invM_cut=10., double chi2Tr_cut=5.) ;
 
   /** check constraints of vertex candidates
    *  default values of thresholds for the constraints are set
