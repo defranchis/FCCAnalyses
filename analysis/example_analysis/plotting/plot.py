@@ -265,6 +265,7 @@ def plot(sig=None, bkg=None, data=None,
           histtype = styles[idx],
           color = colors[idx],
           alpha = alpha,
+          linewidth = 3,
           edgecolor = colors[idx],
           label = labels[idx],
           ax=ax

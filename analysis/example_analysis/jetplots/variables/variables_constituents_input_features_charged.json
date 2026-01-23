@@ -4,18 +4,18 @@
   "variable": "pfcand_dxy",
   "axtitle": "Transverse impact parameter ($d_{xy}$)",
   "unit": "cm",
-  "xlow": -1,
-  "xhigh": 1,
-  "nbins": 50
+  "xlow": -0.75,
+  "xhigh": 0.75,
+  "nbins": 100
 },
 {
   "name": "pfcand_dz",
   "variable": "pfcand_dz",
   "axtitle": "Longitudinal impact parameter ($d_z$)",
   "unit": "cm",
-  "xlow": -3,
-  "xhigh": 3,
-  "nbins": 50
+  "xlow": -1.5,
+  "xhigh": 1.5,
+  "nbins": 100
 },
 {
   "name": "pfcand_Sip2dSig",

@@ -11,6 +11,7 @@ def histplot(histograms,
       histtype = 'fill',
       color = None,
       edgecolor = None,
+      linewidth = None,
       alpha = None,
       label = None,
       ax = None):
@@ -22,6 +23,7 @@ def histplot(histograms,
         edgecolor = [edgecolor]
         label = [label]
     if not isinstance(alpha, list): alpha = [alpha]*len(histograms)
+    if not isinstance(linewidth, list): linewidth = [linewidth]*len(histograms)
 
     for idx in range(len(histograms)):
 
@@ -34,7 +36,7 @@ def histplot(histograms,
                   baseline = baseline,
                   edges = bins,
                   fill = (histtype=='fill'),
-                  linewidth = 2,
+                  linewidth = linewidth[idx],
                   color = color[idx],
                   label = label[idx],
                   alpha = alpha[idx])

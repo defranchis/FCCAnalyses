@@ -57,6 +57,7 @@ if __name__=='__main__':
     parser.add_argument('--split', default=None)
     parser.add_argument('--normalizesim', default=False, action='store_true')
     parser.add_argument('--shapes', default=False, action='store_true')
+    parser.add_argument('--filledshapes', default=False, action='store_true')
     parser.add_argument('--dolog', default=False, action='store_true')
     args = parser.parse_args()
 
@@ -294,6 +295,11 @@ if __name__=='__main__':
     # shape comparison mode: no stacking, line histograms, normalized
     if args.shapes:
         for p in sim_processes: styledict[p] = 'step'
+        stacklist = []
+        normalize = True
+    # alternative shape comparison mode
+    if args.filledshapes:
+        for p in sim_processes: styledict[p] = 'fill'
         stacklist = []
         normalize = True
 
