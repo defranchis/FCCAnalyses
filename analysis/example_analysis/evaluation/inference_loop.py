@@ -13,7 +13,7 @@ import tools.slurmtools as st
 if __name__=='__main__':
 
     # settings
-    modeltag = '20260116_withsv_withpointconv'
+    modeltag = '20260122_withsv'
     ntupletag = 'withsv'
     model = os.path.abspath(f'models/output_{modeltag}/model.onnx')
     preprocess = model.replace('model.onnx', 'preprocess.json')
