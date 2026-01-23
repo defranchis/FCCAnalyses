@@ -166,7 +166,10 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
   VertexFit theVertexFit(Ntr, trkPar, trkCov);
 
   if (BeamSpotConstraint) {
-    float conv_BSC = 1e-3; // convert mum to mm
+    float conv_BSC = 1e-3;
+    // (conversion factor from micrometer to millimeter;
+    // the beamspot positions and widths are expected to be given in micrometers,
+    // while the track- and vertex properties are typically in millimeter.)
     TVectorD xv_BS(3);
     xv_BS[0] = bsc_x * conv_BSC;
     xv_BS[1] = bsc_y * conv_BSC;
@@ -301,14 +304,18 @@ get_PrimaryTracks(ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
   VertexFit theVertexFit(Ntr, trkPar, trkCov);
 
   if (BeamSpotConstraint) {
+    float conv_BSC = 1e-3;
+    // (conversion factor from micrometer to millimeter;
+    // the beamspot positions and widths are expected to be given in micrometers,
+    // while the track- and vertex properties are typically in millimeter.)
     TVectorD xv_BS(3);
-    xv_BS[0] = bsc_x * 1e-6;
-    xv_BS[1] = bsc_y * 1e-6;
-    xv_BS[2] = bsc_z * 1e-6;
+    xv_BS[0] = bsc_x * conv_BSC;
+    xv_BS[1] = bsc_y * conv_BSC;
+    xv_BS[2] = bsc_z * conv_BSC;
     TMatrixDSym cov_BS(3);
-    cov_BS[0][0] = pow(bsc_sigmax * 1e-6, 2);
-    cov_BS[1][1] = pow(bsc_sigmay * 1e-6, 2);
-    cov_BS[2][2] = pow(bsc_sigmaz * 1e-6, 2);
+    cov_BS[0][0] = pow(bsc_sigmax * conv_BSC, 2);
+    cov_BS[1][1] = pow(bsc_sigmay * conv_BSC, 2);
+    cov_BS[2][2] = pow(bsc_sigmaz * conv_BSC, 2);
     theVertexFit.AddVtxConstraint(xv_BS, cov_BS);
   }
 

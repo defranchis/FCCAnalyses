@@ -50,33 +50,33 @@ if __name__=='__main__':
       'sv_dxyz',
       'sv_cosPointing',
 
-      'pfcand_pt',
-      'pfcand_e',
-      'pfcand_ptrel_log',
-      'pfcand_erel_log',
-      'pfcand_thetarel',
-      'pfcand_phirel',
-      'pfcand_charge',
+      #'pfcand_pt',
+      #'pfcand_e',
+      #'pfcand_ptrel_log',
+      #'pfcand_erel_log',
+      #'pfcand_thetarel',
+      #'pfcand_phirel',
+      #'pfcand_charge',
 
-      'pfcand_d0_wrt0',
-      'pfcand_z0_wrt0',
-      'pfcand_dxy',
-      'pfcand_dz',
+      #'pfcand_d0_wrt0',
+      #'pfcand_z0_wrt0',
+      #'pfcand_dxy',
+      #'pfcand_dz',
 
-      'pfcand_Sip2dVal',
-      'pfcand_Sip2dSig',
-      'pfcand_Sip3dVal',
-      'pfcand_Sip3dSig',
-      'pfcand_JetDistVal',
-      'pfcand_JetDistSig',
+      #'pfcand_Sip2dVal',
+      #'pfcand_Sip2dSig',
+      #'pfcand_Sip3dVal',
+      #'pfcand_Sip3dSig',
+      #'pfcand_JetDistVal',
+      #'pfcand_JetDistSig',
 
-      'pfcand_linearSignedIP3D',
-      'pfcand_linearSignedIP3DSig',
-      'pfcand_transverseJetDistance',
-      'pfcand_longitudinalJetDistance',
+      #'pfcand_linearSignedIP3D',
+      #'pfcand_linearSignedIP3DSig',
+      #'pfcand_transverseJetDistance',
+      #'pfcand_longitudinalJetDistance',
         
-      'pfcand_dxydxy',
-      'pfcand_dzdz'      
+      #'pfcand_dxydxy',
+      #'pfcand_dzdz'      
     ]
 
     # read input files
@@ -174,7 +174,8 @@ if __name__=='__main__':
             maxv = max(maxv, abs(minv))
             minv = -maxv
         # special cases (hard-coded)
-        if variable == 'recojet_sv_chi2Normalized': (minv, maxv) = (-2, 25)
+        if variable == 'sv_chi2Normalized': (minv, maxv) = (-2, 25)
+        if variable == 'nsv': (minv, maxv) = (-1, 5)
         bins = np.linspace(minv, maxv, num=51)
 
         # make figure
