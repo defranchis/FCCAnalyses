@@ -27,8 +27,8 @@ def get_file_list(file_list_path: str) -> list[str]:
     Loads file list from the provided file.
     '''
     if not os.path.isfile(file_list_path):
-        LOGGER.error('Provided file containing list of ROOT files could not be '
-                     'found!\nAborting...')
+        LOGGER.error('Provided file containing list of ROOT files could not '
+                     'be found!\nAborting...')
         sys.exit(3)
 
     with open(file_list_path, 'r', encoding='utf-8') as lstfile:
@@ -91,6 +91,11 @@ def merge_config(args: argparse.Namespace, analysis: Any) -> dict[str, Any]:
                      '--i/--input instead!\nAborting...')
         sys.exit(3)
 
+    # Determine analysis directory
+    config['analysis-dir'] = os.path.dirname(
+        os.path.abspath(args.anascript_path)
+    )
+
     # Check input files list
     config['input-file-list'] = None
     if args.input_file_list is not None:
@@ -98,17 +103,38 @@ def merge_config(args: argparse.Namespace, analysis: Any) -> dict[str, Any]:
     if args.input is not None:
         config['input-file-list'] = args.input
 
+    # Check include header files
+    config['include-paths'] = None
+    if hasattr(analysis, 'include_paths'):
+        config['include-paths'] = analysis.include_paths
+
+    # Check number of events to be run over
+    config['n-events-max'] = None
+    if hasattr(analysis, 'n_events_max'):
+        config['n-events-max'] = analysis.n_events_max
+    if args.nevents is not None:
+        config['n-events-max'] = args.nevents
+
+    # Check number of requested threads
+    config['n-threads'] = 1
+    # No MT if number of events is specified
+    if config['n-events-max'] is None:
+        if hasattr(analysis, "n_threads"):
+            config['n-threads'] = analysis.n_threads
+        if args.ncpus is not None:
+            config['n-threads'] = args.ncpus
+
     # Check whether to use PODIO DataSource to load the events
-    config['use_data_source'] = False
-    if args.use_data_source:
-        config['use_data_source'] = True
+    config['use-data-source'] = False
     if get_attribute(analysis, 'use_data_source', False):
-        config['use_data_source'] = True
+        config['use-data-source'] = True
+    if args.use_data_source:
+        config['use-data-source'] = True
     # Check whether to use event weights (only supported as analysis config
     # file option, not command line!)
-    config['do_weighted'] = False
+    config['do-weighted'] = False
     if get_attribute(analysis, 'do_weighted', False):
-        config['do_weighted'] = True
+        config['do-weighted'] = True
 
     # Check if the progress-bar is enabled
     config['enable-progress-bar'] = True
@@ -116,20 +142,20 @@ def merge_config(args: argparse.Namespace, analysis: Any) -> dict[str, Any]:
         config['enable-progress-bar'] = args.progress_bar
 
     # Check the output path
-    # config['output_file_path'] = None
+    # config['output-file-path'] = None
     # if args.output
 
     return config
 
 
 # _____________________________________________________________________________
-def initialize(config, args, analysis):
+def initialize(config, analysis):
     '''
     Common initialization steps.
     '''
 
     # For convenience and compatibility with user code
-    if config['use_data_source']:
+    if config['use-data-source']:
         ROOT.gInterpreter.Declare("using namespace FCCAnalyses::PodioSource;")
     else:
         ROOT.gInterpreter.Declare("using namespace FCCAnalyses;")
@@ -142,35 +168,39 @@ def initialize(config, args, analysis):
     if geometry_file is not None and readout_name is not None:
         ROOT.CaloNtupleizer.loadGeometry(geometry_file, readout_name)
 
-    # set multithreading (no MT if number of events is specified)
-    n_threads = 1
-    if args.nevents < 0:
-        if isinstance(args.ncpus, int) and args.ncpus >= 1:
-            n_threads = args.ncpus
-        else:
-            n_threads = get_attribute(analysis, "n_threads", 1)
-        if n_threads < 0:  # use all available threads
-            ROOT.EnableImplicitMT()
-            n_threads = ROOT.GetThreadPoolSize()
+    if config['n-threads'] < 0:  # use all available threads
+        ROOT.EnableImplicitMT()
+        config['n-threads'] = ROOT.GetThreadPoolSize()
 
-        if n_threads > 1:
-            ROOT.ROOT.EnableImplicitMT(n_threads)
+    if config['n-threads'] > 1:
+        ROOT.ROOT.EnableImplicitMT(config['n-threads'])
 
     if ROOT.IsImplicitMTEnabled():
         ROOT.EnableThreadSafety()
         LOGGER.info('Multithreading enabled. Running over %i threads',
                     ROOT.GetThreadPoolSize())
     else:
-        LOGGER.info('No multithreading enabled. Running in single thread...')
+        LOGGER.info('No multithreading enabled. Running in a single thread...')
 
-    # custom header files
-    include_paths = get_attribute(analysis, 'include_paths', None)
-    if include_paths is not None:
+    # Additional include header files
+    if config['include-paths'] is not None:
+        # Check if the include paths exist
+        for path in config['include-paths']:
+            if not os.path.isfile(os.path.join(config['analysis-dir'], path)):
+                LOGGER.error('Include header file "%s" not found!'
+                             '\nAborting...', path)
+                sys.exit(3)
+
         ROOT.gInterpreter.ProcessLine(".O2")
-        basepath = os.path.dirname(os.path.abspath(args.anascript_path)) + "/"
-        for path in include_paths:
+        for path in config['include-paths']:
             LOGGER.info('Loading %s...', path)
-            ROOT.gInterpreter.Declare(f'#include "{basepath}/{path}"')
+            success = ROOT.gInterpreter.Declare(
+                f'#include "{os.path.join(config["analysis-dir"], path)}"'
+            )
+            if not success:
+                LOGGER.error('Error occurred when JIT compiling "%s" include '
+                             'header file!\nAborting...', path)
+                sys.exit(3)
 
 
 # _____________________________________________________________________________
@@ -178,12 +208,12 @@ def run_rdf(config: dict[str, Any],
             args,
             analysis,
             input_list: list[str],
-            out_file: str) -> int:
+            out_file: str) -> tuple[int, int, int, int]:
     '''
     Run the analysis ROOTDataFrame and snapshot it.
     '''
     # Create initial dataframe
-    if config['use_data_source']:
+    if config['use-data-source']:
         if ROOT.podio.DataSource:
             LOGGER.debug('Found podio::DataSource.')
         else:
@@ -198,21 +228,23 @@ def run_rdf(config: dict[str, Any],
                          'podio::DataSource!\n%s', excp)
             sys.exit(3)
     else:
+        LOGGER.info('Letting RDataFrame to load events directly from the ROOT '
+                    'file(s)...')
         dframe = ROOT.RDataFrame("events", input_list)
 
     if config['enable-progress-bar']:
         ROOT.RDF.Experimental.AddProgressBar(dframe)
 
     # Limit number of events processed
-    if args.nevents > 0:
-        dframe2 = dframe.Range(0, args.nevents)
+    if config['n-events-max'] is not None:
+        dframe2 = dframe.Range(0, config['n-events-max'])
     else:
         dframe2 = dframe
 
     try:
         evtcount_init = dframe2.Count()
         sow_init = evtcount_init
-        if config['do_weighted']:
+        if config['do-weighted']:
             sow_init = dframe2.Sum("EventHeader.weight")
 
         dframe3 = analysis.analyzers(dframe2)
@@ -224,7 +256,7 @@ def run_rdf(config: dict[str, Any],
 
         evtcount_final = dframe3.Count()
         sow_final = evtcount_final
-        if config['do_weighted']:
+        if config['do-weighted']:
             sow_final = dframe3.Sum("EventHeader.weight")
 
         # Generate computational graph of the analysis
@@ -237,7 +269,10 @@ def run_rdf(config: dict[str, Any],
                      'occurred:\n%s', excp)
         sys.exit(3)
 
-    return evtcount_init.GetValue(), evtcount_final.GetValue(), sow_init.GetValue(), sow_final.GetValue()
+    return (evtcount_init.GetValue(),
+            evtcount_final.GetValue(),
+            sow_init.GetValue(),
+            sow_final.GetValue())
 
 
 # _____________________________________________________________________________
@@ -286,23 +321,23 @@ def run_local(config: dict[str, Any],
     nevents_local = 0
 
     # Same for the sum of weights
-    if config['do_weighted']:
+    if config['do-weighted']:
         sow_orig = 0.
         sow_local = 0.
 
     for filepath in infile_list:
 
-        if not config['use_data_source']:
+        if not config['use-data-source']:
             filepath = apply_filepath_rewrites(filepath)
 
         file_list.push_back(filepath)
         info_msg += f'- {filepath}\t\n'
 
-        if config['do_weighted']:
+        if config['do-weighted']:
             # Adjust number of events in case --nevents was specified
-            if args.nevents > 0:
+            if config['n-events-max'] is not None:
                 nevts_param, nevts_tree, sow_param, sow_tree = \
-                    get_entries_sow(filepath, args.nevents)
+                    get_entries_sow(filepath, config['n-events-max'])
             else:
                 nevts_param, nevts_tree, sow_param, sow_tree = \
                     get_entries_sow(filepath)
@@ -328,21 +363,21 @@ def run_local(config: dict[str, Any],
                 sys.exit(3)
             infile.Close()
 
-            # Adjust number of events in case --nevents was specified
-            if args.nevents > 0 and args.nevents < nevents_local:
-                nevents_local = args.nevents
+    # Adjust number of events in case the maximum number of events is specified
+    if config['n-events-max'] is not None:
+        nevents_local = config['n-events-max']
 
     LOGGER.info(info_msg)
 
     if nevents_orig > 0:
         LOGGER.info('Number of events:\n\t- original: %s\n\t- local:    %s',
                     f'{nevents_orig:,}', f'{nevents_local:,}')
-        if config['do_weighted']:
+        if config['do-weighted']:
             LOGGER.info('Sum of weights:\n\t- original: %s\n\t- local:    %s',
                         f'{sow_orig:,}', f'{sow_local:,}')
     else:
         LOGGER.info('Number of local events: %s', f'{nevents_local:,}')
-        if config['do_weighted']:
+        if config['do-weighted']:
             LOGGER.info('Local sum of weights: %s', f'{sow_local:0,.2f}')
 
     outfile_path = args.output
@@ -367,7 +402,7 @@ def run_local(config: dict[str, Any],
         info_msg += f'\nReduction factor local:  {outn/inn}'
     if nevents_orig > 0:
         info_msg += f'\nReduction factor total:  {outn/nevents_orig}'
-    if config['do_weighted']:
+    if config['do-weighted']:
         info_msg += f'\nTotal sum of weights processed:  {float(in_sow):0,.2f}'
         info_msg += f'\nNo. result weighted events :       {float(out_sow):0,.2f}'
         if in_sow > 0:
@@ -389,7 +424,7 @@ def run_local(config: dict[str, Any],
         param = ROOT.TParameter(int)('eventsSelected', outn)
         param.Write()
 
-        if config['do_weighted']:
+        if config['do-weighted']:
             param_sow = ROOT.TParameter(float)(
                         'SumOfWeights',
                         sow_orig if sow_orig != 0 else in_sow)
@@ -435,20 +470,15 @@ def run_fccanalysis(args, analysis_module):
     config: dict[str, Any] = merge_config(args, analysis)
 
     # Set number of threads, load header files, custom dicts, ...
-    initialize(config, args, analysis_module)
+    initialize(config, analysis_module)
 
     # Check if output directory exist and if not create it
     output_dir = get_attribute(analysis, 'output_dir', None)
     if output_dir is not None and not os.path.exists(output_dir):
         os.system(f'mkdir -p {output_dir}')
 
-    # Check if EOS output directory exist and if not create it
-    output_dir_eos = get_attribute(analysis, 'output_dir_eos', None)
-    if output_dir_eos is not None and not os.path.exists(output_dir_eos):
-        os.system(f'mkdir -p {output_dir_eos}')
-
-    if config['do_weighted']:
-        LOGGER.info('Using generator weights')
+    if config['do-weighted']:
+        LOGGER.info('Using generator weights...')
 
     # Check if test mode is specified, and if so run the analysis on it (this
     # will exit afterwards)
@@ -548,17 +578,16 @@ def run_fccanalysis(args, analysis_module):
             info_msg += f'\n    - output file path: {output_filepath}'
         LOGGER.info(info_msg)
 
-        # Create directory if more than 1 chunk
-        if n_chunks > 1:
-            if not os.path.exists(output_dir):
-                os.system(f'mkdir -p {output_dir}')
-
         # Running locally
         LOGGER.info('Running locally...')
         if n_chunks == 1:
             args.output = output_filepath
             run_local(config, args, analysis, chunk_list[0])
         else:
+            # Create directory if more than 1 chunk
+            if not os.path.exists(output_dir):
+                os.system(f'mkdir -p {output_dir}')
+
             for index, chunk in enumerate(chunk_list):
                 args.output = f'{output_dir}/chunk{index}.root'
                 run_local(config, args, analysis, chunk)

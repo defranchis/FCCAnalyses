@@ -9,6 +9,7 @@ import logging
 import subprocess
 import datetime
 import argparse
+import string
 from typing import Any
 
 from process import get_process_info
@@ -53,7 +54,8 @@ def determine_os(fccana_dir: str) -> str | None:
 def create_condor_config(config: dict[str, Any],
                          batch_dir: str,
                          sample_name: str,
-                         subjob_scripts: list[str]) -> str:
+                         subjob_scripts: list[str],
+                         output_dir_eos: str | None) -> str:
     '''
     Creates contents of HTCondor submit description file.
     '''
@@ -61,7 +63,7 @@ def create_condor_config(config: dict[str, Any],
 
     cfg += f'log = {batch_dir}/condor_job.{sample_name}.$(ClusterId).log\n'
 
-    if config['output-dir-eos'] is None:
+    if output_dir_eos is None:
         cfg += f'output = {config["output-dir"]}/log/{sample_name}/'
         cfg += f'condor_job.{sample_name}.$(ClusterId).$(ProcId).out\n'
         cfg += f'error = {config["output-dir"]}/log/{sample_name}/'
@@ -71,7 +73,6 @@ def create_condor_config(config: dict[str, Any],
         cfg += f'condor_job.{sample_name}.$(ClusterId).$(ProcId).out\n'
         cfg += f'error = log/{sample_name}/'
         cfg += f'condor_job.{sample_name}.$(ClusterId).$(ProcId).error\n'
-
 
     cfg += 'getenv = False\n'
 
@@ -96,13 +97,13 @@ def create_condor_config(config: dict[str, Any],
     cfg += 'when_to_transfer_output = on_exit\n'
     cfg += f'transfer_output_files = {sample_name}\n'
 
-    if config['output-dir-eos'] is None:
+    if output_dir_eos is None:
         cfg += 'transfer_output_remaps = '
         cfg += f'"{sample_name}={config["output-dir"]}/{sample_name}"\n'
     else:
         cfg += 'output_destination = '
         cfg += f'root://{config["eos-type"]}.cern.ch/'
-        cfg += f'{config["output-dir-eos"]}\n'
+        cfg += f'{output_dir_eos}\n'
         cfg += 'MY.XRDCP_CREATE_DIR = True\n\n'
 
     # Add user batch configuration if any.
@@ -169,7 +170,7 @@ def submit_job(cmd: str, max_trials: int) -> bool:
                 LOGGER.info('Submission successful.\n')
                 return True
 
-            LOGGER.warning('Error occured while submitting, retrying...\n'
+            LOGGER.warning('Error occurred while submitting, retrying...\n'
                            'Trial: %i / %i\n'
                            'Error: %s', i, max_trials, stderr)
             time.sleep(10)
@@ -189,12 +190,16 @@ def merge_config_analysis_class(config: dict[str, Any],
     analysis_class = analysis_module.Analysis(vars(args))
     config['analysis-class'] = analysis_class
 
-    # Check if there are any processes defined.
+    # Check if there are any processes/samples defined.
     if not hasattr(analysis_class, 'process_list'):
         LOGGER.error('Analysis does not define any processes!\n'
                      'Aborting...')
         sys.exit(3)
     config['sample-list'] = analysis_class.process_list
+    if not config['sample-list']:
+        LOGGER.error('Analysis does not define any processes!\n'
+                     'Aborting...')
+        sys.exit(3)
 
     # Check if there is production tag or input directory defined.
     if not hasattr(analysis_class, 'prod_tag') and \
@@ -289,10 +294,11 @@ def send_sample(config: dict[str, Any],
     '''
     sample_dict = config['sample-list'][sample_name]
 
-    # Create log directory
-    current_date = datetime.datetime.fromtimestamp(
+    timestamp = datetime.datetime.fromtimestamp(
         datetime.datetime.now().timestamp()).strftime('%Y-%m-%d_%H-%M-%S')
-    batch_dir = os.path.join('batch-submission-files', current_date, sample_name)
+
+    # Create log directory
+    batch_dir = os.path.join('batch-submission-files', timestamp, sample_name)
     if not os.path.exists(batch_dir):
         os.system(f'mkdir -p {batch_dir}')
 
@@ -369,21 +375,24 @@ def send_sample(config: dict[str, Any],
 
     condor_config_path = f'{batch_dir}/job_desc_{sample_name}.cfg'
 
-    for i in range(3):
-        try:
-            with open(condor_config_path, 'w', encoding='utf-8') as cfgfile:
-                condor_config = create_condor_config(config,
-                                                     batch_dir,
-                                                     sample_name,
-                                                     subjob_scripts)
-                cfgfile.write(condor_config)
-        except IOError as err:
-            LOGGER.warning('I/O error(%i): %s', err.errno, err.strerror)
-            if i == 2:
-                sys.exit(3)
-        else:
-            break
-        time.sleep(10)
+    # Convert possible output-dir-eos template to string
+    if isinstance(config['output-dir-eos'], string.Template):
+        output_dir_eos = config['output-dir-eos'].substitute(
+            timestamp=timestamp)
+    else:
+        output_dir_eos = config['output-dir-eos']
+
+    # Check if EOS output directory exist and if not create it
+    if output_dir_eos is not None and not os.path.exists(output_dir_eos):
+        os.system(f'mkdir -p {output_dir_eos}')
+
+    with open(condor_config_path, 'w', encoding='utf-8') as cfgfile:
+        condor_config = create_condor_config(config,
+                                             batch_dir,
+                                             sample_name,
+                                             subjob_scripts,
+                                             output_dir_eos)
+        cfgfile.write(condor_config)
 
     if config['submission-filesystem-type'] == 'eos':
         batch_cmd = f'condor_submit -spool {condor_config_path}'
@@ -392,7 +401,9 @@ def send_sample(config: dict[str, Any],
     else:
         batch_cmd = f'condor_submit {condor_config_path}'
     LOGGER.info('Job submission command:\n  %s', batch_cmd)
-    success = submit_job(batch_cmd, 3)
+
+    max_trials = 3
+    success = submit_job(batch_cmd, max_trials)
     if not success:
         LOGGER.error('Failed submitting after: %i trials!\nAborting...',
                      max_trials)
@@ -412,10 +423,9 @@ def send_to_batch(args: argparse.Namespace,
     config['full-analysis-path'] = os.path.abspath(args.anascript_path)
 
     # Find location of the FCCanalyses directory, if locally build
-    # TODO: Rename LOCAL_DIR to FCCANA_DIR
     config['fccana-dir'] = None
-    if 'LOCAL_DIR' not in os.environ:
-        config['fccana-dir'] = os.environ['LOCAL_DIR']
+    if 'FCCANA_LOCAL_DIR' in os.environ:
+        config['fccana-dir'] = os.environ['FCCANA_LOCAL_DIR']
 
     # Find out the exact Key4hep stack being sourced
     config['key4hep-stack'] = os.environ['KEY4HEP_STACK']

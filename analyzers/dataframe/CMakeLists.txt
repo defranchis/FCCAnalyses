@@ -42,8 +42,10 @@ if(NOT WITH_PODIO_DATASOURCE)
   list(FILTER sources EXCLUDE REGEX "TrackSource.cc")
 endif()
 
-message(STATUS "FCCAnalyses headers:\n   ${headers}")
-message(STATUS "FCCAnalyses sources:\n   ${sources}")
+list(JOIN headers "\n   " headers_str)
+list(JOIN sources "\n   " sources_str)
+message(STATUS "FCCAnalyses headers:\n   ${headers_str}")
+message(STATUS "FCCAnalyses sources:\n   ${sources_str}")
 
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR}")
 message(STATUS "CMAKE_INSTALL_INCLUDEDIR  ${CMAKE_INSTALL_INCLUDEDIR}")
@@ -83,7 +85,7 @@ if(WITH_DD4HEP)
 endif()
 
 if(WITH_ACTS)
-  target_link_libraries(FCCAnalyses PUBLIC ActsCore)
+  target_link_libraries(FCCAnalyses PUBLIC Acts::Core)
   target_compile_definitions(FCCAnalyses PRIVATE "ACTS_VERSION_MAJOR=${Acts_VERSION_MAJOR}")
 endif()
 

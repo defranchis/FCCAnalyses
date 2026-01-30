@@ -29,6 +29,7 @@
 #pragma link C++ class ROOT::VecOps::RVec<edm4hep::MCParticleData>+;
 #pragma link C++ class ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>>+;
 #pragma link C++ class ROOT::VecOps::RVec<edm4hep::TrackData>+;
+#pragma link C++ class ROOT::VecOps::RVec<edm4hep::RecDqdxData>+;
 
 // Vectors
 #pragma link C++ class ROOT::VecOps::RVec<std::vector<int>>+;
@@ -41,8 +42,13 @@
 #pragma link C++ class std::vector<std::vector<float>>+;
 #pragma link C++ class std::vector<std::vector<double>>+;
 
+#pragma link C++ class FCCAnalyses::VertexingUtils::FCCAnalysesVertex+;
 #pragma link C++ class ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>+;
+#pragma link C++ class std::vector<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>+;
 #pragma link C++ class ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>>+;
+#pragma link C++ class FCCAnalyses::VertexingUtils::FCCAnalysesV0+;
+#pragma link C++ class ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesV0>+;
+#pragma link C++ class std::vector<FCCAnalyses::VertexingUtils::FCCAnalysesV0>+;
 
 // To load all functions
 #pragma link C++ function dummyLoader;

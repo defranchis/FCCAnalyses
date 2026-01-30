@@ -1,4 +1,8 @@
 if [ "${0}" != "${BASH_SOURCE}" ]; then
+  # TODO: Remove the whole file
+  echo "[DEPRECATED] Ability to load additional pre-compiled analysis libraries "
+  echo "             will disappear soon!"
+
   if ! [[ $# -eq 1 ]] ; then
     echo "Usage: source ./${0} <ANALYSISNAME>"
     echo "Where <ANALYSISNAME> is the local path where the extra analyses will be installed."
@@ -12,7 +16,7 @@ if [ "${0}" != "${BASH_SOURCE}" ]; then
     return 1
   fi
 
-  export OUTPUT_DIR=${LOCAL_DIR}/${1}
+  export OUTPUT_DIR=${FCCANA_LOCAL_DIR}/${1}
   fccanalysis init ${1} --output-dir ${OUTPUT_DIR} --name ${1} --standalone
   mkdir -p ${OUTPUT_DIR}/build
 else
