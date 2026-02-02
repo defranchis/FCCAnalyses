@@ -89,4 +89,4 @@ if __name__ == '__main__':
         env_script = os.path.abspath('../setup.sh')
         env_cmd = f'source {env_script}'
         ct.submitCommandsAsCondorCluster('cjob_producetrees', cmds,
-          jobflavour='workday', conda_activate=env_cmd) 
+          jobflavour='tomorrow', conda_activate=env_cmd) 

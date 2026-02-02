@@ -51,6 +51,12 @@ def initJobScript(name,
     with open(fname,'w') as script:
 	    # write bash shebang
         script.write('#!/bin/bash\n')
+        # we need to do some magic with the arguments
+        # (by default, any arguments in $@ are passed to every sourced script,
+        #  not just the one where you actually write "$@"...
+        #  so we need to copy-store the arguments, clear $@, and then put them back later...)
+        script.write('args=("$@")\n')
+        script.write('set --\n')
 	    # write echo script name
         script.write("echo '###exename###: {}'\n".format(fname))
 	    # write export home
@@ -70,7 +76,10 @@ def initJobScript(name,
             script.write(conda_activate+'\n')
         if conda_env is not None:
             script.write('conda activate {}\n'.format(conda_env))
+        # go to working directory
         script.write('cd {}\n'.format( cwd ) )
+        # restore command line args
+        script.write('set -- "${args[@]}"\n')
     # make executable
     os.system('chmod +x '+fname)
     print('initJobScript created {}'.format(fname))
