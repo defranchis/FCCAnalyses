@@ -4,7 +4,7 @@ import json
 import ROOT
 
 
-### handling of beamspot data (preliminary) ###
+### handling of beamspot data ###
 
 # load beamspot json file
 beamspotfile = 'data/beamspot.json'
@@ -132,9 +132,9 @@ ROOT.gInterpreter.Declare("""
         for (const edm4hep::TrackState& trk : tracks) {
             const auto& c = trk.covMatrix;
             if (c[0] <= 0 || c[2] <= 0 || c[9] <= 0) continue;
-            if (c[0] < 1e-6 || c[2] < 1e-6 || c[9] <= 1e-6) continue;
+            if (c[0] < 1e-12 || c[2] < 1e-12 || c[9] <= 1e-12) continue;
             if (!std::isfinite(c[0]) || !std::isfinite(c[2]) || !std::isfinite(c[9])) continue;
-            if (std::abs(trk.D0)>3 || std::abs(trk.Z0)>5) continue;
+            //if (std::abs(trk.D0)>3 || std::abs(trk.Z0)>5) continue;
             selectedTracks.push_back(trk);
         }
         return selectedTracks;
@@ -517,6 +517,9 @@ class RDFanalysis():
             # (note: only works for fitted vertex, not for other methods)
             .Define("PV_chi2Normalized", "PrimaryVertex.chi2")
             .Define("PV_ndof", "PrimaryVertex.ndf")
+            .Define("Event_nTracks", "EFlowTrack_1.size()")
+            .Define("Event_nSelectedTracks", "SelectedTracks.size()")
+            .Define("Event_nPrimaryTracks", "PrimaryTracks.size()")
         )
 
         # do jet clustering
@@ -585,16 +588,18 @@ class RDFanalysis():
             .Define("Jets_eta", "JetClusteringUtils::get_eta(jets_ee_genkt)")
             .Define("Jets_theta", "JetClusteringUtils::get_theta(jets_ee_genkt)")
             .Define("Jets_p4", "JetConstituentsUtils::compute_tlv_jets(jets_ee_genkt)")
-        )
-
-        # find secondary vertices (per jet)
-        dfout = (
-            dfout
 
             # find track states grouped per jet, and perform baseline selection
             # (output struct is a vector of vectors of TrackState objects, one vector of TrackStates for each jet)
             .Define("TracksPerJet", "JetConstituentsUtils::build_trackstates_cluster(ReconstructedParticles, EFlowTrack_1, jetconstituents_ee_genkt, Reco2TrackLinks)")
             .Define("SelectedTracksPerJet", "getSelectedTracks(TracksPerJet)")
+            .Define("Jets_nTracksPerJet", "countTracks(TracksPerJet)")
+            .Define("Jets_nSelectedTracksPerJet", "countTracks(SelectedTracksPerJet)")
+        )
+
+        # find secondary vertices (per jet)
+        dfout = (
+            dfout
 
             # find tracks incompatible with the primary vertex (both per event and per jet).
             # note: primary tracks have already been defined before (when calculating the primary vertex),
@@ -617,7 +622,6 @@ class RDFanalysis():
             
             # alternative: fit secondary vertices per event (ignoring jets), and associate them to tracks post-rem.
             # note: not sure how to do this best, but for now do simple dR matching.
-            # note: does not seem to work yet; get_SV_event gives a segmentation violation on some events, that is hard to pin down...
             .Define("EventSecondaryVertices", "FCCAnalyses::VertexFinderLCFIPlus::get_SV_event(SecondaryTracks, EFlowTrack_1, PrimaryVertexObject, true, 10., 10., 5.)")
             .Define("SecondaryVertices", "distributeSecondaryVerticesOverJets(EventSecondaryVertices, jets_ee_genkt)")
 
@@ -640,9 +644,8 @@ class RDFanalysis():
 
             # get the number of secondary vertices per jet
             .Define("Jets_nSV", "FCCAnalyses::VertexingUtils::get_n_SV_jets(SecondaryVertices)")
-            .Define("Jets_nTracksPerJet", "countTracks(TracksPerJet)") # for debugging
-            .Define("Jets_nSelectedTracksPerJet", "countTracks(SelectedTracksPerJet)") # for debugging
-            .Define("Jets_nSecondaryTracksPerJet", "countTracks(SecondaryTracksPerJet)") # for debugging
+            .Define("Jets_nSecondaryTracksPerJet", "countTracks(SecondaryTracksPerJet)")
+            .Define("Event_nSecondaryTracks", "SecondaryTracks.size()")
         )
 
         # rest of the analysis
@@ -693,8 +696,8 @@ class RDFanalysis():
             .Define("JetsConstituents_phirel", "JetConstituentsUtils::get_phirel_cluster(jets_ee_genkt, JetsConstituents)") 
             
             # PID variables
-            .Define("JetsConstituents_dndx", "JetConstituentsUtils::get_dndx(JetsConstituents, EFlowTrack_2, EFlowTrack, JetsConstituents_isChargedHad)")
-            #temp .Define("JetsConstituents_mtof", "JetConstituentsUtils::get_mtof(JetsConstituents, EFlowTrack_L, EFlowTrack, TrackerHits, JetsConstituents_Pids)")
+            #.Define("JetsConstituents_dndx", "JetConstituentsUtils::get_dndx(JetsConstituents, EFlowTrack_2, EFlowTrack, JetsConstituents_isChargedHad)")
+            #.Define("JetsConstituents_mtof", "JetConstituentsUtils::get_mtof(JetsConstituents, EFlowTrack_L, EFlowTrack, TrackerHits, JetsConstituents_Pids)")
            
             # track properties
             .Define("JetsConstituents_trackChi2", "JetConstituentsUtils::get_chi2(JetsConstituents, EFlowTrack, Reco2TrackLinks)")
@@ -835,7 +838,11 @@ class RDFanalysis():
             'Event_de',
             'Event_dpt',
             'Event_dphi',
-            'Event_dtheta'
+            'Event_dtheta',
+            'Event_nTracks',
+            'Event_nSelectedTracks',
+            'Event_nPrimaryTracks',
+            'Event_nSecondaryTracks'
         ]
 
         # primary vertex variables
@@ -898,8 +905,8 @@ class RDFanalysis():
             'JetsConstituents_erel', 'JetsConstituents_erel_log',
             'JetsConstituents_ptrel', 'JetsConstituents_ptrel_log',
             'JetsConstituents_thetarel', 'JetsConstituents_phirel', 
-            'JetsConstituents_dndx',
-            #temp 'JetsConstituents_mtof',
+            #'JetsConstituents_dndx',
+            #'JetsConstituents_mtof',
 
             'JetsConstituents_trackChi2',
             'JetsConstituents_trackNdof',
