@@ -8,6 +8,7 @@
 #include "ROOT/RVec.hxx"
 #include "edm4hep/ReconstructedParticleData.h"
 #include "edm4hep/TrackData.h"
+#include "edm4hep/Track.h"
 #include "edm4hep/TrackState.h"
 #include "podio/ObjectID.h"
 #if __has_include("edm4hep/TrackerHit3DData.h")
@@ -33,6 +34,12 @@ namespace ReconstructedParticle2Track{
   ROOT::VecOps::RVec<edm4hep::TrackState> getRP2TRK_trackState(
         const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
         const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
+        const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
+
+  // get all tracks for a set of given reconstructed particles
+  ROOT::VecOps::RVec<edm4hep::TrackData> getRP2TRK_track(
+        const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
         const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links);
 
   // get the momentum of a track to a reconstructed particle

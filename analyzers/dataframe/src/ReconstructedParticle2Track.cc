@@ -63,6 +63,36 @@ namespace ReconstructedParticle2Track{
         }
     }
     return result;
+  }
+
+  ROOT::VecOps::RVec<edm4hep::TrackData>
+  getRP2TRK_track(
+    const ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData>& rps,
+    const ROOT::VecOps::RVec<edm4hep::TrackData>& tracks,
+    const ROOT::VecOps::RVec<podio::ObjectID>& reco2track_links){
+    /*
+    Get the full Track object for each input particle.
+    Note: contrary to most other functions of this template,
+          no dummy value is returned for neutral particles;
+          hence the output vector contains all the tracks of the set of input particles,
+          but the length might be different and there is no one-to-one correspondence!
+          this function is useful e.g. for getting all tracks of a given jet
+          (or other collection of particles) but not for extracting per-particle properties.
+    */
+
+    // initializations
+    ROOT::VecOps::RVec<edm4hep::TrackData> result;
+
+    // loop over reco particles
+    for (auto & p: rps) {
+        // find track
+        size_t trackIndex = getTrackIndex(p, reco2track_links);
+        if(trackIndex < tracks.size()){
+            edm4hep::TrackData tr = tracks.at(trackIndex);
+            result.push_back(tr);
+        }
+    }
+    return result;
   } 
 
   ROOT::VecOps::RVec<float> 

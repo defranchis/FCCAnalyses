@@ -23,6 +23,8 @@ if __name__=='__main__':
       'event_nselectedtracks',
       'event_nprimarytracks',
       'event_nsecondarytracks',
+      'event_nsv',
+      'event_nv0candidates',
 
       'recojet_pt',
       'recojet_eta',
@@ -40,7 +42,8 @@ if __name__=='__main__':
       'nneutralhad',
       'nel',
       'nmu',
-      'nsv',
+      'recojet_nsv',
+      'recojet_nv0candidates',
 
       'sv_xrel',
       'sv_yrel',

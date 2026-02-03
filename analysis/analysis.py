@@ -122,19 +122,101 @@ ROOT.gInterpreter.Declare("""
         return result;
     }""")
 
+# helper function to find set difference between collection of tracks
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<edm4hep::TrackState>
+    get_complement(ROOT::VecOps::RVec<edm4hep::TrackState> allTracks,
+                   ROOT::VecOps::RVec<edm4hep::TrackState> selTracks){
+
+    ROOT::VecOps::RVec<edm4hep::TrackState> result;
+    for (auto &track : allTracks) {
+        bool isSel = false;
+        for (auto &selTrack : selTracks) {
+            if( track.D0 == selTrack.D0 && track.phi == selTrack.phi && track.omega == selTrack.omega &&
+                track.Z0 == selTrack.Z0 && track.tanLambda == selTrack.tanLambda &&
+                track.time == selTrack.time && track.referencePoint.x == selTrack.referencePoint.x &&
+                track.referencePoint.y == selTrack.referencePoint.y &&
+                track.referencePoint.z == selTrack.referencePoint.z ){
+                isSel = true;
+                break;
+            }
+        }
+        if (!isSel) result.push_back(track);
+    }
+    return result;
+    
+    }""")
+
+# same as above but for Track objects instead of TrackStates
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<edm4hep::TrackData>
+    get_complement(ROOT::VecOps::RVec<edm4hep::TrackData> allTracks,
+                   ROOT::VecOps::RVec<edm4hep::TrackState> allTrackStates,
+                   ROOT::VecOps::RVec<edm4hep::TrackData> selTracks,
+                   ROOT::VecOps::RVec<edm4hep::TrackState> selTrackStates){
+
+    // safety checks
+    if( allTracks.size() != allTrackStates.size()) {
+        std::string msg = "Vector sizes do not match (in get_complement):";
+        msg += " allTracks has size " + std::to_string(allTracks.size());
+        msg += " while allTrackStates has size " + std::to_string(allTrackStates.size());
+        throw std::runtime_error(msg);
+    }
+    if( selTracks.size() != selTrackStates.size()) {
+        std::string msg = "Vector sizes do not match (in get_complement):";
+        msg += " selTracks has size " + std::to_string(selTracks.size());
+        msg += " while selTrackStates has size " + std::to_string(selTrackStates.size());
+        throw std::runtime_error(msg);
+    }
+
+    ROOT::VecOps::RVec<edm4hep::TrackData> result;
+    for (int idx = 0; idx < allTracks.size(); idx++) {
+        const edm4hep::TrackData track = allTracks.at(idx);
+        const edm4hep::TrackState trackState = allTrackStates.at(idx);
+        bool isSel = false;
+        for (auto &selTrackState : selTrackStates) {
+            if( trackState.D0 == selTrackState.D0 && trackState.phi == selTrackState.phi && trackState.omega == selTrackState.omega &&
+                trackState.Z0 == selTrackState.Z0 && trackState.tanLambda == selTrackState.tanLambda &&
+                trackState.time == selTrackState.time && trackState.referencePoint.x == selTrackState.referencePoint.x &&
+                trackState.referencePoint.y == selTrackState.referencePoint.y &&
+                trackState.referencePoint.z == selTrackState.referencePoint.z ){
+                isSel = true;
+                break;
+            }
+        }
+        if (!isSel) result.push_back(track);
+    }
+    return result;
+    
+    }""")
+
 # helper function to find tracks passing some baseline selection
+# note: this function uses both the track states and the track objects (the latter for chi2);
+#       it is assumed that both collections are corresponding trivially, i.e. one-to-one by same index.
 ROOT.gInterpreter.Declare("""
     ROOT::VecOps::RVec<edm4hep::TrackState> getSelectedTracks(
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks){
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
+        const ROOT::VecOps::RVec<edm4hep::TrackData>& trackDatas,
+        const float D0max, const float Z0max){
+
+        // safety check
+        if( tracks.size() != trackDatas.size() ){
+            throw std::runtime_error("Vector sizes do not match (in getSelectedTracks plain).");
+        }
 
         // do filtering
         ROOT::VecOps::RVec<edm4hep::TrackState> selectedTracks;
-        for (const edm4hep::TrackState& trk : tracks) {
+        for (int idx = 0; idx < tracks.size(); idx++) {
+            const edm4hep::TrackState trk = tracks.at(idx);
+            const edm4hep::TrackData trkobj = trackDatas.at(idx);
             const auto& c = trk.covMatrix;
             if (c[0] <= 0 || c[2] <= 0 || c[9] <= 0) continue;
             if (c[0] < 1e-12 || c[2] < 1e-12 || c[9] <= 1e-12) continue;
             if (!std::isfinite(c[0]) || !std::isfinite(c[2]) || !std::isfinite(c[9])) continue;
-            //if (std::abs(trk.D0)>1 || std::abs(trk.Z0)>2) continue;
+            if (D0max > 0 && std::abs(trk.D0)>D0max) continue;
+            if (Z0max > 0 && std::abs(trk.Z0)>Z0max) continue;
+            if (trkobj.ndf==0) continue;
+            if (trkobj.chi2 / trkobj.ndf > 10.) continue;
             selectedTracks.push_back(trk);
         }
         return selectedTracks;
@@ -143,14 +225,23 @@ ROOT.gInterpreter.Declare("""
 # same as above but with tracks per jet
 ROOT.gInterpreter.Declare("""
     ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> getSelectedTracks(
-        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>& tracksPerJet){
+        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>& tracksPerJet,
+        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackData>>& trackDatasPerJet,
+        const float D0max, const float Z0max){
+
+        // safety check
+        if( tracksPerJet.size() != trackDatasPerJet.size() ){
+            throw std::runtime_error("Vector sizes do not match (in getSelectedTracks per jet).");
+        }
 
         // initialization
         ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> selectedTracks;
 
         // loop over jets
-        for ( const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks : tracksPerJet) {
-            selectedTracks.push_back( getSelectedTracks(tracks) );
+        for (int idx = 0; idx < tracksPerJet.size(); idx++) {
+            ROOT::VecOps::RVec<edm4hep::TrackState> tracks = tracksPerJet.at(idx);
+            ROOT::VecOps::RVec<edm4hep::TrackData> trackDatas = trackDatasPerJet.at(idx);
+            selectedTracks.push_back( getSelectedTracks(tracks, trackDatas, D0max, Z0max) );
         }
         return selectedTracks;
     }""")
@@ -166,7 +257,7 @@ ROOT.gInterpreter.Declare("""
         // safety checks
         if (jets.size()==0){ return tracksWithRecoPerJet; }
         if (tracksWithRecoPerJet.size() != jets.size()) {
-            throw std::runtime_error("Vector sizes do not match.");
+            throw std::runtime_error("Vector sizes do not match (in append_losttracks_to_tracksperjet for TrackStates).");
         }
 
         // make a vector for each jet
@@ -179,6 +270,65 @@ ROOT.gInterpreter.Declare("""
         for(const edm4hep::TrackState& track : tracksWithoutReco){
             float phi_track = track.phi;
             float eta_track = std::asinh(track.tanLambda);
+            ROOT::Math::PtEtaPhiMVector trackP4(
+                1.0,       // dummy pT
+                eta_track,
+                phi_track,
+                0.0
+            );
+
+            // find index of closest jet
+            float minDR = 99.;
+            int bestJetIdx = 0;
+            for (size_t i = 0; i < jetP4s.size(); ++i) {
+                ROOT::Math::PtEtaPhiMVector jetP4 = jetP4s.at(i);
+                const float dR = ROOT::Math::VectorUtil::DeltaR(trackP4, jetP4);
+                if (dR < minDR){ minDR = dR; bestJetIdx = i; }
+            }
+
+            // append
+            if (bestJetIdx >= 0){ tracksWithRecoPerJet.at(bestJetIdx).push_back(track); }
+        } // end of loop over tracks
+
+        return tracksWithRecoPerJet;
+    }""")
+
+# same as above but for tracks rather than track states...
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackData>>
+    append_losttracks_to_tracksperjet(
+        const ROOT::VecOps::RVec<edm4hep::TrackData>& tracksWithoutReco,
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& trackStatesWithoutReco,
+        ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackData>> tracksWithRecoPerJet,
+        const ROOT::VecOps::RVec<fastjet::PseudoJet>& jets){
+
+        // safety checks
+        if (jets.size()==0){ return tracksWithRecoPerJet; }
+        if (tracksWithRecoPerJet.size() != jets.size()) {
+            std::string msg = "Vector sizes do not match (in append_losttracks_to_tracksperjet for TrackData):";
+            msg += " tracksWithRecoPerJet has size " + std::to_string(tracksWithRecoPerJet.size());
+            msg += " while jets has size " + std::to_string(jets.size());
+            throw std::runtime_error(msg);
+        }
+        if (tracksWithoutReco.size() != trackStatesWithoutReco.size()) {
+            std::string msg = "Vector sizes do not match (in append_losttracks_to_tracksperjet for TrackData):";
+            msg += " tracksWithoutReco has size " + std::to_string(tracksWithoutReco.size());
+            msg += " while trackStatesWithoutReco has size " + std::to_string(trackStatesWithoutReco.size());
+            throw std::runtime_error(msg);
+        }
+
+        // make a vector for each jet
+        ROOT::VecOps::RVec<ROOT::Math::PtEtaPhiMVector> jetP4s;
+        for (const auto& jet : jets) {
+            jetP4s.emplace_back(jet.pt(), jet.eta(), jet.phi(), jet.m());
+        }
+
+        // loop over tracks to append
+        for(int idx = 0; idx < tracksWithoutReco.size(); idx++){
+            const edm4hep::TrackData track = tracksWithoutReco.at(idx);
+            const edm4hep::TrackState trackState = trackStatesWithoutReco.at(idx);
+            float phi_track = trackState.phi;
+            float eta_track = std::asinh(trackState.tanLambda);
             ROOT::Math::PtEtaPhiMVector trackP4(
                 1.0,       // dummy pT
                 eta_track,
@@ -524,7 +674,7 @@ class RDFanalysis():
                 .Define("Beamspot_z", "0.0")
             )
 
-        # store very basic counting properties
+        # do track preselection
         dfout = (
             dfout
 
@@ -532,11 +682,14 @@ class RDFanalysis():
             .Define("Event_nRecoParticles", "ReconstructedParticles.size()")
             .Define("Event_nTracks", "EFlowTrack_1.size()")
             .Define("TracksWithReco", "FCCAnalyses::ReconstructedParticle2Track::getRP2TRK_trackState(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
-            .Define("TracksWithoutReco", "FCCAnalyses::VertexFitterSimple::get_NonPrimaryTracks(EFlowTrack_1, TracksWithReco)")
-            # (note: though the function above is in the vertex fitter namespace, it has nothing to do with vertex fitting;
-            #        it just selects tracks in EFlowTrack_1 that are not in TracksWithReco)
+            .Define("TracksWithoutReco", "get_complement(EFlowTrack_1, TracksWithReco)")
+            .Define("TrackDatasWithReco", "FCCAnalyses::ReconstructedParticle2Track::getRP2TRK_track(ReconstructedParticles, EFlowTrack, Reco2TrackLinks)")
+            .Define("TrackDatasWithoutReco", "get_complement(EFlowTrack, EFlowTrack_1, TrackDatasWithReco, TracksWithReco)")
             .Define("Event_nTracksWithReco", "TracksWithReco.size()")
             .Define("Event_nTracksWithoutReco", "TracksWithoutReco.size()")
+
+            # do track preselection
+            .Define("SelectedTracks", "getSelectedTracks(EFlowTrack_1, EFlowTrack, -1, -1)")
         )
 
         # find the primary vertex
@@ -559,7 +712,6 @@ class RDFanalysis():
             #.Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
             
             # alternative: recalculate reco primary vertex
-            .Define("SelectedTracks", "getSelectedTracks(EFlowTrack_1)")
             .Define("PrimaryTracks", "getPrimaryTracks(SelectedTracks, 25., Beamspot_x, Beamspot_y, Beamspot_z)")
             .Define("PrimaryVertexObject", "fitRecoPrimaryVertex(PrimaryTracks, Beamspot_x, Beamspot_y, Beamspot_z)")
             .Define("PrimaryVertex", "FCCAnalyses::VertexingUtils::get_VertexData(PrimaryVertexObject)")
@@ -659,7 +811,9 @@ class RDFanalysis():
             #       so we have to manually append the tracks without reco particle (based on simple delta-R matching to the closest jet.
             .Define("TracksPerJet", "JetConstituentsUtils::build_trackstates_cluster(ReconstructedParticles, EFlowTrack_1, jetconstituents_ee_genkt, Reco2TrackLinks)")
             .Redefine("TracksPerJet", "append_losttracks_to_tracksperjet(TracksWithoutReco, TracksPerJet, jets_ee_genkt)")
-            .Define("SelectedTracksPerJet", "getSelectedTracks(TracksPerJet)")
+            .Define("TrackDatasPerJet", "JetConstituentsUtils::build_tracks_cluster(ReconstructedParticles, EFlowTrack, jetconstituents_ee_genkt, Reco2TrackLinks)")
+            .Redefine("TrackDatasPerJet", "append_losttracks_to_tracksperjet(TrackDatasWithoutReco, TracksWithoutReco, TrackDatasPerJet, jets_ee_genkt)")
+            .Define("SelectedTracksPerJet", "getSelectedTracks(TracksPerJet, TrackDatasPerJet, -1, -1)")
             .Define("Jets_nTracksPerJet", "countTracks(TracksPerJet)")
             .Define("Jets_nSelectedTracksPerJet", "countTracks(SelectedTracksPerJet)")
 

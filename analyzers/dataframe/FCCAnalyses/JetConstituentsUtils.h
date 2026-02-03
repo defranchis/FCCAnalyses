@@ -53,6 +53,14 @@ namespace FCCAnalyses {
         const rv::RVec<podio::ObjectID>& reco2track_links
     );
 
+    // Build the collection of tracks (mapping jet -> tracks of (charged) reconstructed particles)
+    rv::RVec<rv::RVec<edm4hep::TrackData>> build_tracks_cluster(
+        const rv::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const rv::RVec<edm4hep::TrackData>& tracks,
+        const std::vector<std::vector<int>>& jet_indices,
+        const rv::RVec<podio::ObjectID>& reco2track_links
+    );
+
     // Retrieve the constituents of an indexed jet in event
     FCCAnalysesJetConstituents get_jet_constituents(const rv::RVec<FCCAnalysesJetConstituents>&, int);
     // Retrieve the constituents of a collection of indexed jets in event

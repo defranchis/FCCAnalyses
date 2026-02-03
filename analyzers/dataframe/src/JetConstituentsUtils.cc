@@ -90,6 +90,32 @@ namespace FCCAnalyses
         return tracks_perjet;
     }
 
+    rv::RVec<rv::RVec<edm4hep::TrackData>> build_tracks_cluster(
+        const rv::RVec<edm4hep::ReconstructedParticleData>& rps,
+        const rv::RVec<edm4hep::TrackData>& tracks,
+        const std::vector<std::vector<int>>& jet_indices,
+        const rv::RVec<podio::ObjectID>& reco2track_links){
+        /*
+        Build the collection of tracks (mapping jet -> tracks of (charged) reconstructed particles)
+        */
+        rv::RVec<rv::RVec<edm4hep::TrackData>> tracks_perjet;
+        // loop over jets
+        for (const auto &this_jet_indices : jet_indices){
+            // get constituents for this jet
+            FCCAnalysesJetConstituents constituents;
+            for (const auto &constituent_index : this_jet_indices){
+                constituents.push_back(rps.at(constituent_index));
+            }
+            // get track states for these constituents
+            rv::RVec<edm4hep::TrackData> this_jet_tracks;
+            this_jet_tracks = ReconstructedParticle2Track::getRP2TRK_track(
+                constituents, tracks, reco2track_links
+            );
+            tracks_perjet.push_back(this_jet_tracks);
+        }
+        return tracks_perjet;
+    }
+
     FCCAnalysesJetConstituents get_jet_constituents(const rv::RVec<FCCAnalysesJetConstituents> &csts, int jet)
     {
       if (jet < 0)
