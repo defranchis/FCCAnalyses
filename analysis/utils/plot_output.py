@@ -19,12 +19,20 @@ if __name__=='__main__':
       #'recojet_isData'
     ]
     variables = [
+      'event_ntracks',
+      'event_nselectedtracks',
+      'event_nprimarytracks',
+      'event_nsecondarytracks',
+
       'recojet_pt',
       'recojet_eta',
       'recojet_theta',
       'recojet_phi',
       'recojet_e',
       'recojet_mass',
+      'recojet_ntracks',
+      'recojet_nselectedtracks',
+      'recojet_nsecondarytracks',
       
       'nconst',
       'nphotons',
@@ -88,6 +96,7 @@ if __name__=='__main__':
         with uproot.open(readstr) as f:
             batches.append(f.arrays(branches_to_read))
     events = ak.concatenate(batches)
+    print(f'Read {len(events)} entries.')
 
     # make kinematic mask (optional)
     #kinematic_mask = np.ones(len(events)).astype(bool)
@@ -96,11 +105,15 @@ if __name__=='__main__':
         & (np.abs(events['recojet_eta'].to_numpy())<0.9)
         & (events['nconst'].to_numpy()>5)
     ).astype(bool)
+    print(f'Made kinematic mask with {np.sum(kinematic_mask)} / {len(kinematic_mask)} entries passing.')
 
     # make category masks
     category_masks = {}
     for category in categories:
         category_masks[category] = events[category].to_numpy().astype(bool)
+    print(f'Found following number of entries per category:')
+    for category in categories: print(f'  - {category}: {np.sum(category_masks[category])}')
+    print(f'  -> total: {sum([np.sum(v) for v in category_masks.values()])}')
 
     # loop over variables to plot
     for variable in variables:
@@ -161,6 +174,10 @@ if __name__=='__main__':
         print('std: ', np.std(data_array))
         print('-----')
 
+        # determine whether variable is integer
+        is_integer = False
+        if np.all(data_array - data_array.astype(int) < 1e-6): is_integer = True
+
         # determine suitable binning
         mask = (np.abs(data_array+9)>1e-3).astype(bool)
         npass = np.sum(mask.astype(int))
@@ -173,20 +190,26 @@ if __name__=='__main__':
         if minv < 0:
             maxv = max(maxv, abs(minv))
             minv = -maxv
+        if is_integer:
+            minv = int(minv) - 0.5
+            maxv = int(maxv) + 0.5
         # special cases (hard-coded)
         if variable == 'sv_chi2Normalized': (minv, maxv) = (-2, 25)
-        if variable == 'nsv': (minv, maxv) = (-1, 5)
-        bins = np.linspace(minv, maxv, num=51)
+        num_edges = 51
+        if is_integer: num_edges = int(maxv - minv) + 1
+        bins = np.linspace(minv, maxv, num=num_edges)
 
         # make figure
         fig, ax = plt.subplots()
         for category in categories:
-            ax.hist(data[category], bins=bins, density=True, histtype='step', linewidth=2, label=category)
+            hist = np.histogram(data[category], bins=bins, density=True)[0]
+            ax.stairs(hist, edges=bins, linewidth=2, label=category)
 
         # plot aesthetics
-        ax.set_ylabel('Events (flattened, normalized)')
+        ax.set_ylabel('Jets (normalized)')
         ax.set_xlabel(variable)
         ax.legend()
+        ax.grid(which='both', axis='both')
 
         # save figure
         fig.tight_layout()
