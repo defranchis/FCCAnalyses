@@ -134,7 +134,7 @@ ROOT.gInterpreter.Declare("""
             if (c[0] <= 0 || c[2] <= 0 || c[9] <= 0) continue;
             if (c[0] < 1e-12 || c[2] < 1e-12 || c[9] <= 1e-12) continue;
             if (!std::isfinite(c[0]) || !std::isfinite(c[2]) || !std::isfinite(c[9])) continue;
-            //if (std::abs(trk.D0)>3 || std::abs(trk.Z0)>5) continue;
+            if (std::abs(trk.D0)>1 || std::abs(trk.Z0)>2) continue;
             selectedTracks.push_back(trk);
         }
         return selectedTracks;
@@ -153,6 +153,53 @@ ROOT.gInterpreter.Declare("""
             selectedTracks.push_back( getSelectedTracks(tracks) );
         }
         return selectedTracks;
+    }""")
+
+# helper function to distribute tracks without reco particle over tracks per jet
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>
+    append_losttracks_to_tracksperjet(
+        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracksWithoutReco,
+        ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> tracksWithRecoPerJet,
+        const ROOT::VecOps::RVec<fastjet::PseudoJet>& jets){
+
+        // safety checks
+        if (jets.size()==0){ return tracksWithRecoPerJet; }
+        if (tracksWithRecoPerJet.size() != jets.size()) {
+            throw std::runtime_error("Vector sized do not match.");
+        }
+
+        // make a vector for each jet
+        ROOT::VecOps::RVec<ROOT::Math::PtEtaPhiMVector> jetP4s;
+        for (const auto& jet : jets) {
+            jetP4s.emplace_back(jet.pt(), jet.eta(), jet.phi(), jet.m());
+        }
+
+        // loop over tracks to append
+        for(const edm4hep::TrackState& track : tracksWithoutReco){
+            float phi_track = track.phi;
+            float eta_track = std::asinh(track.tanLambda);
+            ROOT::Math::PtEtaPhiMVector trackP4(
+                1.0,       // dummy pT
+                eta_track,
+                phi_track,
+                0.0
+            );
+
+            // find index of closest jet
+            float minDR = 99.;
+            int bestJetIdx = 0;
+            for (size_t i = 0; i < jetP4s.size(); ++i) {
+                ROOT::Math::PtEtaPhiMVector jetP4 = jetP4s.at(i);
+                const float dR = ROOT::Math::VectorUtil::DeltaR(trackP4, jetP4);
+                if (dR < minDR){ minDR = dR; bestJetIdx = i; }
+            }
+
+            // append
+            if (bestJetIdx >= 0){ tracksWithRecoPerJet.at(bestJetIdx).push_back(track); }
+        } // end of loop over tracks
+
+        return tracksWithRecoPerJet;
     }""")
 
 # helper function to find primary tracks.
@@ -477,6 +524,21 @@ class RDFanalysis():
                 .Define("Beamspot_z", "0.0")
             )
 
+        # store very basic counting properties
+        dfout = (
+            dfout
+
+            # store number of reco particles and tracks per event
+            .Define("Event_nRecoParticles", "ReconstructedParticles.size()")
+            .Define("Event_nTracks", "EFlowTrack_1.size()")
+            .Define("TracksWithReco", "FCCAnalyses::ReconstructedParticle2Track::getRP2TRK_trackState(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
+            .Define("TracksWithoutReco", "FCCAnalyses::VertexFitterSimple::get_NonPrimaryTracks(EFlowTrack_1, TracksWithReco)")
+            # (note: though the function above is in the vertex fitter namespace, it has nothing to do with vertex fitting;
+            #        it just selects tracks in EFlowTrack_1 that are not in TracksWithReco)
+            .Define("Event_nTracksWithReco", "TracksWithReco.size()")
+            .Define("Event_nTracksWithoutReco", "TracksWithoutReco.size()")
+        )
+
         # find the primary vertex
         dfout = (
             dfout
@@ -517,7 +579,6 @@ class RDFanalysis():
             # (note: only works for fitted vertex, not for other methods)
             .Define("PV_chi2Normalized", "PrimaryVertex.chi2")
             .Define("PV_ndof", "PrimaryVertex.ndf")
-            .Define("Event_nTracks", "EFlowTrack_1.size()")
             .Define("Event_nSelectedTracks", "SelectedTracks.size()")
             .Define("Event_nPrimaryTracks", "PrimaryTracks.size()")
         )
@@ -574,9 +635,6 @@ class RDFanalysis():
             # get the jets out of the struct
             .Define("jets_ee_genkt", "JetClusteringUtils::get_pseudoJets(FCCAnalysesJets_ee_genkt)")
 
-            # get the jets constituents out of the struct
-            .Define("jetconstituents_ee_genkt", "JetClusteringUtils::get_constituents(FCCAnalysesJets_ee_genkt)")
-
             # define jet-level observables
             .Define("Jets_px", "JetClusteringUtils::get_px(jets_ee_genkt)")
             .Define("Jets_py", "JetClusteringUtils::get_py(jets_ee_genkt)")
@@ -589,12 +647,25 @@ class RDFanalysis():
             .Define("Jets_theta", "JetClusteringUtils::get_theta(jets_ee_genkt)")
             .Define("Jets_p4", "JetConstituentsUtils::compute_tlv_jets(jets_ee_genkt)")
 
+            # find the reconstructed particles grouped per jet
+            # (output struct is a vector of vectors of ReconstructedParticle objects, one vector of ReconstructedParticles for each jet)
+            .Define("jetconstituents_ee_genkt", "JetClusteringUtils::get_constituents(FCCAnalysesJets_ee_genkt)")
+            .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(ReconstructedParticles, jetconstituents_ee_genkt)")
+            .Define("Jets_nConstituents", "JetConstituentsUtils::count_consts(JetsConstituents)")
+
             # find track states grouped per jet, and perform baseline selection
             # (output struct is a vector of vectors of TrackState objects, one vector of TrackStates for each jet)
+            # note: the grouping function implicitly only considers tracks connected to a reco particle,
+            #       so we have to manually append the tracks without reco particle (based on simple delta-R matching to the closest jet.
             .Define("TracksPerJet", "JetConstituentsUtils::build_trackstates_cluster(ReconstructedParticles, EFlowTrack_1, jetconstituents_ee_genkt, Reco2TrackLinks)")
+            .Redefine("TracksPerJet", "append_losttracks_to_tracksperjet(TracksWithoutReco, TracksPerJet, jets_ee_genkt)")
             .Define("SelectedTracksPerJet", "getSelectedTracks(TracksPerJet)")
             .Define("Jets_nTracksPerJet", "countTracks(TracksPerJet)")
             .Define("Jets_nSelectedTracksPerJet", "countTracks(SelectedTracksPerJet)")
+
+            # for debugging: check that all particles and all tracks in the event were clustered
+            .Define("Event_nConstituentsSum", "ROOT::VecOps::Sum(Jets_nConstituents)")
+            .Define("Event_nTracksPerJetSum", "ROOT::VecOps::Sum(Jets_nTracksPerJet)")
         )
 
         # find secondary vertices (per jet)
@@ -657,9 +728,6 @@ class RDFanalysis():
             .Define("Event_njets", "(int)Jets_p4.size()")
             .Define("Event_Bz", "ReconstructedParticle2Track::Bz(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
 
-            # define constituent-level observables
-            .Define("JetsConstituents", "JetConstituentsUtils::build_constituents_cluster(ReconstructedParticles, jetconstituents_ee_genkt)")
- 
             # Extract ParticleID types for all jet constituents
             # ParticleID.type legend: 0:Track, 1:Electron, 2:Muon, 3:Track from V0, 
             #                         4:EM, 5:Ecal hadron/residual, 6:Hcal element, 7:Lcal element
@@ -795,7 +863,6 @@ class RDFanalysis():
             .Define("JetsConstituents_linePCAToPrimaryVertex_z", "IPAlephTools::getPCA_z(linePCAToPrimaryVertex)")
 
             # counting the types of particles per jet
-            .Define("Jets_nConstituents", "JetConstituentsUtils::count_consts(JetsConstituents)")
             .Define("Jets_nMu", "JetConstituentsUtils::count_type(JetsConstituents_isMu)")
             .Define("Jets_nEl", "JetConstituentsUtils::count_type(JetsConstituents_isEl)")
             .Define("Jets_nChargedHad", "JetConstituentsUtils::count_type(JetsConstituents_isChargedHad)")
@@ -839,10 +906,15 @@ class RDFanalysis():
             'Event_dpt',
             'Event_dphi',
             'Event_dtheta',
+            'Event_nRecoParticles',
             'Event_nTracks',
+            'Event_nTracksWithReco',
+            'Event_nTracksWithoutReco',
             'Event_nSelectedTracks',
             'Event_nPrimaryTracks',
-            'Event_nSecondaryTracks'
+            'Event_nSecondaryTracks',
+            'Event_nConstituentsSum',
+            'Event_nTracksPerJetSum'
         ]
 
         # primary vertex variables
