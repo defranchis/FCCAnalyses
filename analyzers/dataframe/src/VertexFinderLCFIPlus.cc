@@ -497,14 +497,16 @@ ROOT::VecOps::RVec<bool> isV0(ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
 //** V0 Reconstruction **//
 ///////////////////////////
 
-VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
-				      VertexingUtils::FCCAnalysesVertex PV,
-				      bool tight,
-				      double chi2_cut) {
-  // V0 reconstruction
-  // if(tight)  -> tight constraints
-  // if(!tight) -> loose constraints
+VertexingUtils::FCCAnalysesV0 get_V0s(
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
+	    VertexingUtils::FCCAnalysesVertex PV,
+	    const ROOT::VecOps::RVec<double>& constraints_ks,
+        const ROOT::VecOps::RVec<double>& constraints_lambda0,
+        const ROOT::VecOps::RVec<double>& constraints_gamma,
+		double chi2_cut) {
+  // Base function for V0 reconstruction in a set of provided tracks.
 
+  // initializations
   VertexingUtils::FCCAnalysesV0 result;
   ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> vtx; // FCCAnalyses vertex object
   ROOT::VecOps::RVec<int> pdgAbs;                            // absolute PDG ID
@@ -512,184 +514,114 @@ VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> np
   result.vtx = vtx;
   result.pdgAbs = pdgAbs;
   result.invM = invM;
-
   VertexingUtils::FCCAnalysesVertex V0_vtx;
   
-  int nTr = np_tracks.size();
+  // check number of tracks
+  int nTr = tracks.size();
   if(nTr<2) return result;
   ROOT::VecOps::RVec<bool> isInV0(nTr, false);
 
-  // set constraints (if(tight==true) tight_set)
-  ROOT::VecOps::RVec<double> isKs      = constraints_Ks(tight);
-  ROOT::VecOps::RVec<double> isLambda0 = constraints_Lambda0(tight);
-  ROOT::VecOps::RVec<double> isGamma   = constraints_Gamma(tight);
-
+  // initialize (empty) track pair
   ROOT::VecOps::RVec<edm4hep::TrackState> tr_pair;
-  // push empty tracks to make a size=2 vector
   edm4hep::TrackState tr_i, tr_j;
   tr_pair.push_back(tr_i);
   tr_pair.push_back(tr_j);
-  //
+  
+  // loop over all pairs of tracks
   for(unsigned int i=0; i<nTr-1; i++) {
     if(isInV0[i] == true) continue; // don't pair a track if it already forms a V0
-    tr_pair[0] = np_tracks[i];
-
+    tr_pair[0] = tracks[i];
     for(unsigned int j=i+1; j<nTr; j++) {
       if(isInV0[j] == true) continue; // don't pair a track if it already forms a V0
-      if(tr_pair[0].omega * np_tracks[j].omega > 0) continue; // don't pair tracks with same charge (same sign curvature = same sign charge)
-      tr_pair[1] = np_tracks[j];
+      if(tr_pair[0].omega * tracks[j].omega > 0) continue; // don't pair tracks with same charge (same sign curvature = same sign charge)
+      tr_pair[1] = tracks[j];
 
+      // try to make a V0 candidate
       ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0_vtx, tr_pair, PV, true, chi2_cut);
       if(V0_cand[0] == -1) continue;
       
       // Ks
-      if(V0_cand[0]>isKs[0] && V0_cand[0]<isKs[1] && V0_cand[4]>isKs[2] && V0_cand[5]>isKs[3]) {
-	if(debug_me) std::cout<<"Found a Ks"<<std::endl;
-	isInV0[i] = true;
-	isInV0[j] = true;
-	vtx.push_back(V0_vtx);
-	pdgAbs.push_back(310);
-	invM.push_back(V0_cand[0]);
-	break;
+      if(V0_cand[0]>constraints_ks[0] && V0_cand[0]<constraints_ks[1] && V0_cand[4]>constraints_ks[2] && V0_cand[5]>constraints_ks[3]) {
+	    if(debug_me) std::cout<<"Found a Ks"<<std::endl;
+	    isInV0[i] = true;
+	    isInV0[j] = true;
+	    vtx.push_back(V0_vtx);
+	    pdgAbs.push_back(310);
+	    invM.push_back(V0_cand[0]);
+	    break;
       }
       
       // Lambda0
-      else if(V0_cand[1]>isLambda0[0] && V0_cand[1]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
-	if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
-	isInV0[i] = true;
-	isInV0[j] = true;
-	vtx.push_back(V0_vtx);
-	pdgAbs.push_back(3122);
-	invM.push_back(V0_cand[1]);
-	break;
+      else if(V0_cand[1]>constraints_lambda0[0] && V0_cand[1]<constraints_lambda0[1] && V0_cand[4]>constraints_lambda0[2] && V0_cand[5]>constraints_lambda0[3]) {
+	    if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
+	    isInV0[i] = true;
+	    isInV0[j] = true;
+	    vtx.push_back(V0_vtx);
+	    pdgAbs.push_back(3122);
+	    invM.push_back(V0_cand[1]);
+	    break;
       }
-      else if(V0_cand[2]>isLambda0[0] && V0_cand[2]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
-	if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
-	isInV0[i] = true;
-	isInV0[j] = true;
-	vtx.push_back(V0_vtx);
-	pdgAbs.push_back(3122);
-	invM.push_back(V0_cand[2]);
-	break;
+      else if(V0_cand[2]>constraints_lambda0[0] && V0_cand[2]<constraints_lambda0[1] && V0_cand[4]>constraints_lambda0[2] && V0_cand[5]>constraints_lambda0[3]) {
+	    if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
+	    isInV0[i] = true;
+	    isInV0[j] = true;
+	    vtx.push_back(V0_vtx);
+	    pdgAbs.push_back(3122);
+	    invM.push_back(V0_cand[2]);
+	    break;
       }
 	
       // photon conversion
-      else if(V0_cand[3]<isGamma[1] && V0_cand[4]>isGamma[2] && V0_cand[5]>isGamma[3]) {
-	if(debug_me) std::cout<<"Found a Photon coversion"<<std::endl;
-	isInV0[i] = true;
-	isInV0[j] = true;
-	vtx.push_back(V0_vtx);
-	pdgAbs.push_back(22);
-	invM.push_back(V0_cand[3]);
-	break;
+      else if(V0_cand[3]<constraints_gamma[1] && V0_cand[4]>constraints_gamma[2] && V0_cand[5]>constraints_gamma[3]) {
+	    if(debug_me) std::cout<<"Found a Photon coversion"<<std::endl;
+	    isInV0[i] = true;
+	    isInV0[j] = true;
+	    vtx.push_back(V0_vtx);
+	    pdgAbs.push_back(22);
+	    invM.push_back(V0_cand[3]);
+	    break;
       }
-      //
     }
-  }
+  } // end of loop over track pairs
 
   result.vtx = vtx;
   result.pdgAbs = pdgAbs;
   result.invM = invM;
-  //
+  
   return result;
 }
 
-VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
+VertexingUtils::FCCAnalysesV0 get_V0s(
+        ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
+        VertexingUtils::FCCAnalysesVertex PV,
+        bool tight,
+        double chi2_cut) {
+    // same as above, but with predefined constraints
+    ROOT::VecOps::RVec<double> isKs = constraints_Ks(tight);
+    ROOT::VecOps::RVec<double> isLambda0 = constraints_Lambda0(tight);
+    ROOT::VecOps::RVec<double> isGamma = constraints_Gamma(tight);
+    return get_V0s(tracks, PV,
+             isKs,
+             isLambda0,
+             isGamma,
+             chi2_cut);
+}
+
+VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
 				      VertexingUtils::FCCAnalysesVertex PV,
 				      double Ks_invM_low, double Ks_invM_high, double Ks_dis, double Ks_cosAng,
 				      double Lambda_invM_low, double Lambda_invM_high, double Lambda_dis, double Lambda_cosAng,
 				      double Gamma_invM_low, double Gamma_invM_high, double Gamma_dis, double Gamma_cosAng,
 				      double chi2_cut) {
-  // V0 reconstruction
-  // by default set to the tight set of constraints
-
-  VertexingUtils::FCCAnalysesV0 result;
-  ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> vtx; // FCCAnalyses vertex object
-  ROOT::VecOps::RVec<int> pdgAbs;                            // absolute PDG ID
-  ROOT::VecOps::RVec<double> invM;                           // invariant mass
-  result.vtx = vtx;
-  result.pdgAbs = pdgAbs;
-  result.invM = invM;
-
-  VertexingUtils::FCCAnalysesVertex V0_vtx;
-  
-  int nTr = np_tracks.size();
-  if(nTr<2) return result;
-  ROOT::VecOps::RVec<bool> isInV0(nTr, false);
-
-  // set constraints (if(tight==true) tight_set)
+  // same as above, but with constraints given in different format
   ROOT::VecOps::RVec<double> isKs      = constraints_Ks(Ks_invM_low, Ks_invM_high, Ks_dis, Ks_cosAng);
   ROOT::VecOps::RVec<double> isLambda0 = constraints_Lambda0(Lambda_invM_low, Lambda_invM_high, Lambda_dis, Lambda_cosAng);
   ROOT::VecOps::RVec<double> isGamma   = constraints_Gamma(Gamma_invM_low, Gamma_invM_high, Gamma_dis, Gamma_cosAng);
-
-  ROOT::VecOps::RVec<edm4hep::TrackState> tr_pair;
-  // push empty tracks to make a size=2 vector
-  edm4hep::TrackState tr_i, tr_j;
-  tr_pair.push_back(tr_i);
-  tr_pair.push_back(tr_j);
-  //
-  for(unsigned int i=0; i<nTr-1; i++) {
-    if(isInV0[i] == true) continue; // don't pair a track if it already forms a V0
-    tr_pair[0] = np_tracks[i];
-
-    for(unsigned int j=i+1; j<nTr; j++) {
-      if(isInV0[j] == true) continue; // don't pair a track if it already forms a V0
-      if(tr_pair[0].omega * np_tracks[j].omega > 0) continue; // don't pair tracks with same charge (same sign curvature = same sign charge)
-      tr_pair[1] = np_tracks[j];
-
-      ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0_vtx, tr_pair, PV, true, chi2_cut);
-      if(V0_cand[0] == -1) continue;
-      
-      // Ks
-      if(V0_cand[0]>isKs[0] && V0_cand[0]<isKs[1] && V0_cand[4]>isKs[2] && V0_cand[5]>isKs[3]) {
-	if(debug_me) std::cout<<"Found a Ks"<<std::endl;
-	isInV0[i] = true;
-	isInV0[j] = true;
-	vtx.push_back(V0_vtx);
-	pdgAbs.push_back(310);
-	invM.push_back(V0_cand[0]);
-	break;
-      }
-      
-      // Lambda0
-      else if(V0_cand[1]>isLambda0[0] && V0_cand[1]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
-	if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
-	isInV0[i] = true;
-	isInV0[j] = true;
-	vtx.push_back(V0_vtx);
-	pdgAbs.push_back(3122);
-	invM.push_back(V0_cand[1]);
-	break;
-      }
-      else if(V0_cand[2]>isLambda0[0] && V0_cand[2]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
-	if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
-	isInV0[i] = true;
-	isInV0[j] = true;
-	vtx.push_back(V0_vtx);
-	pdgAbs.push_back(3122);
-	invM.push_back(V0_cand[2]);
-	break;
-      }
-	
-      // photon conversion
-      else if(V0_cand[3]<isGamma[1] && V0_cand[4]>isGamma[2] && V0_cand[5]>isGamma[3]) {
-	if(debug_me) std::cout<<"Found a Photon coversion"<<std::endl;
-	isInV0[i] = true;
-	isInV0[j] = true;
-	vtx.push_back(V0_vtx);
-	pdgAbs.push_back(22);
-	invM.push_back(V0_cand[3]);
-	break;
-      }
-      //
-    }
-  }
-
-  result.vtx = vtx;
-  result.pdgAbs = pdgAbs;
-  result.invM = invM;
-  //
-  return result;
+  return get_V0s(tracks, PV,
+             isKs,
+             isLambda0,
+             isGamma,
+             chi2_cut);
 }
 
 VertexingUtils::FCCAnalysesV0 get_V0s_jet(ROOT::VecOps::RVec<edm4hep::ReconstructedParticleData> recoparticles,

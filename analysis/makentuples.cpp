@@ -65,6 +65,8 @@ int main(int argc, char* argv[]) {
   unsigned long Event_nSelectedTracks = 0;
   unsigned long Event_nPrimaryTracks = 0;
   unsigned long Event_nSecondaryTracks = 0;
+  unsigned long Event_nSV = 0;
+  unsigned long Event_nV0Candidates = 0;
 
   // jet properties
   ROOT::VecOps::RVec<float> *Jets_e = 0;
@@ -73,16 +75,17 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<float> *Jets_phi = 0;
   ROOT::VecOps::RVec<float> *Jets_eta = 0;
   ROOT::VecOps::RVec<float> *Jets_theta = 0;
-  ROOT::VecOps::RVec<int> *Jets_nTracksPerJet = 0;
-  ROOT::VecOps::RVec<int> *Jets_nSelectedTracksPerJet = 0;
-  ROOT::VecOps::RVec<int> *Jets_nSecondaryTracksPerJet = 0;
   ROOT::VecOps::RVec<int>* count_Const = 0;
   ROOT::VecOps::RVec<int>* count_Mu = 0;
   ROOT::VecOps::RVec<int>* count_El = 0;
   ROOT::VecOps::RVec<int>* count_ChargedHad = 0;
   ROOT::VecOps::RVec<int>* count_Photon = 0;
   ROOT::VecOps::RVec<int>* count_NeutralHad = 0;
-  ROOT::VecOps::RVec<int>* count_SV = 0;
+  ROOT::VecOps::RVec<int>* Jets_nTracksPerJet = 0;
+  ROOT::VecOps::RVec<int>* Jets_nSelectedTracksPerJet = 0;
+  ROOT::VecOps::RVec<int>* Jets_nSecondaryTracksPerJet = 0;
+  ROOT::VecOps::RVec<int>* Jets_nSV = 0;
+  ROOT::VecOps::RVec<int>* Jets_nV0Candidates = 0;
 
   // secondary vertices properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_xrel = 0;
@@ -187,6 +190,8 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Event_nSelectedTracks", &Event_nSelectedTracks);
   ev->SetBranchAddress("Event_nPrimaryTracks", &Event_nPrimaryTracks);
   ev->SetBranchAddress("Event_nSecondaryTracks", &Event_nSecondaryTracks);
+  ev->SetBranchAddress("Event_nSV", &Event_nSV);
+  ev->SetBranchAddress("Event_nV0Candidates", &Event_nV0Candidates);
 
   // jet properties
   ev->SetBranchAddress("Jets_e", &Jets_e);
@@ -201,10 +206,11 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Jets_nChargedHad", &count_ChargedHad);
   ev->SetBranchAddress("Jets_nPhoton", &count_Photon);
   ev->SetBranchAddress("Jets_nNeutralHad", &count_NeutralHad);
-  ev->SetBranchAddress("Jets_nSV", &count_SV);
   ev->SetBranchAddress("Jets_nTracksPerJet", &Jets_nTracksPerJet);
   ev->SetBranchAddress("Jets_nSelectedTracksPerJet", &Jets_nSelectedTracksPerJet);
   ev->SetBranchAddress("Jets_nSecondaryTracksPerJet", &Jets_nSecondaryTracksPerJet);
+  ev->SetBranchAddress("Jets_nSV", &Jets_nSV);
+  ev->SetBranchAddress("Jets_nV0Candidates", &Jets_nV0Candidates);
 
   // secondary vertices properties
   ev->SetBranchAddress("SecondaryVertices_xrel", &SecondaryVertices_xrel);
@@ -313,6 +319,8 @@ int main(int argc, char* argv[]) {
   int event_nselectedtracks = 0;
   int event_nprimarytracks = 0;
   int event_nsecondarytracks = 0;
+  int event_nsv = 0;
+  int event_nv0candidates = 0;
 
   // jet variables
   double recojet_e, recojet_mass, recojet_pt, recojet_phi, recojet_eta, recojet_theta;
@@ -337,10 +345,11 @@ int main(int argc, char* argv[]) {
   int nneutralhad = 0;
   int nel = 0;
   int nmu = 0;
-  int nsv = 0;
   int recojet_ntracks = 0;
   int recojet_nselectedtracks = 0;
   int recojet_nsecondarytracks = 0;
+  int recojet_nsv = 0;
+  int recojet_nv0candidates = 0;
 
   // secondary vertices variables
   float sv_xrel[1000] = {0.};
@@ -449,6 +458,8 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("event_nselectedtracks", &event_nselectedtracks, "event_nselectedtracks/I");
   ntuple->Branch("event_nprimarytracks", &event_nprimarytracks, "event_nprimarytracks/I");
   ntuple->Branch("event_nsecondarytracks", &event_nsecondarytracks, "event_nsecondarytracks/I");
+  ntuple->Branch("event_nsv", &event_nsv, "event_nsv/I");
+  ntuple->Branch("event_nv0candidates", &event_nv0candidates, "event_nv0candidates/I");
 
   // jet variables 
   ntuple->Branch("recojet_e", &recojet_e);
@@ -480,28 +491,29 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("nchargedhad", &nchargedhad, "nchargedhad/I");
   ntuple->Branch("nel", &nel, "nel/I");
   ntuple->Branch("nmu", &nmu, "nmu/I");
-  ntuple->Branch("nsv", &nsv, "nsv/I");
 
   ntuple->Branch("recojet_ntracks", &recojet_ntracks, "recojet_ntracks/I");
   ntuple->Branch("recojet_nselectedtracks", &recojet_nselectedtracks, "recojet_nselectedtracks/I");
   ntuple->Branch("recojet_nsecondarytracks", &recojet_nsecondarytracks, "recojet_nsecondarytracks/I");
+  ntuple->Branch("recojet_nsv", &recojet_nsv, "recojet_nsv/I");
+  ntuple->Branch("recojet_nv0candidates", &recojet_nv0candidates, "recojet_nv0candidates/I");
 
   // secondary vertices variables
-  ntuple->Branch("sv_xrel", sv_xrel, "sv_xrel[nsv]/F");
-  ntuple->Branch("sv_yrel", sv_yrel, "sv_yrel[nsv]/F");
-  ntuple->Branch("sv_zrel", sv_zrel, "sv_zrel[nsv]/F");
-  ntuple->Branch("sv_thetarel", sv_thetarel, "sv_thetarel[nsv]/F");
-  ntuple->Branch("sv_phirel", sv_phirel, "sv_phirel[nsv]/F");
-  ntuple->Branch("sv_p", sv_p, "sv_p[nsv]/F");
-  ntuple->Branch("sv_prel", sv_prel, "sv_prel[nsv]/F");
-  ntuple->Branch("sv_chi2", sv_chi2, "sv_chi2[nsv]/F");
-  ntuple->Branch("sv_chi2Normalized", sv_chi2Normalized, "sv_chi2Normalized[nsv]/F");
-  ntuple->Branch("sv_ndof", sv_ndof, "sv_ndof[nsv]/F");
-  ntuple->Branch("sv_nTracks", sv_nTracks, "sv_nTracks[nsv]/F");
-  ntuple->Branch("sv_mass", sv_mass, "sv_mass[nsv]/F");
-  ntuple->Branch("sv_dxy", sv_dxy, "sv_dxy[nsv]/F");
-  ntuple->Branch("sv_dxyz", sv_dxyz, "sv_dxyz[nsv]/F");
-  ntuple->Branch("sv_cosPointing", sv_cosPointing, "sv_cosPointing[nsv]/F");
+  ntuple->Branch("sv_xrel", sv_xrel, "sv_xrel[recojet_nsv]/F");
+  ntuple->Branch("sv_yrel", sv_yrel, "sv_yrel[recojet_nsv]/F");
+  ntuple->Branch("sv_zrel", sv_zrel, "sv_zrel[recojet_nsv]/F");
+  ntuple->Branch("sv_thetarel", sv_thetarel, "sv_thetarel[recojet_nsv]/F");
+  ntuple->Branch("sv_phirel", sv_phirel, "sv_phirel[recojet_nsv]/F");
+  ntuple->Branch("sv_p", sv_p, "sv_p[recojet_nsv]/F");
+  ntuple->Branch("sv_prel", sv_prel, "sv_prel[recojet_nsv]/F");
+  ntuple->Branch("sv_chi2", sv_chi2, "sv_chi2[recojet_nsv]/F");
+  ntuple->Branch("sv_chi2Normalized", sv_chi2Normalized, "sv_chi2Normalized[recojet_nsv]/F");
+  ntuple->Branch("sv_ndof", sv_ndof, "sv_ndof[recojet_nsv]/F");
+  ntuple->Branch("sv_nTracks", sv_nTracks, "sv_nTracks[recojet_nsv]/F");
+  ntuple->Branch("sv_mass", sv_mass, "sv_mass[recojet_nsv]/F");
+  ntuple->Branch("sv_dxy", sv_dxy, "sv_dxy[recojet_nsv]/F");
+  ntuple->Branch("sv_dxyz", sv_dxyz, "sv_dxyz[recojet_nsv]/F");
+  ntuple->Branch("sv_cosPointing", sv_cosPointing, "sv_cosPointing[recojet_nsv]/F");
 
   // jet constituent variables
   ntuple->Branch("pfcand_e", pfcand_e, "pfcand_e[nconst]/F");
@@ -607,6 +619,8 @@ int main(int argc, char* argv[]) {
     event_nselectedtracks = (int)Event_nSelectedTracks;
     event_nprimarytracks = (int)Event_nPrimaryTracks;
     event_nsecondarytracks = (int)Event_nSecondaryTracks;
+    event_nsv = (int)Event_nSV;
+    event_nv0candidates = (int)Event_nV0Candidates;
 
     // do some printouts to track progress
     if(i % 10000 == 0) {
@@ -661,14 +675,15 @@ int main(int argc, char* argv[]) {
       nchargedhad = (count_ChargedHad->at(j));
       nphotons = (count_Photon->at(j));
       nneutralhad = (count_NeutralHad->at(j));
-      nsv = (count_SV->at(j));
 
       recojet_ntracks = (*Jets_nTracksPerJet)[j];
       recojet_nselectedtracks = (*Jets_nSelectedTracksPerJet)[j];
       recojet_nsecondarytracks = (*Jets_nSecondaryTracksPerJet)[j];
+      recojet_nsv = (int)(Jets_nSV->at(j));
+      recojet_nv0candidates = (int)(Jets_nV0Candidates->at(j));
 
       // loop over secondary vertices
-      for(int k = 0; k < nsv; k++){
+      for(int k = 0; k < recojet_nsv; k++){
           sv_xrel[k] = (SecondaryVertices_xrel->at(j))[k];
           sv_yrel[k] = (SecondaryVertices_yrel->at(j))[k];
           sv_zrel[k] = (SecondaryVertices_zrel->at(j))[k];

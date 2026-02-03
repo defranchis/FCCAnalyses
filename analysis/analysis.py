@@ -134,7 +134,7 @@ ROOT.gInterpreter.Declare("""
             if (c[0] <= 0 || c[2] <= 0 || c[9] <= 0) continue;
             if (c[0] < 1e-12 || c[2] < 1e-12 || c[9] <= 1e-12) continue;
             if (!std::isfinite(c[0]) || !std::isfinite(c[2]) || !std::isfinite(c[9])) continue;
-            if (std::abs(trk.D0)>1 || std::abs(trk.Z0)>2) continue;
+            //if (std::abs(trk.D0)>1 || std::abs(trk.Z0)>2) continue;
             selectedTracks.push_back(trk);
         }
         return selectedTracks;
@@ -166,7 +166,7 @@ ROOT.gInterpreter.Declare("""
         // safety checks
         if (jets.size()==0){ return tracksWithRecoPerJet; }
         if (tracksWithRecoPerJet.size() != jets.size()) {
-            throw std::runtime_error("Vector sized do not match.");
+            throw std::runtime_error("Vector sizes do not match.");
         }
 
         // make a vector for each jet
@@ -455,7 +455,7 @@ class RDFanalysis():
                 dfout
 
                 .Alias("EFlowTrack", "Tracks")
-                # (must be an object of type rv::RVec<edm4hep::TrackData>)
+                # (must be an object of type ROOT::VecOps::RVec<edm4hep::TrackData>)
                 .Alias("EFlowTrack_1", "_Tracks_trackStates")
                 # (must be an object of type ROOT::VecOps::RVec<edm4hep::TrackState>)
                 .Define("EFlowTrack_2", "1.0 / ReconstructedParticle::get_p(ReconstructedParticles)")
@@ -668,7 +668,7 @@ class RDFanalysis():
             .Define("Event_nTracksPerJetSum", "ROOT::VecOps::Sum(Jets_nTracksPerJet)")
         )
 
-        # find secondary vertices (per jet)
+        # find secondary tracks (for later use in secondary vertex finding)
         dfout = (
             dfout
 
@@ -678,6 +678,15 @@ class RDFanalysis():
             .Define("PrimaryTracks2", "getPrimaryTracks(SelectedTracks, 5., Beamspot_x, Beamspot_y, Beamspot_z)")
             .Define("SecondaryTracks", "getSecondaryTracks(SelectedTracks, PrimaryTracks2)")
             .Define("SecondaryTracksPerJet", "getSecondaryTracks(SelectedTracksPerJet, PrimaryTracks2)")
+
+            # store counters
+            .Define("Event_nSecondaryTracks", "SecondaryTracks.size()")
+            .Define("Jets_nSecondaryTracksPerJet", "countTracks(SecondaryTracksPerJet)")
+        )
+
+        # find secondary vertices (per jet)
+        dfout = (
+            dfout
 
             # fit secondary vertices per jet.
             # (output struct is a vector of vectors of FCCAnalysesVertex objects, one vector for each jet).
@@ -713,10 +722,27 @@ class RDFanalysis():
             .Define("SecondaryVertices_dxyz", "FCCAnalyses::VertexingUtils::get_d3d_SV(SecondaryVertices, PrimaryVertexObject)")
             .Define("SecondaryVertices_cosPointing", "FCCAnalyses::VertexingUtils::get_pointingangle_SV(SecondaryVertices, PrimaryVertexObject)")
 
-            # get the number of secondary vertices per jet
+            # store counters
+            .Define("Event_nSV", "EventSecondaryVertices.size()")
             .Define("Jets_nSV", "FCCAnalyses::VertexingUtils::get_n_SV_jets(SecondaryVertices)")
-            .Define("Jets_nSecondaryTracksPerJet", "countTracks(SecondaryTracksPerJet)")
-            .Define("Event_nSecondaryTracks", "SecondaryTracks.size()")
+        )
+
+        # find V0s (per jet)
+        dfout = (
+            dfout
+
+            # reconstruct all V0 candidates in the event
+            # note: arguments are (in order): tracks, primary vertex, whether to use tight constraints, chi2 threshold
+            .Define("EventV0s", "FCCAnalyses::VertexFinderLCFIPlus::get_V0s(SecondaryTracks, PrimaryVertexObject, false, 10.)")
+            .Define("EventV0Vertices", "EventV0s.vtx")
+            .Define("JetV0Vertices", "distributeSecondaryVerticesOverJets(EventV0Vertices, jets_ee_genkt)")
+
+            # calculate properties of V0 candidates to store
+            # ... todo
+
+            # store counters
+            .Define("Event_nV0Candidates", "EventV0Vertices.size()")
+            .Define("Jets_nV0Candidates", "FCCAnalyses::VertexingUtils::get_n_SV_jets(JetV0Vertices)")
         )
 
         # rest of the analysis
@@ -884,6 +910,19 @@ class RDFanalysis():
         return dfout
 
     def output():
+
+        # define what output to store
+        # note: because of RDataFrame's smart execution, only the parts of the code
+        #       of which the output is needed downstream are evaluated.
+        #       hence these flags do not only control output size but also runtime (? to check).
+        # note: the downstream ntuplizer script can not (yet) deal with this dynamic output,
+        #       so it will crash if some expected branches are not present.
+        #       for now, every flag below needs to be set to True for the ntuplizer not to crash
+        #       (to make more dynamic later...)
+        do_secondary_vertices = True
+        do_v0candidates = True
+
+        # define output branches
         branchList = []
 
         # gen-level stuff
@@ -912,7 +951,6 @@ class RDFanalysis():
             'Event_nTracksWithoutReco',
             'Event_nSelectedTracks',
             'Event_nPrimaryTracks',
-            'Event_nSecondaryTracks',
             'Event_nConstituentsSum',
             'Event_nTracksPerJetSum'
         ]
@@ -943,14 +981,22 @@ class RDFanalysis():
             'Jets_nChargedHad',
             'Jets_nPhoton',
             'Jets_nNeutralHad',
-            'Jets_nSV',
             'Jets_nTracksPerJet',
             'Jets_nSelectedTracksPerJet',
-            'Jets_nSecondaryTracksPerJet'
         ]
 
-        # secondary-vertex-level variables
-        branchList += [
+        # secondary track counters
+        if( do_secondary_vertices or do_v0candidates ):
+            branchList += [
+                'Event_nSecondaryTracks',
+                'Jets_nSecondaryTracksPerJet'
+            ]
+
+        # secondary vertex variables
+        if do_secondary_vertices:
+          branchList += [
+            'Event_nSV',
+            'Jets_nSV',
             'SecondaryVertices_xrel',
             'SecondaryVertices_yrel',
             'SecondaryVertices_zrel',
@@ -966,7 +1012,14 @@ class RDFanalysis():
             'SecondaryVertices_dxy',
             'SecondaryVertices_dxyz',
             'SecondaryVertices_cosPointing'
-        ]
+          ]
+
+        # V0-candidate variables
+        if do_v0candidates:
+          branchList += [
+            'Event_nV0Candidates',
+            'Jets_nV0Candidates'
+          ]
 
         # jet-constituent-level variables
         branchList += [
