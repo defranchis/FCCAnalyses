@@ -230,28 +230,37 @@ ROOT::VecOps::RVec<int> VertexSeed_best(ROOT::VecOps::RVec<edm4hep::TrackState> 
   tr_pair.push_back(tr_j);
   VertexingUtils::FCCAnalysesVertex vtx_seed;
   double chi2_min = 99;
-  
+ 
+  // loop over pairs of tracks 
   for(unsigned int i=0; i<nTr-1; i++) {
     tr_pair[0] = tracks[i];
-    
+    TVector3 p_i( TMath::Cos(tracks[i].phi), TMath::Sin(tracks[i].phi), tracks[i].tanLambda );
     for(unsigned int j=i+1; j<nTr; j++) {
       tr_pair[1] = tracks[j];
-      
+      TVector3 p_j( TMath::Cos(tracks[j].phi), TMath::Sin(tracks[j].phi), tracks[j].tanLambda );
+
+      // pair preselection
+      // - opposite charge
+      if(tr_pair[0].omega * tr_pair[1].omega > 0) continue;
+      // - more or less same direction
+      if( p_i.DeltaR(p_j) > 0.8 ) continue;
+ 
       // V0 rejection (loose)
       ROOT::VecOps::RVec<bool> isInV0 = isV0(tr_pair, PV, false);
       if(isInV0[0] && isInV0[1]) continue;
       
+      // fit a common vertex
       vtx_seed = VertexFitterSimple::VertexFitter_Tk(2, tr_pair);
       
-      // Constraints check
+      // constraints check
       bool pass = check_constraints(vtx_seed, tr_pair, PV, true, chi2_cut, invM_cut);
       if(!pass) continue;
       
       // if a pair passes all constraints compare chi2, store lowest chi2
       double chi2_seed = vtx_seed.vertex.chi2; // normalised but nDOF=1 for nTr=2      
       if(chi2_seed < chi2_min) {
-	isel = i; jsel =j;
-	chi2_min = chi2_seed;
+	    isel = i; jsel =j;
+	    chi2_min = chi2_seed;
       }
     }
   }
@@ -272,52 +281,59 @@ ROOT::VecOps::RVec<int> addTrack_best(ROOT::VecOps::RVec<edm4hep::TrackState> tr
   ROOT::VecOps::RVec<int> result = vtx_tr;
   if(tracks.size() == vtx_tr.size()) return result;
   
+  // initializations
   int isel = -1;
-
   int nTr = tracks.size();
-  ROOT::VecOps::RVec<edm4hep::TrackState> tr_vtx;
   VertexingUtils::FCCAnalysesVertex vtx;
   double chi2_min = 99;
 
   // add tracks of the previously formed vtx to a vector
-  for(int tr : vtx_tr) {
-    if(debug_me) std::cout << "Track integer: " << tr << std::endl;
-    if(debug_me) std::cout <<  "Track value: " << tracks[tr] << std::endl;
+  ROOT::VecOps::RVec<edm4hep::TrackState> tr_vtx;
+  TVector3 p_tracks_sum;
+  for(int tr : vtx_tr){
     tr_vtx.push_back(tracks[tr]);
+    p_tracks_sum += TVector3( TMath::Cos(tracks[tr].phi), TMath::Sin(tracks[tr].phi), tracks[tr].tanLambda );
   }
   int iTr = tr_vtx.size();
   // add an empty track to increase vector size by 1
   edm4hep::TrackState tr_i;
   tr_vtx.push_back(tr_i);
 
-  // find best track to add to the vtx
+  // loop over tracks
   for(unsigned int i=0; i<nTr; i++) {
+    TVector3 p_i( TMath::Cos(tracks[i].phi), TMath::Sin(tracks[i].phi), tracks[i].tanLambda );
+
+    // track preselection
+    // - do not consider tracks already in the vertex (?)
     if(std::find(vtx_tr.begin(), vtx_tr.end(), i) != vtx_tr.end()) continue;
-    tr_vtx[iTr] = tracks[i];
-    
+    // - more or less same direction as other tracks in vertex
+    if( p_i.DeltaR(p_tracks_sum) > 0.8 ) continue;
+
+    // fit a common vertex
+    tr_vtx[iTr] = tracks[i];    
     vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx);
 
-    // Constraints
+    // check constraints
     bool pass = check_constraints(vtx, tr_vtx, PV, false, chi2_cut, invM_cut, chi2Tr_cut);
     if(!pass) continue;
     
     // if a track passes all constraints compare chi2, store lowest chi2
     double chi2_vtx = vtx.vertex.chi2; // normalised
-    double nDOF = 2*(iTr+1) - 3;       // nDOF = 2*nTr - 3
+    double nDOF = 2*(iTr+1) - 3; // nDOF = 2*nTr - 3
     chi2_vtx = chi2_vtx * nDOF;
     if(chi2_vtx < chi2_min) {
       isel = i;
       chi2_min = chi2_vtx;
     }    
   }
-
   if(isel>=0) result.push_back(isel);
   return result;
 }
 
-ROOT::VecOps::RVec<edm4hep::TrackState> V0rejection_tight(ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
-							  VertexingUtils::FCCAnalysesVertex PV,
-							  bool V0_rej) {
+ROOT::VecOps::RVec<edm4hep::TrackState> V0rejection_tight(
+    ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
+	VertexingUtils::FCCAnalysesVertex PV,
+	bool V0_rej) {
   // perform V0 rejection with tight constraints if user chooses
   ROOT::VecOps::RVec<edm4hep::TrackState> result;
   if(V0_rej) {
@@ -328,7 +344,6 @@ ROOT::VecOps::RVec<edm4hep::TrackState> V0rejection_tight(ROOT::VecOps::RVec<edm
     }
   }
   else result = tracks;
-  //
   return result;
 }
 
@@ -396,36 +411,36 @@ bool check_constraints(VertexingUtils::FCCAnalysesVertex vtx,
   // Constraints
   // chi2 < cut (9)
   double chi2 = vtx.vertex.chi2; // normalised
-  double nDOF = 2*nTr - 3;       // nDOF
+  double nDOF = 2*nTr - 3; // nDOF
   chi2 = chi2 * nDOF;
   if(chi2 >= chi2_cut) result = false;
-  //
+
   // invM < cut (10GeV)
   double invM = VertexingUtils::get_invM(vtx);
   if(invM >= invM_cut) result = false;
-  //
+
   // invM < sum of energy
   double E_tracks = 0.;
   for(edm4hep::TrackState tr_e : tracks) E_tracks += VertexingUtils::get_trackE(tr_e);
   if(invM >= E_tracks) result = false;
-  //
+
   // momenta sum & vtx r on same side
   double angle = VertexingUtils::get_PV2vtx_angle(tracks, vtx, PV);
   if(angle<0) result = false;
-  //
+
   if(!seed) {
     // chi2_contribution(track) < threshold
     ROOT::VecOps::RVec<float> chi2_tr = vtx.reco_chi2;
-    if(chi2_tr[nTr-1] >= chi2Tr_cut) result = false;    // threshold = 5 ok?
+    if(chi2_tr[nTr-1] >= chi2Tr_cut) result = false;
   }
-  //
   return result;
 }
 
-ROOT::VecOps::RVec<bool> isV0(ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
-			      VertexingUtils::FCCAnalysesVertex PV,
-			      bool tight) {
-  // V0 rejection
+ROOT::VecOps::RVec<bool> isV0(
+    ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
+    VertexingUtils::FCCAnalysesVertex PV,
+	bool tight){
+  // find which tracks belong to V0 candidates (e.g. for V0 rejection)
   //
   // take all non-primary tracks & assign "true" to pairs that form V0
   // if(tight)  -> tight constraints
@@ -438,9 +453,9 @@ ROOT::VecOps::RVec<bool> isV0(ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
   if(nTr<2) return result;
 
   // set constraints (if(tight==true) tight_set)
-  ROOT::VecOps::RVec<double> isKs      = constraints_Ks(tight);
+  ROOT::VecOps::RVec<double> isKs = constraints_Ks(tight);
   ROOT::VecOps::RVec<double> isLambda0 = constraints_Lambda0(tight);
-  ROOT::VecOps::RVec<double> isGamma   = constraints_Gamma(tight);
+  ROOT::VecOps::RVec<double> isGamma = constraints_Gamma(tight);
   
   ROOT::VecOps::RVec<edm4hep::TrackState> t_pair;
   // push empty tracks to make a size=2 vector
@@ -448,44 +463,53 @@ ROOT::VecOps::RVec<bool> isV0(ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
   t_pair.push_back(tr_i);
   t_pair.push_back(tr_j);
   VertexingUtils::FCCAnalysesVertex V0;
-  //
+
+  // loop over pairs of tracks
   for(unsigned int i=0; i<nTr-1; i++) {
-    if(result[i] == true) continue;
+    if(result[i] == true) continue; // do not consider tracks that are already paired in a V0 candidate
     t_pair[0] = np_tracks[i];
-
+    TVector3 p_i( TMath::Cos(np_tracks[i].phi), TMath::Sin(np_tracks[i].phi), np_tracks[i].tanLambda );
     for(unsigned int j=i+1; j<nTr; j++) {
-      if(result[j] == true) continue;
-      if(t_pair[0].omega * np_tracks[j].omega > 0) continue; // don't pair tracks with same charge (same sign curvature = same sign charge)
+      if(result[j] == true) continue; // do not consider tracks that are already paired in a V0 candidate
       t_pair[1] = np_tracks[j];
+      TVector3 p_j( TMath::Cos(np_tracks[j].phi), TMath::Sin(np_tracks[j].phi), np_tracks[j].tanLambda );
 
-      ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0, t_pair, PV, false);
+      // pair preselection
+      // - opposite charge
+      if(t_pair[0].omega * t_pair[1].omega > 0) continue;
+      // - more or less same direction
+      if( p_i.DeltaR(p_j) > 0.4 ) continue;
+
+      // fit common vertex
+      double chi2max = 10.;
+      ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0, t_pair, PV, true, chi2max);
+      if( V0_cand[0] < 0 ){ continue; }
 
       // Ks
       if(V0_cand[0]>isKs[0] && V0_cand[0]<isKs[1] && V0_cand[4]>isKs[2] && V0_cand[5]>isKs[3]) {
-	result[i] = true;
-	result[j] = true;
-	break;
+	    result[i] = true;
+	    result[j] = true;
+	    break;
       }
 
       // Lambda0
       else if(V0_cand[1]>isLambda0[0] && V0_cand[1]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
-	result[i] = true;
-	result[j] = true;
-	break;
+	    result[i] = true;
+	    result[j] = true;
+	    break;
       }
       else if(V0_cand[2]>isLambda0[0] && V0_cand[2]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
-	result[i] = true;
-	result[j] = true;
-	break;
+	    result[i] = true;
+	    result[j] = true;
+	    break;
       }
 
       // photon conversion
       else if(V0_cand[3]<isGamma[1] && V0_cand[4]>isGamma[2] && V0_cand[5]>isGamma[3]) {
-	result[i] = true;
-	result[j] = true;
-	break;
-      }	
-      //  
+	    result[i] = true;
+	    result[j] = true;
+	    break;
+      }	  
     }
   }
 
@@ -527,14 +551,21 @@ VertexingUtils::FCCAnalysesV0 get_V0s(
   tr_pair.push_back(tr_i);
   tr_pair.push_back(tr_j);
   
-  // loop over all pairs of tracks
+  // loop over pairs of tracks
   for(unsigned int i=0; i<nTr-1; i++) {
-    if(isInV0[i] == true) continue; // don't pair a track if it already forms a V0
+    if(isInV0[i] == true) continue; // do not consider tracks that are already paired in a V0 candidate
     tr_pair[0] = tracks[i];
+    TVector3 p_i( TMath::Cos(tracks[i].phi), TMath::Sin(tracks[i].phi), tracks[i].tanLambda );
     for(unsigned int j=i+1; j<nTr; j++) {
-      if(isInV0[j] == true) continue; // don't pair a track if it already forms a V0
-      if(tr_pair[0].omega * tracks[j].omega > 0) continue; // don't pair tracks with same charge (same sign curvature = same sign charge)
+      if(isInV0[j] == true) continue; // do not consider tracks that are already paired in a V0 candidate
       tr_pair[1] = tracks[j];
+      TVector3 p_j( TMath::Cos(tracks[j].phi), TMath::Sin(tracks[j].phi), tracks[j].tanLambda );
+
+      // pair preselection
+      // - opposite charge
+      if(tr_pair[0].omega * tr_pair[1].omega > 0) continue;
+      // - more or less same direction
+      if( p_i.DeltaR(p_j) > 0.4 ) continue;
 
       // try to make a V0 candidate
       ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0_vtx, tr_pair, PV, true, chi2_cut);
@@ -767,7 +798,6 @@ VertexingUtils::FCCAnalysesV0 get_V0s_jet(ROOT::VecOps::RVec<edm4hep::Reconstruc
   return result;
 }
 
-//
 ROOT::VecOps::RVec<double> get_V0candidate(VertexingUtils::FCCAnalysesVertex &V0_vtx,
 					   ROOT::VecOps::RVec<edm4hep::TrackState> tr_pair,
 					   VertexingUtils::FCCAnalysesVertex PV,

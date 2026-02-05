@@ -109,7 +109,9 @@ if __name__ == '__main__':
     start_time = time.time()
     subprocess.check_call(cmd_stage1, shell=True, stdout=stdout, stderr=stderr)
     end_time = time.time()
-    stdout.write("Stage 1 time: {:.3f}s.\n".format(end_time - start_time))
+    msg = "Stage 1 time: {:.3f}s.\n".format(end_time - start_time)
+    stdout.write(msg)
+    print(msg)
 
     # run stage 2
     if args.run_ntuplizer:
