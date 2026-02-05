@@ -10,7 +10,6 @@
 
 #include <fcntl.h>
 
-//#include "TrkUtil.h"    // from delphes
 
 namespace FCCAnalyses {
 
@@ -86,11 +85,13 @@ VertexingUtils::FCCAnalysesVertex VertexFitter(
 VertexingUtils::FCCAnalysesVertex
 VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
                 bool BeamSpotConstraint, double bsc_sigmax, double bsc_sigmay,
-                double bsc_sigmaz, double bsc_x, double bsc_y, double bsc_z) {
+                double bsc_sigmaz, double bsc_x, double bsc_y, double bsc_z,
+                bool fast) {
 
   ROOT::VecOps::RVec<edm4hep::TrackState> dummy;
   return VertexFitter_Tk(Primary, tracks, dummy, BeamSpotConstraint, bsc_sigmax,
-                         bsc_sigmay, bsc_sigmaz, bsc_x, bsc_y, bsc_z);
+                         bsc_sigmay, bsc_sigmaz, bsc_x, bsc_y, bsc_z,
+                         fast);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -99,7 +100,10 @@ VertexingUtils::FCCAnalysesVertex
 VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
                 const ROOT::VecOps::RVec<edm4hep::TrackState> &alltracks,
                 bool BeamSpotConstraint, double bsc_sigmax, double bsc_sigmay,
-                double bsc_sigmaz, double bsc_x, double bsc_y, double bsc_z) {
+                double bsc_sigmaz, double bsc_x, double bsc_y, double bsc_z,
+                bool fast) {
+  // Base function for fitting a vertex to a collection of tracks
+
   // Suppressing printf() output from TMatrixBase:
   // https://github.com/root-project/root/blob/722eb4652bfc79149df00c8b0e92d0837caf054c/math/matrix/src/TMatrixTBase.cxx#L662
   // The solution found here:
@@ -107,12 +111,13 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
   int fd = supress_stdout();
 
   // Units for the beam-spot : mum
-  // See
-  // https://github.com/HEP-FCC/FCCeePhysicsPerformance/tree/master/General#generating-events-under-realistic-fcc-ee-environment-conditions
+  // See https://github.com/HEP-FCC/FCCeePhysicsPerformance/tree/master/
+  // General#generating-events-under-realistic-fcc-ee-environment-conditions
 
-  // final results :
+  // initialization of result
   VertexingUtils::FCCAnalysesVertex TheVertex;
 
+  // other initializations
   edm4hep::VertexData result;
   ROOT::VecOps::RVec<float> reco_chi2;
   ROOT::VecOps::RVec<TVectorD> updated_track_parameters;
@@ -136,6 +141,7 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
     }
   }
 
+  // initialize properties of the resulting FCCAnalysesVertex
   TheVertex.vertex = result;
   TheVertex.reco_chi2 = reco_chi2;
   TheVertex.updated_track_parameters = updated_track_parameters;
@@ -143,11 +149,12 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
   TheVertex.final_track_phases = final_track_phases;
   TheVertex.updated_track_momentum_at_vertex = updated_track_momentum_at_vertex;
 
+  // safety for too few provided tracks
   int Ntr = tracks.size();
   TheVertex.ntracks = Ntr;
   if (Ntr <= 1) {
     resume_stdout(fd);
-    return TheVertex; // can not reconstruct a vertex with only one track...
+    return TheVertex;
   }
 
   TVectorD **trkPar = new TVectorD *[Ntr];
@@ -163,84 +170,102 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
     trkCov[i] = new TMatrixDSym(Cov);
   }
 
-  VertexFit theVertexFit(Ntr, trkPar, trkCov);
+  // case of fast fit
+  if( fast ){
 
-  if (BeamSpotConstraint) {
-    float conv_BSC = 1e-3;
-    // (conversion factor from micrometer to millimeter;
-    // the beamspot positions and widths are expected to be given in micrometers,
-    // while the track- and vertex properties are typically in millimeter.)
-    TVectorD xv_BS(3);
-    xv_BS[0] = bsc_x * conv_BSC;
-    xv_BS[1] = bsc_y * conv_BSC;
-    xv_BS[2] = bsc_z * conv_BSC;
-    TMatrixDSym cov_BS(3);
-    cov_BS[0][0] = pow(bsc_sigmax * conv_BSC, 2);
-    cov_BS[1][1] = pow(bsc_sigmay * conv_BSC, 2);
-    cov_BS[2][2] = pow(bsc_sigmaz * conv_BSC, 2);
-    theVertexFit.AddVtxConstraint(xv_BS, cov_BS);
-  }
+    // initialize the fitter object (does not perform the fit yet)
+    VertexFitFast theVertexFit(Ntr, trkPar, trkCov);
 
-  TVectorD x = theVertexFit.GetVtx(); // this actually runs the fit
+    // perform the fit
+    TVectorD x = theVertexFit.GetVtx();
 
-  result.position =
-      edm4hep::Vector3f(x(0), x(1), x(2)); // vertex position in mm
+    // get position (in mm)
+    result.position = edm4hep::Vector3f(x(0), x(1), x(2));
 
-  // store the results in an edm4hep::VertexData object
+    // store the results in an edm4hep::VertexData object
+    float Chi2 = theVertexFit.GetVtxChi2();
+    float Ndof = 2.0 * Ntr - 3.0;
+    result.chi2 = Chi2 / Ndof;
 
-  float Chi2 = theVertexFit.GetVtxChi2();
-  float Ndof = 2.0 * Ntr - 3.0;
-  ;
-  result.chi2 = Chi2 / Ndof;
+    // the chi2 of all the tracks
+    TVectorD tracks_chi2 = theVertexFit.GetVtxChi2List();
+    for (int it = 0; it < Ntr; it++) {
+        reco_chi2.push_back(tracks_chi2[it]);
+    }
+  } // end of fast fit case
 
-  // the chi2 of all the tracks :
-  TVectorD tracks_chi2 = theVertexFit.GetVtxChi2List();
-  for (int it = 0; it < Ntr; it++) {
-    reco_chi2.push_back(tracks_chi2[it]);
-  }
+  else{
 
-  // std::cout << " Fitted vertex: " <<  x(0)*conv << " " << x(1)*conv << " " <<
-  // x(2)*conv << std::endl;
-  TMatrixDSym covX = theVertexFit.GetVtxCov();
-  std::array<float, 6>
-      covMatrix; // covMat in edm4hep is a LOWER-triangle matrix.
-  covMatrix[0] = covX(0, 0);
-  covMatrix[1] = covX(1, 0);
-  covMatrix[2] = covX(1, 1);
-  covMatrix[3] = covX(2, 0);
-  covMatrix[4] = covX(2, 1);
-  covMatrix[5] = covX(2, 2);
-  result.covMatrix = covMatrix;
+    // initialize the fitter object (does not perform the fit yet)
+    VertexFit theVertexFit(Ntr, trkPar, trkCov);
 
-  result.algorithmType = 1;
+    // add beamspot constraints to fitter object
+    if (BeamSpotConstraint) {
+        float conv_BSC = 1e-3;
+        // (conversion factor from micrometer to millimeter;
+        // the beamspot positions and widths are expected to be given in micrometers,
+        // while the track- and vertex properties are typically in millimeter.)
+        TVectorD xv_BS(3);
+        xv_BS[0] = bsc_x * conv_BSC;
+        xv_BS[1] = bsc_y * conv_BSC;
+        xv_BS[2] = bsc_z * conv_BSC;
+        TMatrixDSym cov_BS(3);
+        cov_BS[0][0] = pow(bsc_sigmax * conv_BSC, 2);
+        cov_BS[1][1] = pow(bsc_sigmay * conv_BSC, 2);
+        cov_BS[2][2] = pow(bsc_sigmaz * conv_BSC, 2);
+        theVertexFit.AddVtxConstraint(xv_BS, cov_BS);
+    }
+
+    // perform the fit
+    TVectorD x = theVertexFit.GetVtx();
+
+    // get position (in mm)
+    result.position = edm4hep::Vector3f(x(0), x(1), x(2));
+
+    // store the results in an edm4hep::VertexData object
+    float Chi2 = theVertexFit.GetVtxChi2();
+    float Ndof = 2.0 * Ntr - 3.0;
+    result.chi2 = Chi2 / Ndof;
+
+    // the chi2 of all the tracks
+    TVectorD tracks_chi2 = theVertexFit.GetVtxChi2List();
+    for (int it = 0; it < Ntr; it++) {
+        reco_chi2.push_back(tracks_chi2[it]);
+    }
+
+    TMatrixDSym covX = theVertexFit.GetVtxCov();
+    std::array<float, 6> covMatrix; // covMat in edm4hep is a LOWER-triangle matrix.
+    covMatrix[0] = covX(0, 0);
+    covMatrix[1] = covX(1, 0);
+    covMatrix[2] = covX(1, 1);
+    covMatrix[3] = covX(2, 0);
+    covMatrix[4] = covX(2, 1);
+    covMatrix[5] = covX(2, 2);
+    result.covMatrix = covMatrix;
+
+    VertexMore theVertexMore(&theVertexFit, Units_mm);
+    for (Int_t i = 0; i < Ntr; i++) {
+        TVectorD updated_par = theVertexFit.GetNewPar(i);
+        TVectorD updated_par_edm4hep = VertexingUtils::Delphes2Edm4hep_TrackParam(updated_par, Units_mm);
+        updated_track_parameters.push_back(updated_par_edm4hep);
+        TVector3 ptrack_at_vertex = theVertexMore.GetMomentum(i);
+        updated_track_momentum_at_vertex.push_back(ptrack_at_vertex);
+    }
+  
+    TheVertex.updated_track_parameters = updated_track_parameters;
+    TheVertex.updated_track_momentum_at_vertex = updated_track_momentum_at_vertex;
+    TheVertex.final_track_phases = final_track_phases;
+  } // end case of full fit
 
 #if EDM4HEP_BUILD_VERSION <= EDM4HEP_VERSION(0, 10, 5)
   result.primary = Primary;
 #else
-  result.type = Primary; // NOTE: Here we are relying on users passing in the
-                         // correct value
+  result.type = Primary; // NOTE: Here we are relying on users passing in the correct value
 #endif
+
+  // add final parameters
+  result.algorithmType = 1;
   TheVertex.vertex = result;
-
-  // Use VertexMore to retrieve more information :
-  VertexMore theVertexMore(&theVertexFit, Units_mm);
-
-  for (Int_t i = 0; i < Ntr; i++) {
-
-    TVectorD updated_par =
-        theVertexFit.GetNewPar(i); // updated track parameters
-    TVectorD updated_par_edm4hep =
-        VertexingUtils::Delphes2Edm4hep_TrackParam(updated_par, Units_mm);
-    updated_track_parameters.push_back(updated_par_edm4hep);
-
-    // Momenta of the tracks at the vertex:
-    TVector3 ptrack_at_vertex = theVertexMore.GetMomentum(i);
-    updated_track_momentum_at_vertex.push_back(ptrack_at_vertex);
-  }
-
-  TheVertex.updated_track_parameters = updated_track_parameters;
-  TheVertex.updated_track_momentum_at_vertex = updated_track_momentum_at_vertex;
-  TheVertex.final_track_phases = final_track_phases;
   TheVertex.reco_chi2 = reco_chi2;
 
   // memory cleanup

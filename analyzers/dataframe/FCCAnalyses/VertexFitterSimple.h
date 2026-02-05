@@ -22,8 +22,10 @@
 #include "edm4hep/VertexData.h"
 #include "edm4hep/Vertex.h"
 
-#include "TrackCovariance/VertexFit.h" // from Delphes - updates Franco, Jul 2022
-#include "TrackCovariance/VertexMore.h"
+// include vertex fitters
+#include "TrackCovariance/VertexFit.h" // from Delphes
+#include "TrackCovariance/VertexMore.h" // from Delphes
+#include "VertexFitFast.h" // custom
 
 namespace FCCAnalyses{
 
@@ -41,20 +43,22 @@ namespace VertexFitterSimple{
 						   ROOT::VecOps::RVec<edm4hep::TrackState> alltracks,
 						   bool BeamSpotConstraint = false,
 						   double sigmax=0., double sigmay=0., double sigmaz=0.,
-                                                   double bsc_x=0., double bsc_y=0., double bsc_z=0. )  ;
+                           double bsc_x=0., double bsc_y=0., double bsc_z=0. )  ;
 
 
   /// Vertex (code from Franco Bedeschi): passing the tracks. Units for the beamspot constraint: mum
   VertexingUtils::FCCAnalysesVertex  VertexFitter_Tk( int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
 						      bool BeamSpotConstraint = false,
 						      double sigmax=0., double sigmay=0., double sigmaz=0.,
-                                                      double bsc_x=0., double bsc_y=0., double bsc_z=0. )  ;
+                              double bsc_x=0., double bsc_y=0., double bsc_z=0.,
+                              bool fast = false );
 
   VertexingUtils::FCCAnalysesVertex  VertexFitter_Tk( int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
                                                       const ROOT::VecOps::RVec<edm4hep::TrackState>& alltracks,
                                                       bool BeamSpotConstraint = false,
                                                       double sigmax=0., double sigmay=0., double sigmaz=0.,
-                                                      double bsc_x=0., double bsc_y=0., double bsc_z=0. )  ;
+                                                      double bsc_x=0., double bsc_y=0., double bsc_z=0.,
+                                                      bool fast = false );
 
   // Return the tracks that are flagged as coming from the primary vertex
   ROOT::VecOps::RVec<edm4hep::TrackState> get_PrimaryTracks(

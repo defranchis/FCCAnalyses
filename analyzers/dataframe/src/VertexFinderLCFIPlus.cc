@@ -249,9 +249,14 @@ ROOT::VecOps::RVec<int> VertexSeed_best(ROOT::VecOps::RVec<edm4hep::TrackState> 
       ROOT::VecOps::RVec<bool> isInV0 = isV0(tr_pair, PV, false);
       if(isInV0[0] && isInV0[1]) continue;
       
-      // fit a common vertex
+      // fit a common vertex (fast method) and do basic checks
+      vtx_seed = VertexFitterSimple::VertexFitter_Tk(2, tr_pair, false, 0, 0, 0, 0, 0, 0, true);
+      double chi2 = vtx_seed.vertex.chi2; // normalised, but ndof is 1 anyway
+      if(chi2 >= chi2_cut) continue;
+
+      // fit a common vertex (full method)
       vtx_seed = VertexFitterSimple::VertexFitter_Tk(2, tr_pair);
-      
+
       // constraints check
       bool pass = check_constraints(vtx_seed, tr_pair, PV, true, chi2_cut, invM_cut);
       if(!pass) continue;
@@ -309,8 +314,18 @@ ROOT::VecOps::RVec<int> addTrack_best(ROOT::VecOps::RVec<edm4hep::TrackState> tr
     // - more or less same direction as other tracks in vertex
     if( p_i.DeltaR(p_tracks_sum) > 0.8 ) continue;
 
-    // fit a common vertex
     tr_vtx[iTr] = tracks[i];    
+
+    // fit a common vertex (fast method) and do basic checks
+    vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx, false, 0, 0, 0, 0, 0, 0, true);
+    double chi2 = vtx.vertex.chi2; // normalised
+    double nDOF = 2*tr_vtx.size() - 3; // nDOF
+    chi2 = chi2 * nDOF;
+    if(chi2 >= chi2_cut) continue;
+    ROOT::VecOps::RVec<float> chi2_tr = vtx.reco_chi2;
+    if(chi2_tr[tr_vtx.size()-1] >= chi2Tr_cut) continue;
+
+    // fit a common vertex (full method)
     vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx);
 
     // check constraints
@@ -319,7 +334,6 @@ ROOT::VecOps::RVec<int> addTrack_best(ROOT::VecOps::RVec<edm4hep::TrackState> tr
     
     // if a track passes all constraints compare chi2, store lowest chi2
     double chi2_vtx = vtx.vertex.chi2; // normalised
-    double nDOF = 2*(iTr+1) - 3; // nDOF = 2*nTr - 3
     chi2_vtx = chi2_vtx * nDOF;
     if(chi2_vtx < chi2_min) {
       isel = i;
@@ -815,9 +829,16 @@ ROOT::VecOps::RVec<double> get_V0candidate(VertexingUtils::FCCAnalysesVertex &V0
   // skip the candidate with output entries = -1
   
   ROOT::VecOps::RVec<double> result(6, -1);
-
   edm4hep::Vector3f r_PV = PV.vertex.position; // in mm
   
+  // fit a common vertex (fast method) and do basic checks
+  if( chi2 ){
+    V0_vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_pair, false, 0, 0, 0, 0, 0, 0, true);
+    double chi2 = V0_vtx.vertex.chi2; // normalised but ndof = 1
+    if(chi2 >= chi2_cut) return result;
+  }
+
+  // fit a common vertex (full method)
   V0_vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_pair);
 
   if(chi2) {
