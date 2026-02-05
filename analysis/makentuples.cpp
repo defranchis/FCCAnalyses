@@ -86,6 +86,8 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<int>* Jets_nSecondaryTracksPerJet = 0;
   ROOT::VecOps::RVec<int>* Jets_nSV = 0;
   ROOT::VecOps::RVec<int>* Jets_nV0Candidates = 0;
+  ROOT::VecOps::RVec<int>* Jets_nKsCandidates = 0;
+  ROOT::VecOps::RVec<int>* Jets_nLambdaCandidates = 0;
 
   // secondary vertices properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_xrel = 0;
@@ -103,6 +105,10 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_dxy = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_dxyz = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_cosPointing = 0;
+
+  // V0 candidates properties
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *V0Candidates_pdgId = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *V0Candidates_mass = 0;
  
   // jet constituent properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_e = 0;
@@ -211,6 +217,8 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Jets_nSecondaryTracksPerJet", &Jets_nSecondaryTracksPerJet);
   ev->SetBranchAddress("Jets_nSV", &Jets_nSV);
   ev->SetBranchAddress("Jets_nV0Candidates", &Jets_nV0Candidates);
+  ev->SetBranchAddress("Jets_nKsCandidates", &Jets_nKsCandidates);
+  ev->SetBranchAddress("Jets_nLambdaCandidates", &Jets_nLambdaCandidates);
 
   // secondary vertices properties
   ev->SetBranchAddress("SecondaryVertices_xrel", &SecondaryVertices_xrel);
@@ -228,6 +236,10 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("SecondaryVertices_dxy", &SecondaryVertices_dxy);
   ev->SetBranchAddress("SecondaryVertices_dxyz", &SecondaryVertices_dxyz);
   ev->SetBranchAddress("SecondaryVertices_cosPointing", &SecondaryVertices_cosPointing);
+
+  // V0 candidates properties
+  ev->SetBranchAddress("V0Candidates_pdgId", &V0Candidates_pdgId);
+  ev->SetBranchAddress("V0Candidates_mass", &V0Candidates_mass);
 
   // jet constituent properties
   ev->SetBranchAddress("JetsConstituents_e", &JetsConstituents_e);
@@ -350,6 +362,8 @@ int main(int argc, char* argv[]) {
   int recojet_nsecondarytracks = 0;
   int recojet_nsv = 0;
   int recojet_nv0candidates = 0;
+  int recojet_nkscandidates = 0;
+  int recojet_nlambdacandidates = 0;
 
   // secondary vertices variables
   float sv_xrel[1000] = {0.};
@@ -367,6 +381,10 @@ int main(int argc, char* argv[]) {
   float sv_dxy[1000] = {0.};
   float sv_dxyz[1000] = {0.};
   float sv_cosPointing[1000] = {0.};
+
+  // V0 candidate variables
+  float v0cand_pdgId[1000] = {0.};
+  float v0cand_mass[1000] = {0.};
 
   // jet constituent variables
   float pfcand_e[1000] = {0.};
@@ -497,6 +515,8 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("recojet_nsecondarytracks", &recojet_nsecondarytracks, "recojet_nsecondarytracks/I");
   ntuple->Branch("recojet_nsv", &recojet_nsv, "recojet_nsv/I");
   ntuple->Branch("recojet_nv0candidates", &recojet_nv0candidates, "recojet_nv0candidates/I");
+  ntuple->Branch("recojet_nkscandidates", &recojet_nkscandidates, "recojet_nkscandidates/I");
+  ntuple->Branch("recojet_nlambdacandidates", &recojet_nlambdacandidates, "recojet_nlambdacandidates/I");
 
   // secondary vertices variables
   ntuple->Branch("sv_xrel", sv_xrel, "sv_xrel[recojet_nsv]/F");
@@ -514,6 +534,10 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("sv_dxy", sv_dxy, "sv_dxy[recojet_nsv]/F");
   ntuple->Branch("sv_dxyz", sv_dxyz, "sv_dxyz[recojet_nsv]/F");
   ntuple->Branch("sv_cosPointing", sv_cosPointing, "sv_cosPointing[recojet_nsv]/F");
+
+  // V0 candidate variables
+  ntuple->Branch("v0cand_pdgId", v0cand_pdgId, "v0cand_pdgId[recojet_nv0candidates]/F");
+  ntuple->Branch("v0cand_mass", v0cand_mass, "v0cand_mass[recojet_nv0candidates]/F");
 
   // jet constituent variables
   ntuple->Branch("pfcand_e", pfcand_e, "pfcand_e[nconst]/F");
@@ -681,6 +705,8 @@ int main(int argc, char* argv[]) {
       recojet_nsecondarytracks = (*Jets_nSecondaryTracksPerJet)[j];
       recojet_nsv = (int)(Jets_nSV->at(j));
       recojet_nv0candidates = (int)(Jets_nV0Candidates->at(j));
+      recojet_nkscandidates = (int)(Jets_nKsCandidates->at(j));
+      recojet_nlambdacandidates = (int)(Jets_nLambdaCandidates->at(j));
 
       // loop over secondary vertices
       for(int k = 0; k < recojet_nsv; k++){
@@ -699,6 +725,12 @@ int main(int argc, char* argv[]) {
           sv_dxy[k] = (SecondaryVertices_dxy->at(j))[k];
           sv_dxyz[k] = (SecondaryVertices_dxyz->at(j))[k];
           sv_cosPointing[k] = (SecondaryVertices_cosPointing->at(j))[k];
+      }
+
+      // loop over V0 candidates
+      for(int k=0; k < recojet_nv0candidates; k++){
+          v0cand_pdgId[k] = (V0Candidates_pdgId->at(j))[k];
+          v0cand_mass[k] = (V0Candidates_mass->at(j))[k];
       }
       
       // loop over constituents

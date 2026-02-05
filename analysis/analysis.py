@@ -518,6 +518,106 @@ ROOT.gInterpreter.Declare("""
         return secondaryVerticesPerJet;
     }""")
 
+# same as above but get indices instead
+# helper function to associate a set of per-event secondary vertices to jets
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>>
+    getSecondaryVertexJetIndices(
+        const ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>& secondaryVertices,
+        const ROOT::VecOps::RVec<fastjet::PseudoJet>& jets){
+
+        // initialization
+        ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> indicesPerJet;
+        for(unsigned int i=0; i<jets.size(); i++){
+            ROOT::VecOps::RVec<int> temp;
+            indicesPerJet.push_back(temp);
+        }
+
+        // note: in very rare cases, there can be secondary vertices but no jets
+        //       (even with exclusive jet clustering targeting 2 jets in every event);
+        //       reason is not yet fully understood, but in any case, need safety against it.
+        if( jets.size()==0 ){ return indicesPerJet; }
+
+        // get momenta of all vertices
+        ROOT::VecOps::RVec<TVector3> vertex_momenta = FCCAnalyses::VertexingUtils::get_p_SV(secondaryVertices);
+
+        // get momenta of all jets
+        ROOT::VecOps::RVec<TVector3> jet_momenta;
+        for( auto jet : jets ){
+            jet_momenta.push_back( TVector3(jet.px(), jet.py(), jet.pz()) );
+        }
+
+        // loop over vertices
+        for( unsigned int vertex_idx=0; vertex_idx < secondaryVertices.size(); vertex_idx++ ){
+            double mindR = 99.;
+            unsigned int selected_jet_idx = 0;
+            TVector3 vertex_momentum = vertex_momenta.at(vertex_idx);
+            for( unsigned int jet_idx=0; jet_idx < jets.size(); jet_idx++){
+                TVector3 jet_momentum = jet_momenta.at(jet_idx);
+                double dR = vertex_momentum.DeltaR(jet_momentum);
+                if( dR < mindR ){
+                    mindR = dR;
+                    selected_jet_idx = jet_idx;
+                }
+            }
+            indicesPerJet.at(selected_jet_idx).push_back(vertex_idx);
+        }
+        return indicesPerJet;
+    }""")
+
+# helper function to associate a set of per-event secondary vertices to jets
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
+    distributeOverJets(
+        const ROOT::VecOps::RVec<double>& valuesPerEvent,
+        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>>& indicesPerJet){
+
+        // initialization
+        ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> valuesPerJet;
+        
+        // safety for no jets
+        if( indicesPerJet.size()==0 ){ return valuesPerJet; }
+
+        // loop over jets
+        for(unsigned int jet_idx=0; jet_idx<indicesPerJet.size(); jet_idx++){
+            ROOT::VecOps::RVec<int> valueIndices = indicesPerJet.at(jet_idx);
+            ROOT::VecOps::RVec<double> temp;
+            // loop over indices for this jet
+            for(int value_idx : valueIndices){
+                if( value_idx >= valuesPerEvent.size() ){ throw std::runtime_error("Index out of bounds."); }
+                temp.push_back( valuesPerEvent.at(value_idx) );
+            }
+            valuesPerJet.push_back(temp);
+        }
+        return valuesPerJet;
+    }""")
+    
+# helper function to count the number of instances per jet
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<int> count(
+        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>>& data){
+        ROOT::VecOps::RVec<int> counts;
+        for( const ROOT::VecOps::RVec<int>& this_data : data) {
+            counts.push_back( this_data.size() );
+        }
+        return counts;
+    }""")
+
+# helper function to count the number of instances per jet
+ROOT.gInterpreter.Declare("""
+    ROOT::VecOps::RVec<int> countInstances(
+        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>>& data, int targetValue){
+        ROOT::VecOps::RVec<int> counts;
+        for( const ROOT::VecOps::RVec<int>& this_data : data) {
+            int nValues = 0;
+            for( int value : this_data ){
+                if( value==targetValue ){ nValues++; }
+            }
+            counts.push_back( nValues );
+        }
+        return counts;
+    }""")
+
 # helper function to count the number of tracks per jet
 ROOT.gInterpreter.Declare("""
     ROOT::VecOps::RVec<int> countTracks(
@@ -888,15 +988,18 @@ class RDFanalysis():
             # reconstruct all V0 candidates in the event
             # note: arguments are (in order): tracks, primary vertex, whether to use tight constraints, chi2 threshold
             .Define("EventV0s", "FCCAnalyses::VertexFinderLCFIPlus::get_V0s(SecondaryTracks, PrimaryVertexObject, false, 10.)")
-            .Define("EventV0Vertices", "EventV0s.vtx")
-            .Define("JetV0Vertices", "distributeSecondaryVerticesOverJets(EventV0Vertices, jets_ee_genkt)")
+            .Define("v0_jet_ids", "getSecondaryVertexJetIndices(EventV0s.vtx, jets_ee_genkt)")
 
             # calculate properties of V0 candidates to store
-            # ... todo
+            .Define("V0Candidates_pdgId", "distributeOverJets(EventV0s.pdgAbs, v0_jet_ids)")
+            .Define("V0Candidates_mass", "distributeOverJets(EventV0s.invM, v0_jet_ids)")
 
             # store counters
-            .Define("Event_nV0Candidates", "EventV0Vertices.size()")
-            .Define("Jets_nV0Candidates", "FCCAnalyses::VertexingUtils::get_n_SV_jets(JetV0Vertices)")
+            .Define("Event_nV0Candidates", "EventV0s.vtx.size()")
+            .Define("Jets_nV0Candidates", "count(v0_jet_ids)")
+            .Define("Jets_nKsCandidates", "countInstances(V0Candidates_pdgId, 310)")
+            .Define("Jets_nLambdaCandidates", "countInstances(V0Candidates_pdgId, 3122)")
+
         )
 
         # rest of the analysis
@@ -1172,7 +1275,11 @@ class RDFanalysis():
         if do_v0candidates:
           branchList += [
             'Event_nV0Candidates',
-            'Jets_nV0Candidates'
+            'Jets_nV0Candidates',
+            'Jets_nKsCandidates',
+            'Jets_nLambdaCandidates',
+            'V0Candidates_pdgId',
+            'V0Candidates_mass'
           ]
 
         # jet-constituent-level variables
