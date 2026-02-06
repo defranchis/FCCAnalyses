@@ -51,6 +51,12 @@ def initJobScript(name,
     with open(fname,'w') as script:
 	    # write bash shebang
         script.write('#!/bin/bash\n')
+        # we need to do some magic with the arguments
+        # (by default, any arguments in $@ are passed to every sourced script,
+        #  not just the one where you actually write "$@"...
+        #  so we need to copy-store the arguments, clear $@, and then put them back later...)
+        script.write('args=("$@")\n')
+        script.write('set --\n')
 	    # write echo script name
         script.write("echo '###exename###: {}'\n".format(fname))
 	    # write export home
@@ -70,12 +76,15 @@ def initJobScript(name,
             script.write(conda_activate+'\n')
         if conda_env is not None:
             script.write('conda activate {}\n'.format(conda_env))
+        # go to working directory
         script.write('cd {}\n'.format( cwd ) )
+        # restore command line args
+        script.write('set -- "${args[@]}"\n')
     # make executable
     os.system('chmod +x '+fname)
     print('initJobScript created {}'.format(fname))
 
-def makeJobDescription(name, exe, argstring=None, 
+def makeJobDescription(name, exe, argstring=None, doqueue=True, 
                        stdout=None, stderr=None, log=None,
                        cpus=1, mem=1024, disk=10240, 
                        proxy=None, jobflavour=None):
@@ -90,7 +99,7 @@ def makeJobDescription(name, exe, argstring=None,
     if os.path.exists(fname): os.system('rm {}'.format(fname))
     if stdout is None: stdout = name+'_out_$(ClusterId)_$(ProcId)'
     if stderr is None: stderr = name+'_err_$(ClusterId)_$(ProcId)'
-    if log is None: log = name+'_log_$(ClusterId)_$(ProcId)'
+    if log is None: log = name+'_log_$(ClusterId)'
     # write file
     with open(fname,'w') as f:
         f.write('executable = {}\n'.format(exe))
@@ -108,7 +117,7 @@ def makeJobDescription(name, exe, argstring=None,
         # (not fully sure whether to put 'yes', 'no' or omit it completely)
         if jobflavour is not None:
             f.write('+JobFlavour = "{}"\n\n'.format(jobflavour))
-        f.write('queue\n\n')
+        if doqueue: f.write('queue\n\n')
     print('makeJobDescription created {}'.format(fname))
 
 def submitCondorJob(jobDescription):
@@ -125,7 +134,8 @@ def submitCommandAsCondorJob(name, command, **kwargs):
     # command is a string representing a single command (executable + args)
     submitCommandsAsCondorJobs(name, [[command]], **kwargs)
 
-def submitCommandsAsCondorCluster(name, commands, stdout=None, stderr=None, log=None,
+def submitCommandsAsCondorCluster(name, commands,
+                        stdout=None, stderr=None, log=None,
                         cpus=1, mem=1024, disk=10240,
                         home=None,
                         proxy=None,
@@ -141,8 +151,9 @@ def submitCommandsAsCondorCluster(name, commands, stdout=None, stderr=None, log=
     name = os.path.splitext(name)[0]
     shname = makeUnique(name+'.sh')
     jdname = name+'.txt'
-    [exe,argstring] = commands[0].split(' ',1) # exe must be the same for all commands
+    [exe, argstring] = commands[0].split(' ',1) # exe must be the same for all commands
     nargs = len(argstring.split(' ')) # nargs must be the same for all commands
+
     # first make the executable
     initJobScript(shname, home=home, cmssw_version=cmssw_version, proxy=proxy,
       conda_activate=conda_activate, conda_env=conda_env)
@@ -150,21 +161,31 @@ def submitCommandsAsCondorCluster(name, commands, stdout=None, stderr=None, log=
         script.write(exe)
         script.write(' $@')
         script.write('\n')
-    # then make the job description
-    # first job:
-    makeJobDescription(name,shname,argstring=argstring,stdout=stdout,stderr=stderr,log=log,
-                       cpus=cpus,mem=mem,disk=disk,proxy=proxy,
-                       jobflavour=jobflavour)
-    # add other jobs:
-    with open(jdname,'a') as script:
-        for command in commands[1:]:
-            [thisexe,thisargstring] = command.split(' ',1)
+
+    # make the generic job description (no argstring or queue statement yet)
+    makeJobDescription(name, shname,
+      argstring = None,
+      doqueue = False,
+      stdout = stdout,
+      stderr = stderr,
+      log = log,
+      cpus = cpus,
+      mem = mem,
+      disk = disk,
+      proxy = proxy,
+      jobflavour = jobflavour)
+
+    # add all jobs
+    with open(jdname, 'a') as script:
+        script.write('queue arguments from (\n')
+        for command in commands:
+            [thisexe, thisargstring] = command.split(' ', 1)
             thisnargs = len(thisargstring.split(' '))
-            if( thisexe!=exe or thisnargs!=nargs):
-                print('### ERROR ###: commands are not compatible to put in same cluster')
-                return
-            script.write('arguments = "{}"\n'.format(thisargstring))
-            script.write('queue\n\n')
+            if( thisexe!=exe or thisnargs!=nargs ):
+                raise Exception('ERROR: commands are not compatible to put in same cluster')
+            script.write('    "{}"\n'.format(thisargstring))
+        script.write(')\n\n')
+
     # finally submit the job
     submitCondorJob(jdname)
 
@@ -174,7 +195,8 @@ def submitCommandsAsCondorJob(name, commands, **kwargs):
     # the commands can be anything and are not necessarily same executable or same number of args.
     submitCommandsAsCondorJobs(name, [commands], **kwargs)
 
-def submitCommandsAsCondorJobs(name, commands, stdout=None, stderr=None, log=None,
+def submitCommandsAsCondorJobs(name, commands,
+            stdout=None, stderr=None, log=None,
             cpus=1, mem=1024, disk=10240,
             home=None,
             proxy=None,
@@ -185,19 +207,27 @@ def submitCommandsAsCondorJobs(name, commands, stdout=None, stderr=None, log=Non
     ### submit multiple sets of commands as jobs (one job per set)
     # commands is a list of lists of strings, each string represents a single command
     # the commands can be anything and are not necessarily same executable or number of args.
+
+    # loop over sets of commands
     for commandset in commands:
+
         # parse arguments
         name = os.path.splitext(name)[0]
         shname = makeUnique(name+'.sh')
         jdname = name+'.txt'
+
         # first make the executable
         initJobScript(shname, home=home, cmssw_version=cmssw_version, proxy=proxy,
           conda_activate=conda_activate, conda_env=conda_env)
         with open(shname,'a') as script:
              for cmd in commandset: script.write(cmd+'\n')
+
         # then make the job description
-        makeJobDescription(name,shname,stdout=stdout,stderr=stderr,log=log,
-                            cpus=cpus,mem=mem,disk=disk,proxy=proxy,
-                            jobflavour=jobflavour)
+        makeJobDescription(name, shname,
+          argstring = None, doqueue = None,
+          stdout = stdout, stderr = stderr, log = log,
+          cpus = cpus, mem = mem, disk = disk, proxy = proxy,
+          jobflavour=jobflavour)
+
         # finally submit the job
         submitCondorJob(jdname)

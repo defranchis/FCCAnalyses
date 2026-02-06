@@ -13,8 +13,8 @@ import tools.slurmtools as st
 if __name__=='__main__':
 
     # settings
-    modeltag = '20260123_withsv2perevent'
-    ntupletag = 'withsv2perevent'
+    modeltag = '20260205_withsvloose'
+    ntupletag = 'withsvloose'
     model = os.path.abspath(f'models/output_{modeltag}/model.onnx')
     preprocess = model.replace('model.onnx', 'preprocess.json')
     outputdir = f'output_scores_model_{modeltag}'
