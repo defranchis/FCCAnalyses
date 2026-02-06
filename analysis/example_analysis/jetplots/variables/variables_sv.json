@@ -1,0 +1,11 @@
+[
+{ 
+  "name": "sv_prel",
+  "variable": "sv_prel",
+  "axtitle": "Secondary vertex relative transverse momentum ($p_{T,rel}$)",
+  "unit": "",
+  "xlow": 0,
+  "xhigh": 0.05,
+  "nbins": 50
+}
+]

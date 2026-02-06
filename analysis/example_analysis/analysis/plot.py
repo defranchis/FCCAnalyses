@@ -208,9 +208,12 @@ def make_histograms(datastruct, variables,
                 # make masks for subprocesses
                 subprocess_masks = {process_key: np.ones(len(events[process_key])).astype(bool)}
                 if splitdict is not None and process_key in splitdict.keys():
+                    print('Making masks for subprocesses...')
                     subprocess_masks = {}
                     for subprocess_key, subprocess_selection in splitdict[process_key].items():
-                        subprocess_masks[subprocess_key] = get_selection_mask(events[process_key], subprocess_selection).to_numpy().astype(bool)
+                        mask = get_selection_mask(events[process_key], subprocess_selection).to_numpy().astype(bool)
+                        subprocess_masks[subprocess_key] = mask
+                        print(f'  - Subprocess {subprocess_key}: {np.sum(mask)} / {len(mask)} entries.')
 
                 # loop over subprocesses
                 for subprocess_key, subprocess_mask in subprocess_masks.items():
@@ -229,7 +232,7 @@ def make_histograms(datastruct, variables,
                         if this_regions is None: this_regions = {'baseline': None}
                         for region_name, region_mask_name in this_regions.items():
                             for variable in variables:
-                                #print(f'Making histogram for {weight_variation}, {region_name}, variable {variable.name}...')
+                                #print(f'Making histogram for {subprocess_key}, {weight_variation}, {region_name}, variable {variable.name}...')
                                 region_variable_key = f'{region_name}_{variable.name}'
 
                                 # get mask for this region
@@ -255,6 +258,7 @@ def make_histograms(datastruct, variables,
 
                                 # make total mask (region and subprocess)
                                 total_mask = ((region_mask) & (subprocess_mask))
+                                #print(f'Number of entries: {np.sum(total_mask)} / {len(total_mask)}')
 
                                 # make histogram
                                 hist = make_hist_from_events(events[process_key], variable,

@@ -79,5 +79,14 @@
   "xlow": -0.5,
   "xhigh": 3.5,
   "nbins": 4
+},
+{
+  "name": "recojet_nsv",
+  "variable": "recojet_nsv",
+  "axtitle": "Number of secondary vertices",
+  "unit": "",
+  "xlow": -0.5,
+  "xhigh": 5.5,
+  "nbins": 6
 }
 ]

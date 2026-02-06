@@ -4,9 +4,9 @@
   "variable": "Jets_e",
   "axtitle": "Jet energy",
   "unit": "GeV",
-  "xlow": 10,
+  "xlow": 20,
   "xhigh": 70,
-  "nbins": 60
+  "nbins": 50
 },
 {
   "name": "jet_mass",

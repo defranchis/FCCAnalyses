@@ -2,11 +2,11 @@
 {
   "name": "event_mass",
   "variable": "Event_mass",
-  "axtitle": "Invariant mass of two leading jets",
+  "axtitle": "Invariant mass of dijet-system",
   "unit": "GeV",
-  "xlow": 50,
-  "xhigh": 120,
-  "nbins": 70
+  "xlow": 60,
+  "xhigh": 115,
+  "nbins": 55
 },
 {
   "name": "event_njets",
