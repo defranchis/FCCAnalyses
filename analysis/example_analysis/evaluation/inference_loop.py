@@ -73,10 +73,11 @@ if __name__=='__main__':
             print(cmd)
             os.system(cmd)
     elif runmode=='condor':
-        env_script = os.path.abspath('../../../setup.sh')
-        env_cmd = f'source {env_script}'
+        miniforge = '/eos/user/l/llambrec/miniforge3/bin/activate'
+        conda_activate = f'source {miniforge}'
+        conda_env = f'weaver'
         ct.submitCommandsAsCondorCluster('cjob_inference', cmds,
-          jobflavour='workday', conda_activate=env_cmd)
+          jobflavour='workday', conda_activate=conda_activate, conda_env=conda_env)
     elif runmode=='slurm':
         env_cmds = ([
           'source /blue/avery/llambre1.brown/miniforge3/bin/activate',

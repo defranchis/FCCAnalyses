@@ -162,6 +162,7 @@ def infer_jets(jets, modelname, prepdict, translation=None, batch_size=None):
     #print(model.graph.input)
     #print('Model output:')
     #print(model.graph.output)
+
     # start inference session
     session_options = onnxruntime.SessionOptions()
     session_options.inter_op_num_threads = 8
@@ -174,9 +175,18 @@ def infer_jets(jets, modelname, prepdict, translation=None, batch_size=None):
     for batch_idx, batch in enumerate(batches):
         print(f'[INFO in infer_jets]: running inference on batch {batch_idx+1} / {len(batches)}...', end='\r')
         batch_outputs = session.run(None, batch)[0]
+
+        # do some sanity checks
         if batch_outputs.shape[1] != nclasses:
             msg = f'Expected {nclasses} output classes, but found array of shape {batch_outputs.shape}.'
             raise Exception(msg)
+        for idx in range(batch_outputs.shape[1]):
+            nanfrac = np.count_nonzero(np.isnan(batch_outputs[:,idx])) / batch_outputs.shape[0]
+            if nanfrac > 0.1:
+                msg = f'Found batch with > 10% NaNs, probably something is wrong.'
+                raise Exception(msg)
+
+        # get the scores
         scores = {}
         for idx, output_name in enumerate(prepdict['output_names']):
             scores[output_name] = batch_outputs[:,idx]
