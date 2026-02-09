@@ -52,7 +52,19 @@ ROOT.gInterpreter.Declare("""
 analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_particleid.cxx')
 ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
 
-# load custom analyzer for dE/dx tools
+# load custom analyzer with collections of tracks
+analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_tracktools.cxx')
+ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
+
+# load custom analyzer with primary vertex reconstruction
+analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_pvtools.cxx')
+ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
+
+# load custom analyzer with collections of secondary vertices
+analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_svtools.cxx')
+ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
+
+# load custom analyzer with dE/dx tools
 analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_dEdx.cxx')
 ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
 
@@ -126,476 +138,6 @@ ROOT.gInterpreter.Declare("""
         return result;
     }""")
 
-# helper function to find set difference between collection of tracks
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<edm4hep::TrackState>
-    get_complement(ROOT::VecOps::RVec<edm4hep::TrackState> allTracks,
-                   ROOT::VecOps::RVec<edm4hep::TrackState> selTracks){
-
-    ROOT::VecOps::RVec<edm4hep::TrackState> result;
-    for (auto &track : allTracks) {
-        bool isSel = false;
-        for (auto &selTrack : selTracks) {
-            if( track.D0 == selTrack.D0 && track.phi == selTrack.phi && track.omega == selTrack.omega &&
-                track.Z0 == selTrack.Z0 && track.tanLambda == selTrack.tanLambda &&
-                track.time == selTrack.time && track.referencePoint.x == selTrack.referencePoint.x &&
-                track.referencePoint.y == selTrack.referencePoint.y &&
-                track.referencePoint.z == selTrack.referencePoint.z ){
-                isSel = true;
-                break;
-            }
-        }
-        if (!isSel) result.push_back(track);
-    }
-    return result;
-    
-    }""")
-
-# same as above but for Track objects instead of TrackStates
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<edm4hep::TrackData>
-    get_complement(ROOT::VecOps::RVec<edm4hep::TrackData> allTracks,
-                   ROOT::VecOps::RVec<edm4hep::TrackState> allTrackStates,
-                   ROOT::VecOps::RVec<edm4hep::TrackData> selTracks,
-                   ROOT::VecOps::RVec<edm4hep::TrackState> selTrackStates){
-
-    // safety checks
-    if( allTracks.size() != allTrackStates.size()) {
-        std::string msg = "Vector sizes do not match (in get_complement):";
-        msg += " allTracks has size " + std::to_string(allTracks.size());
-        msg += " while allTrackStates has size " + std::to_string(allTrackStates.size());
-        throw std::runtime_error(msg);
-    }
-    if( selTracks.size() != selTrackStates.size()) {
-        std::string msg = "Vector sizes do not match (in get_complement):";
-        msg += " selTracks has size " + std::to_string(selTracks.size());
-        msg += " while selTrackStates has size " + std::to_string(selTrackStates.size());
-        throw std::runtime_error(msg);
-    }
-
-    ROOT::VecOps::RVec<edm4hep::TrackData> result;
-    for (int idx = 0; idx < allTracks.size(); idx++) {
-        const edm4hep::TrackData track = allTracks.at(idx);
-        const edm4hep::TrackState trackState = allTrackStates.at(idx);
-        bool isSel = false;
-        for (auto &selTrackState : selTrackStates) {
-            if( trackState.D0 == selTrackState.D0 && trackState.phi == selTrackState.phi && trackState.omega == selTrackState.omega &&
-                trackState.Z0 == selTrackState.Z0 && trackState.tanLambda == selTrackState.tanLambda &&
-                trackState.time == selTrackState.time && trackState.referencePoint.x == selTrackState.referencePoint.x &&
-                trackState.referencePoint.y == selTrackState.referencePoint.y &&
-                trackState.referencePoint.z == selTrackState.referencePoint.z ){
-                isSel = true;
-                break;
-            }
-        }
-        if (!isSel) result.push_back(track);
-    }
-    return result;
-    
-    }""")
-
-# helper function to find tracks passing some baseline selection
-# note: this function uses both the track states and the track objects (the latter for chi2);
-#       it is assumed that both collections are corresponding trivially, i.e. one-to-one by same index.
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<edm4hep::TrackState> getSelectedTracks(
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
-        const ROOT::VecOps::RVec<edm4hep::TrackData>& trackDatas,
-        const float D0max, const float Z0max){
-
-        // safety check
-        if( tracks.size() != trackDatas.size() ){
-            throw std::runtime_error("Vector sizes do not match (in getSelectedTracks plain).");
-        }
-
-        // do filtering
-        ROOT::VecOps::RVec<edm4hep::TrackState> selectedTracks;
-        for (int idx = 0; idx < tracks.size(); idx++) {
-            const edm4hep::TrackState trk = tracks.at(idx);
-            const edm4hep::TrackData trkobj = trackDatas.at(idx);
-            const auto& c = trk.covMatrix;
-            if (c[0] <= 0 || c[2] <= 0 || c[9] <= 0) continue;
-            if (c[0] < 1e-12 || c[2] < 1e-12 || c[9] <= 1e-12) continue;
-            if (!std::isfinite(c[0]) || !std::isfinite(c[2]) || !std::isfinite(c[9])) continue;
-            if (D0max > 0 && std::abs(trk.D0)>D0max) continue;
-            if (Z0max > 0 && std::abs(trk.Z0)>Z0max) continue;
-            if (trkobj.ndf==0) continue;
-            if (trkobj.chi2 / trkobj.ndf > 10.) continue;
-            selectedTracks.push_back(trk);
-        }
-        return selectedTracks;
-    }""")
-
-# same as above but with tracks per jet
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> getSelectedTracks(
-        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>& tracksPerJet,
-        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackData>>& trackDatasPerJet,
-        const float D0max, const float Z0max){
-
-        // safety check
-        if( tracksPerJet.size() != trackDatasPerJet.size() ){
-            throw std::runtime_error("Vector sizes do not match (in getSelectedTracks per jet).");
-        }
-
-        // initialization
-        ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> selectedTracks;
-
-        // loop over jets
-        for (int idx = 0; idx < tracksPerJet.size(); idx++) {
-            ROOT::VecOps::RVec<edm4hep::TrackState> tracks = tracksPerJet.at(idx);
-            ROOT::VecOps::RVec<edm4hep::TrackData> trackDatas = trackDatasPerJet.at(idx);
-            selectedTracks.push_back( getSelectedTracks(tracks, trackDatas, D0max, Z0max) );
-        }
-        return selectedTracks;
-    }""")
-
-# helper function to distribute tracks without reco particle over tracks per jet
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>
-    append_losttracks_to_tracksperjet(
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracksWithoutReco,
-        ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> tracksWithRecoPerJet,
-        const ROOT::VecOps::RVec<fastjet::PseudoJet>& jets){
-
-        // safety checks
-        if (jets.size()==0){ return tracksWithRecoPerJet; }
-        if (tracksWithRecoPerJet.size() != jets.size()) {
-            throw std::runtime_error("Vector sizes do not match (in append_losttracks_to_tracksperjet for TrackStates).");
-        }
-
-        // make a vector for each jet
-        ROOT::VecOps::RVec<ROOT::Math::PtEtaPhiMVector> jetP4s;
-        for (const auto& jet : jets) {
-            jetP4s.emplace_back(jet.pt(), jet.eta(), jet.phi(), jet.m());
-        }
-
-        // loop over tracks to append
-        for(const edm4hep::TrackState& track : tracksWithoutReco){
-            float phi_track = track.phi;
-            float eta_track = std::asinh(track.tanLambda);
-            ROOT::Math::PtEtaPhiMVector trackP4(
-                1.0,       // dummy pT
-                eta_track,
-                phi_track,
-                0.0
-            );
-
-            // find index of closest jet
-            float minDR = 99.;
-            int bestJetIdx = 0;
-            for (size_t i = 0; i < jetP4s.size(); ++i) {
-                ROOT::Math::PtEtaPhiMVector jetP4 = jetP4s.at(i);
-                const float dR = ROOT::Math::VectorUtil::DeltaR(trackP4, jetP4);
-                if (dR < minDR){ minDR = dR; bestJetIdx = i; }
-            }
-
-            // append
-            if (bestJetIdx >= 0){ tracksWithRecoPerJet.at(bestJetIdx).push_back(track); }
-        } // end of loop over tracks
-
-        return tracksWithRecoPerJet;
-    }""")
-
-# same as above but for tracks rather than track states...
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackData>>
-    append_losttracks_to_tracksperjet(
-        const ROOT::VecOps::RVec<edm4hep::TrackData>& tracksWithoutReco,
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& trackStatesWithoutReco,
-        ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackData>> tracksWithRecoPerJet,
-        const ROOT::VecOps::RVec<fastjet::PseudoJet>& jets){
-
-        // safety checks
-        if (jets.size()==0){ return tracksWithRecoPerJet; }
-        if (tracksWithRecoPerJet.size() != jets.size()) {
-            std::string msg = "Vector sizes do not match (in append_losttracks_to_tracksperjet for TrackData):";
-            msg += " tracksWithRecoPerJet has size " + std::to_string(tracksWithRecoPerJet.size());
-            msg += " while jets has size " + std::to_string(jets.size());
-            throw std::runtime_error(msg);
-        }
-        if (tracksWithoutReco.size() != trackStatesWithoutReco.size()) {
-            std::string msg = "Vector sizes do not match (in append_losttracks_to_tracksperjet for TrackData):";
-            msg += " tracksWithoutReco has size " + std::to_string(tracksWithoutReco.size());
-            msg += " while trackStatesWithoutReco has size " + std::to_string(trackStatesWithoutReco.size());
-            throw std::runtime_error(msg);
-        }
-
-        // make a vector for each jet
-        ROOT::VecOps::RVec<ROOT::Math::PtEtaPhiMVector> jetP4s;
-        for (const auto& jet : jets) {
-            jetP4s.emplace_back(jet.pt(), jet.eta(), jet.phi(), jet.m());
-        }
-
-        // loop over tracks to append
-        for(int idx = 0; idx < tracksWithoutReco.size(); idx++){
-            const edm4hep::TrackData track = tracksWithoutReco.at(idx);
-            const edm4hep::TrackState trackState = trackStatesWithoutReco.at(idx);
-            float phi_track = trackState.phi;
-            float eta_track = std::asinh(trackState.tanLambda);
-            ROOT::Math::PtEtaPhiMVector trackP4(
-                1.0,       // dummy pT
-                eta_track,
-                phi_track,
-                0.0
-            );
-
-            // find index of closest jet
-            float minDR = 99.;
-            int bestJetIdx = 0;
-            for (size_t i = 0; i < jetP4s.size(); ++i) {
-                ROOT::Math::PtEtaPhiMVector jetP4 = jetP4s.at(i);
-                const float dR = ROOT::Math::VectorUtil::DeltaR(trackP4, jetP4);
-                if (dR < minDR){ minDR = dR; bestJetIdx = i; }
-            }
-
-            // append
-            if (bestJetIdx >= 0){ tracksWithRecoPerJet.at(bestJetIdx).push_back(track); }
-        } // end of loop over tracks
-
-        return tracksWithRecoPerJet;
-    }""")
-
-# helper function to find primary tracks.
-# note: need to keep in sync with fitRecoPrimaryVertex (below)...
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<edm4hep::TrackState> getPrimaryTracks(
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
-        double chi2max = 25.,
-        double beamspotX = 0., double beamspotY = 0., double beamspotZ = 0.){
-
-        // convert beamspot position units from centimeter to 10 micrometer
-        // note: the FCCAnalyses function expect these values in micrometer,
-        //       corresponding to track parameters in mm;
-        //       but since our track parameters are in cm instead of mm,
-        //       we use beamspot units of 10 micrometers.
-        beamspotX = beamspotX * 1e3;
-        beamspotY = beamspotY * 1e3;
-        beamspotZ = beamspotZ * 1e3;
-
-        // define beamspot width
-        double sigma_beamspotX = 20; // unit: 10 micrometer
-        double sigma_beamspotY = 10; // unit: 10 micrometer
-        double sigma_beamspotZ = 2000; // unit: 10 micrometer
-        bool doBeamSpotConstraint = true;
-
-        // intitialize output
-        ROOT::VecOps::RVec<edm4hep::TrackState> primaryTracks;
-
-        // do filtering
-        // note: the input is assumed to have already passed the baseline selection;
-        //       here we just apply an extra cut on D0 and Z0 to focus on primary tracks
-        ROOT::VecOps::RVec<edm4hep::TrackState> tracksToUse;
-        for (const edm4hep::TrackState& trk : tracks) {
-            if (std::abs(trk.D0)>0.75 || std::abs(trk.Z0)>2) continue;
-            tracksToUse.push_back(trk);
-        }
-        if( tracksToUse.size() < 2 ){ return primaryTracks; }
-
-        // call primary track finder from FCCAnalyses
-        primaryTracks = FCCAnalyses::VertexFitterSimple::get_PrimaryTracks(
-            tracksToUse,
-            chi2max,
-            doBeamSpotConstraint,
-            sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
-            beamspotX, beamspotY, beamspotZ
-        );
-        return primaryTracks;
-    }""")
-
-# helper function to re-calculate the primary vertex from the collection of tracks.
-# note: no track selection is performed, this is assumed to be done beforehand.
-# note: need to keep in sync with getPrimaryTracks (above)...
-ROOT.gInterpreter.Declare("""
-    FCCAnalyses::VertexingUtils::FCCAnalysesVertex fitRecoPrimaryVertex(
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
-        double beamspotX = 0, double beamspotY = 0, double beamspotZ = 0){
-
-        // convert beamspot position units from centimeter to 10 micrometer
-        // note: the FCCAnalyses function expect these values in micrometer,
-        //       corresponding to track parameters in mm;
-        //       but since our track parameters are in cm instead of mm,
-        //       we use beamspot units of 10 micrometers.
-        beamspotX = beamspotX * 1e3;
-        beamspotY = beamspotY * 1e3;
-        beamspotZ = beamspotZ * 1e3;
-
-        // define beamspot width
-        double sigma_beamspotX = 20; // unit: 10 micrometer
-        double sigma_beamspotY = 10; // unit: 10 micrometer
-        double sigma_beamspotZ = 2000; // unit: 10 micrometer
-        bool doBeamSpotConstraint = true;
-
-        // define dummy vertex in case the fit cannot be performed
-        edm4hep::VertexData dummyVertex;
-        dummyVertex.chi2 = -1;
-        dummyVertex.ndf = 0;
-        dummyVertex.position = edm4hep::Vector3f(beamspotX, beamspotY, beamspotZ);
-        FCCAnalyses::VertexingUtils::FCCAnalysesVertex dummyVertexObject;
-        dummyVertexObject.vertex = dummyVertex;
-        dummyVertexObject.ntracks = 0;
-        dummyVertexObject.mc_ind = -1;
-        if( tracks.size() < 2 ){ return dummyVertexObject; }
-
-        // call primary vertex finder from FCCAnalyses
-        FCCAnalyses::VertexingUtils::FCCAnalysesVertex vertex;
-        vertex = FCCAnalyses::VertexFitterSimple::VertexFitter_Tk(
-            1, tracks, doBeamSpotConstraint,
-            sigma_beamspotX, sigma_beamspotY, sigma_beamspotZ,
-            beamspotX, beamspotY, beamspotZ
-        );
-        return vertex;
-    }""")
-
-# helper function to find tracks not compatible with primary vertex.
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<edm4hep::TrackState> getSecondaryTracks(
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks,
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& primaryTracks){
-
-        // skip tracks compatible with primary vertex
-        ROOT::VecOps::RVec<edm4hep::TrackState> secondaryTracks;
-        secondaryTracks = FCCAnalyses::VertexFitterSimple::get_NonPrimaryTracks(tracks, primaryTracks);
-        return secondaryTracks;
-    }""")
-
-# same as above but with tracks per jet
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> getSecondaryTracks(
-        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>& tracksPerJet,
-        const ROOT::VecOps::RVec<edm4hep::TrackState>& primaryTracks){
-
-        // initialization
-        ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>> secondaryTracks;
-
-        // loop over jets
-        for ( const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks : tracksPerJet) {
-            secondaryTracks.push_back( getSecondaryTracks(tracks, primaryTracks) );
-        }
-        return secondaryTracks;
-    }""")
-
-# helper function to associate a set of per-event secondary vertices to jets
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>>
-    distributeSecondaryVerticesOverJets(
-        const ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>& secondaryVertices,
-        const ROOT::VecOps::RVec<fastjet::PseudoJet>& jets){
-
-        // initialization
-        ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>> secondaryVerticesPerJet;
-        for(unsigned int i=0; i<jets.size(); i++){
-            ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex> temp;
-            secondaryVerticesPerJet.push_back(temp);
-        }
-
-        // note: in very rare cases, there can be secondary vertices but no jets
-        //       (even with exclusive jet clustering targeting 2 jets in every event);
-        //       reason is not yet fully understood, but in any case, need safety against it.
-        if( jets.size()==0 ){ return secondaryVerticesPerJet; }
-
-        // get momenta of all vertices
-        ROOT::VecOps::RVec<TVector3> vertex_momenta = FCCAnalyses::VertexingUtils::get_p_SV(secondaryVertices);
-
-        // get momenta of all jets
-        ROOT::VecOps::RVec<TVector3> jet_momenta;
-        for( auto jet : jets ){
-            jet_momenta.push_back( TVector3(jet.px(), jet.py(), jet.pz()) );
-        }
-
-        // loop over vertices
-        for( unsigned int vertex_idx=0; vertex_idx < secondaryVertices.size(); vertex_idx++ ){
-            double mindR = 99.;
-            unsigned int selected_jet_idx = 0;
-            FCCAnalyses::VertexingUtils::FCCAnalysesVertex vertex = secondaryVertices.at(vertex_idx);
-            TVector3 vertex_momentum = vertex_momenta.at(vertex_idx);
-            for( unsigned int jet_idx=0; jet_idx < jets.size(); jet_idx++){
-                TVector3 jet_momentum = jet_momenta.at(jet_idx);
-                double dR = vertex_momentum.DeltaR(jet_momentum);
-                if( dR < mindR ){
-                    mindR = dR;
-                    selected_jet_idx = jet_idx;
-                }
-            }
-            secondaryVerticesPerJet.at(selected_jet_idx).push_back(vertex);
-        }
-        return secondaryVerticesPerJet;
-    }""")
-
-# same as above but get indices instead
-# helper function to associate a set of per-event secondary vertices to jets
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>>
-    getSecondaryVertexJetIndices(
-        const ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>& secondaryVertices,
-        const ROOT::VecOps::RVec<fastjet::PseudoJet>& jets){
-
-        // initialization
-        ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>> indicesPerJet;
-        for(unsigned int i=0; i<jets.size(); i++){
-            ROOT::VecOps::RVec<int> temp;
-            indicesPerJet.push_back(temp);
-        }
-
-        // note: in very rare cases, there can be secondary vertices but no jets
-        //       (even with exclusive jet clustering targeting 2 jets in every event);
-        //       reason is not yet fully understood, but in any case, need safety against it.
-        if( jets.size()==0 ){ return indicesPerJet; }
-
-        // get momenta of all vertices
-        ROOT::VecOps::RVec<TVector3> vertex_momenta = FCCAnalyses::VertexingUtils::get_p_SV(secondaryVertices);
-
-        // get momenta of all jets
-        ROOT::VecOps::RVec<TVector3> jet_momenta;
-        for( auto jet : jets ){
-            jet_momenta.push_back( TVector3(jet.px(), jet.py(), jet.pz()) );
-        }
-
-        // loop over vertices
-        for( unsigned int vertex_idx=0; vertex_idx < secondaryVertices.size(); vertex_idx++ ){
-            double mindR = 99.;
-            unsigned int selected_jet_idx = 0;
-            TVector3 vertex_momentum = vertex_momenta.at(vertex_idx);
-            for( unsigned int jet_idx=0; jet_idx < jets.size(); jet_idx++){
-                TVector3 jet_momentum = jet_momenta.at(jet_idx);
-                double dR = vertex_momentum.DeltaR(jet_momentum);
-                if( dR < mindR ){
-                    mindR = dR;
-                    selected_jet_idx = jet_idx;
-                }
-            }
-            indicesPerJet.at(selected_jet_idx).push_back(vertex_idx);
-        }
-        return indicesPerJet;
-    }""")
-
-# helper function to associate a set of per-event secondary vertices to jets
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>>
-    distributeOverJets(
-        const ROOT::VecOps::RVec<double>& valuesPerEvent,
-        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<int>>& indicesPerJet){
-
-        // initialization
-        ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> valuesPerJet;
-        
-        // safety for no jets
-        if( indicesPerJet.size()==0 ){ return valuesPerJet; }
-
-        // loop over jets
-        for(unsigned int jet_idx=0; jet_idx<indicesPerJet.size(); jet_idx++){
-            ROOT::VecOps::RVec<int> valueIndices = indicesPerJet.at(jet_idx);
-            ROOT::VecOps::RVec<double> temp;
-            // loop over indices for this jet
-            for(int value_idx : valueIndices){
-                if( value_idx >= valuesPerEvent.size() ){ throw std::runtime_error("Index out of bounds."); }
-                temp.push_back( valuesPerEvent.at(value_idx) );
-            }
-            valuesPerJet.push_back(temp);
-        }
-        return valuesPerJet;
-    }""")
-    
 # helper function to count the number of instances per jet
 ROOT.gInterpreter.Declare("""
     ROOT::VecOps::RVec<int> count(
@@ -620,17 +162,6 @@ ROOT.gInterpreter.Declare("""
             counts.push_back( nValues );
         }
         return counts;
-    }""")
-
-# helper function to count the number of tracks per jet
-ROOT.gInterpreter.Declare("""
-    ROOT::VecOps::RVec<int> countTracks(
-        const ROOT::VecOps::RVec<ROOT::VecOps::RVec<edm4hep::TrackState>>& tracks){
-        ROOT::VecOps::RVec<int> nTracks;
-        for( const ROOT::VecOps::RVec<edm4hep::TrackState>& this_tracks : tracks) {
-            nTracks.push_back( this_tracks.size() );
-        }
-        return nTracks;
     }""")
 
 # helper function to get the MC truth-level primary vertex from the first gen-particle.
@@ -786,14 +317,14 @@ class RDFanalysis():
             .Define("Event_nRecoParticles", "ReconstructedParticles.size()")
             .Define("Event_nTracks", "EFlowTrack_1.size()")
             .Define("TracksWithReco", "FCCAnalyses::ReconstructedParticle2Track::getRP2TRK_trackState(ReconstructedParticles, EFlowTrack_1, Reco2TrackLinks)")
-            .Define("TracksWithoutReco", "get_complement(EFlowTrack_1, TracksWithReco)")
+            .Define("TracksWithoutReco", "TrackTools::get_complement(EFlowTrack_1, TracksWithReco)")
             .Define("TrackDatasWithReco", "FCCAnalyses::ReconstructedParticle2Track::getRP2TRK_track(ReconstructedParticles, EFlowTrack, Reco2TrackLinks)")
-            .Define("TrackDatasWithoutReco", "get_complement(EFlowTrack, EFlowTrack_1, TrackDatasWithReco, TracksWithReco)")
+            .Define("TrackDatasWithoutReco", "TrackTools::get_complement(EFlowTrack, EFlowTrack_1, TrackDatasWithReco, TracksWithReco)")
             .Define("Event_nTracksWithReco", "TracksWithReco.size()")
             .Define("Event_nTracksWithoutReco", "TracksWithoutReco.size()")
 
             # do track preselection
-            .Define("SelectedTracks", "getSelectedTracks(EFlowTrack_1, EFlowTrack, -1, -1)")
+            .Define("SelectedTracks", "TrackTools::getSelectedTracks(EFlowTrack_1, EFlowTrack, -1, -1)")
         )
 
         # find the primary vertex
@@ -816,8 +347,8 @@ class RDFanalysis():
             #.Define("PrimaryVertexP4", "getRecoPrimaryVertex(Vertices)")
             
             # alternative: recalculate reco primary vertex
-            .Define("PrimaryTracks", "getPrimaryTracks(SelectedTracks, 25., Beamspot_x, Beamspot_y, Beamspot_z)")
-            .Define("PrimaryVertexObject", "fitRecoPrimaryVertex(PrimaryTracks, Beamspot_x, Beamspot_y, Beamspot_z)")
+            .Define("PrimaryTracks", "PrimaryVertexTools::getPrimaryTracks(SelectedTracks, 25., Beamspot_x, Beamspot_y, Beamspot_z)")
+            .Define("PrimaryVertexObject", "PrimaryVertexTools::fitRecoPrimaryVertex(PrimaryTracks, Beamspot_x, Beamspot_y, Beamspot_z)")
             .Define("PrimaryVertex", "FCCAnalyses::VertexingUtils::get_VertexData(PrimaryVertexObject)")
             .Define("PrimaryVertexP4", "TLorentzVector(PrimaryVertex.position.x, PrimaryVertex.position.y, PrimaryVertex.position.z, 0.)")
 
@@ -914,12 +445,12 @@ class RDFanalysis():
             # note: the grouping function implicitly only considers tracks connected to a reco particle,
             #       so we have to manually append the tracks without reco particle (based on simple delta-R matching to the closest jet.
             .Define("TracksPerJet", "JetConstituentsUtils::build_trackstates_cluster(ReconstructedParticles, EFlowTrack_1, jetconstituents_ee_genkt, Reco2TrackLinks)")
-            .Redefine("TracksPerJet", "append_losttracks_to_tracksperjet(TracksWithoutReco, TracksPerJet, jets_ee_genkt)")
+            .Redefine("TracksPerJet", "TrackTools::append_losttracks_to_tracksperjet(TracksWithoutReco, TracksPerJet, jets_ee_genkt)")
             .Define("TrackDatasPerJet", "JetConstituentsUtils::build_tracks_cluster(ReconstructedParticles, EFlowTrack, jetconstituents_ee_genkt, Reco2TrackLinks)")
-            .Redefine("TrackDatasPerJet", "append_losttracks_to_tracksperjet(TrackDatasWithoutReco, TracksWithoutReco, TrackDatasPerJet, jets_ee_genkt)")
-            .Define("SelectedTracksPerJet", "getSelectedTracks(TracksPerJet, TrackDatasPerJet, -1, -1)")
-            .Define("Jets_nTracksPerJet", "countTracks(TracksPerJet)")
-            .Define("Jets_nSelectedTracksPerJet", "countTracks(SelectedTracksPerJet)")
+            .Redefine("TrackDatasPerJet", "TrackTools::append_losttracks_to_tracksperjet(TrackDatasWithoutReco, TracksWithoutReco, TrackDatasPerJet, jets_ee_genkt)")
+            .Define("SelectedTracksPerJet", "TrackTools::getSelectedTracks(TracksPerJet, TrackDatasPerJet, -1, -1)")
+            .Define("Jets_nTracksPerJet", "TrackTools::countTracks(TracksPerJet)")
+            .Define("Jets_nSelectedTracksPerJet", "TrackTools::countTracks(SelectedTracksPerJet)")
 
             # for debugging: check that all particles and all tracks in the event were clustered
             .Define("Event_nConstituentsSum", "ROOT::VecOps::Sum(Jets_nConstituents)")
@@ -933,13 +464,13 @@ class RDFanalysis():
             # find tracks incompatible with the primary vertex (both per event and per jet).
             # note: primary tracks have already been defined before (when calculating the primary vertex),
             #       but an alternative set is re-calculated here, possibly with a tighter chi2 cut.
-            .Define("PrimaryTracks2", "getPrimaryTracks(SelectedTracks, 5., Beamspot_x, Beamspot_y, Beamspot_z)")
-            .Define("SecondaryTracks", "getSecondaryTracks(SelectedTracks, PrimaryTracks2)")
-            .Define("SecondaryTracksPerJet", "getSecondaryTracks(SelectedTracksPerJet, PrimaryTracks2)")
+            .Define("PrimaryTracks2", "PrimaryVertexTools::getPrimaryTracks(SelectedTracks, 5., Beamspot_x, Beamspot_y, Beamspot_z)")
+            .Define("SecondaryTracks", "TrackTools::getSecondaryTracks(SelectedTracks, PrimaryTracks2)")
+            .Define("SecondaryTracksPerJet", "TrackTools::getSecondaryTracks(SelectedTracksPerJet, PrimaryTracks2)")
 
             # store counters
             .Define("Event_nSecondaryTracks", "SecondaryTracks.size()")
-            .Define("Jets_nSecondaryTracksPerJet", "countTracks(SecondaryTracksPerJet)")
+            .Define("Jets_nSecondaryTracksPerJet", "TrackTools::countTracks(SecondaryTracksPerJet)")
         )
 
         # find secondary vertices (per jet)
@@ -961,7 +492,7 @@ class RDFanalysis():
             # alternative: fit secondary vertices per event (ignoring jets), and associate them to tracks post-rem.
             # note: not sure how to do this best, but for now do simple dR matching.
             .Define("EventSecondaryVertices", "FCCAnalyses::VertexFinderLCFIPlus::get_SV_event(SecondaryTracks, EFlowTrack_1, PrimaryVertexObject, true, 10., 10., 5.)")
-            .Define("SecondaryVertices", "distributeSecondaryVerticesOverJets(EventSecondaryVertices, jets_ee_genkt)")
+            .Define("SecondaryVertices", "SecondaryVertexTools::distributeSecondaryVerticesOverJets(EventSecondaryVertices, jets_ee_genkt)")
 
             # calculate properties of secondary vertices to store
             .Define("SecondaryVertices_xrel", "FCCAnalyses::VertexingUtils::get_xrel_SV_jets(SecondaryVertices, PrimaryVertexP3)")
@@ -992,11 +523,11 @@ class RDFanalysis():
             # reconstruct all V0 candidates in the event
             # note: arguments are (in order): tracks, primary vertex, whether to use tight constraints, chi2 threshold
             .Define("EventV0s", "FCCAnalyses::VertexFinderLCFIPlus::get_V0s(SecondaryTracks, PrimaryVertexObject, false, 10.)")
-            .Define("v0_jet_ids", "getSecondaryVertexJetIndices(EventV0s.vtx, jets_ee_genkt)")
+            .Define("v0_jet_ids", "SecondaryVertexTools::getSecondaryVertexJetIndices(EventV0s.vtx, jets_ee_genkt)")
 
             # calculate properties of V0 candidates to store
-            .Define("V0Candidates_pdgId", "distributeOverJets(EventV0s.pdgAbs, v0_jet_ids)")
-            .Define("V0Candidates_mass", "distributeOverJets(EventV0s.invM, v0_jet_ids)")
+            .Define("V0Candidates_pdgId", "SecondaryVertexTools::distributeOverJets(EventV0s.pdgAbs, v0_jet_ids)")
+            .Define("V0Candidates_mass", "SecondaryVertexTools::distributeOverJets(EventV0s.invM, v0_jet_ids)")
 
             # store counters
             .Define("Event_nV0Candidates", "EventV0s.vtx.size()")

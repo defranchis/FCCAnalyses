@@ -790,12 +790,12 @@ int main(int argc, char* argv[]) {
         pfcand_nTrackHits_ITC[k] = (float)(JetsConstituents_nTrackHits_ITC->at(j))[k];
         pfcand_nTrackHits_TPC[k] = (float)(JetsConstituents_nTrackHits_TPC->at(j))[k];
 
-        pfcand_dEdx_pads_type[k] = (JetsConstituents_dEdx_pads_type->at(j))[k];
-        pfcand_dEdx_pads_value[k] = (JetsConstituents_dEdx_pads_value->at(j))[k];
-        pfcand_dEdx_pads_error[k] = (JetsConstituents_dEdx_pads_error->at(j))[k];
-        pfcand_dEdx_wires_type[k] = (JetsConstituents_dEdx_wires_type->at(j))[k];
-        pfcand_dEdx_wires_value[k] = (JetsConstituents_dEdx_wires_value->at(j))[k];
-        pfcand_dEdx_wires_error[k] = (JetsConstituents_dEdx_wires_error->at(j))[k];
+        pfcand_dEdx_pads_type[k] = (float)(JetsConstituents_dEdx_pads_type->at(j))[k];
+        pfcand_dEdx_pads_value[k] = (float)(JetsConstituents_dEdx_pads_value->at(j))[k];
+        pfcand_dEdx_pads_error[k] = (float)(JetsConstituents_dEdx_pads_error->at(j))[k];
+        pfcand_dEdx_wires_type[k] = (float)(JetsConstituents_dEdx_wires_type->at(j))[k];
+        pfcand_dEdx_wires_value[k] = (float)(JetsConstituents_dEdx_wires_value->at(j))[k];
+        pfcand_dEdx_wires_error[k] = (float)(JetsConstituents_dEdx_wires_error->at(j))[k];
 
         pfcand_d0_wrt0[k] = (JetsConstituents_d0_wrt0->at(j))[k];
         pfcand_z0_wrt0[k] = (JetsConstituents_z0_wrt0->at(j))[k];
