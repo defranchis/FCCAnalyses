@@ -1,6 +1,7 @@
 // Tools for dealing with collections of secondary vertices
 
 #include <ROOT/RVec.hxx>
+#include "TVector3.h"
 
 #include "FCCAnalyses/JetConstituentsUtils.h"
 #include "FCCAnalyses/ReconstructedParticle.h"
@@ -131,6 +132,55 @@ distributeOverJets(
             valuesPerJet.push_back(temp);
         }
         return valuesPerJet;
+}
+
+// get corrected invariant mass
+// (see CMS-BTV-16-002)
+double getCorrectedInvMass(
+    const FCCAnalyses::VertexingUtils::FCCAnalysesVertex& SV,
+    const FCCAnalyses::VertexingUtils::FCCAnalysesVertex& PV){
+
+    // get uncorrected mass
+    double rawMass = FCCAnalyses::VertexingUtils::get_invM(SV);
+    
+    // get momentum
+    ROOT::VecOps::RVec<TVector3> p_tracks = SV.updated_track_momentum_at_vertex;
+    TVector3 p_sum;
+    for (TVector3 p_tr : p_tracks) p_sum += p_tr;
+    double momentum = p_sum.Mag();
+
+    // get angle between flight direction and momentum
+    edm4hep::Vector3f r_SV = SV.vertex.position;
+    edm4hep::Vector3f r_PV = PV.vertex.position;
+    TVector3 r_SV_PV(r_SV[0] - r_PV[0], r_SV[1] - r_PV[1], r_SV[2] - r_PV[2]);
+    double pDOTr = p_sum.Dot(r_SV_PV);
+    double p_mag = p_sum.Mag();
+    double r_mag = r_SV_PV.Mag();
+    double cosTheta = pDOTr / (p_mag * r_mag);
+    if(std::abs(cosTheta) > 1){ cosTheta /= std::abs(cosTheta); }
+    double sin2Theta = 1 - cosTheta*cosTheta;
+    double sinTheta = std::sqrt(sin2Theta);
+
+    // apply correction
+    double mass = std::sqrt(rawMass*rawMass + momentum*momentum*sin2Theta) + momentum*sinTheta;
+
+    return mass;
+}
+
+// same as above, but for secondary vertices per jet
+ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> getCorrectedInvMass(
+    const ROOT::VecOps::RVec<ROOT::VecOps::RVec<FCCAnalyses::VertexingUtils::FCCAnalysesVertex>>& secondaryVertices,
+    const FCCAnalyses::VertexingUtils::FCCAnalysesVertex& PV){
+
+    ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> result;
+    for(const auto& jet_sv : secondaryVertices){
+        ROOT::VecOps::RVec<double> temp;
+        for(const auto& this_sv : jet_sv){
+            temp.push_back(getCorrectedInvMass(this_sv, PV));
+        }
+        result.push_back(temp);
+    }
+    return result;
 }
 
 }

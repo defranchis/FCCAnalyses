@@ -105,6 +105,7 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_dxy = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_dxyz = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_cosPointing = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_correctedMass = 0;
 
   // V0 candidates properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *V0Candidates_pdgId = 0;
@@ -243,6 +244,7 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("SecondaryVertices_dxy", &SecondaryVertices_dxy);
   ev->SetBranchAddress("SecondaryVertices_dxyz", &SecondaryVertices_dxyz);
   ev->SetBranchAddress("SecondaryVertices_cosPointing", &SecondaryVertices_cosPointing);
+  ev->SetBranchAddress("SecondaryVertices_correctedMass", &SecondaryVertices_correctedMass);
 
   // V0 candidates properties
   ev->SetBranchAddress("V0Candidates_pdgId", &V0Candidates_pdgId);
@@ -395,6 +397,7 @@ int main(int argc, char* argv[]) {
   float sv_dxy[1000] = {0.};
   float sv_dxyz[1000] = {0.};
   float sv_cosPointing[1000] = {0.};
+  float sv_correctedMass[1000] = {0.};
 
   // V0 candidate variables
   float v0cand_pdgId[1000] = {0.};
@@ -555,6 +558,7 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("sv_dxy", sv_dxy, "sv_dxy[recojet_nsv]/F");
   ntuple->Branch("sv_dxyz", sv_dxyz, "sv_dxyz[recojet_nsv]/F");
   ntuple->Branch("sv_cosPointing", sv_cosPointing, "sv_cosPointing[recojet_nsv]/F");
+  ntuple->Branch("sv_correctedMass", sv_correctedMass, "sv_correctedMass[recojet_nsv]/F");
 
   // V0 candidate variables
   ntuple->Branch("v0cand_pdgId", v0cand_pdgId, "v0cand_pdgId[recojet_nv0candidates]/F");
@@ -753,6 +757,7 @@ int main(int argc, char* argv[]) {
           sv_dxy[k] = (SecondaryVertices_dxy->at(j))[k];
           sv_dxyz[k] = (SecondaryVertices_dxyz->at(j))[k];
           sv_cosPointing[k] = (SecondaryVertices_cosPointing->at(j))[k];
+          sv_correctedMass[k] = (SecondaryVertices_correctedMass->at(j))[k];
       }
 
       // loop over V0 candidates

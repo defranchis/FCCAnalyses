@@ -510,6 +510,7 @@ class RDFanalysis():
             .Define("SecondaryVertices_dxy", "FCCAnalyses::VertexingUtils::get_dxy_SV(SecondaryVertices, PrimaryVertexObject)")
             .Define("SecondaryVertices_dxyz", "FCCAnalyses::VertexingUtils::get_d3d_SV(SecondaryVertices, PrimaryVertexObject)")
             .Define("SecondaryVertices_cosPointing", "FCCAnalyses::VertexingUtils::get_pointingangle_SV(SecondaryVertices, PrimaryVertexObject)")
+            .Define("SecondaryVertices_correctedMass", "SecondaryVertexTools::getCorrectedInvMass(SecondaryVertices, PrimaryVertexObject)")
 
             # store counters
             .Define("Event_nSV", "EventSecondaryVertices.size()")
@@ -822,7 +823,8 @@ class RDFanalysis():
             'SecondaryVertices_mass',
             'SecondaryVertices_dxy',
             'SecondaryVertices_dxyz',
-            'SecondaryVertices_cosPointing'
+            'SecondaryVertices_cosPointing',
+            'SecondaryVertices_correctedMass',
           ]
 
         # V0-candidate variables
