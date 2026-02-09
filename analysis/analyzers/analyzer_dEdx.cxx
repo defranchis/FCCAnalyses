@@ -46,7 +46,13 @@ struct build_constituents_dEdx{
           track_index_to_dEdx[track_index] = dedx_value;
         }
 
-        //now, for each jet loop over the indices of the jet constituents provided by teh JetClusteringUtils
+        // Define dummy for particles with no track or for which no dEdx measurement is found
+        edm4hep::RecDqdxData dummy{};
+        dummy.dQdx.type = -1.f;
+        dummy.dQdx.value = -1.f;
+        dummy.dQdx.error = -1.f;
+
+        // Now, for each jet loop over the indices of the jet constituents provided by teh JetClusteringUtils
         // retrieve the associated RecoParticle
         // from there get the link to the Track from the corresponding index collection
         for (const auto &jet_const_indices : jet_indices) { //loop over jets
@@ -55,14 +61,20 @@ struct build_constituents_dEdx{
           for (int constituent_index : jet_const_indices) { // loop over jet constituents
             const auto &recoPart = recoParticles[constituent_index];
 
-            //loop over tracks associated to the RecoPart (should always be one in Aleph data)
-            for (int track = recoPart.tracks_begin; track < recoPart.tracks_end; ++track) {
-                 int track_index = _recoParticlesIndices[track]; //this should be the same index used in the link from dEdx to track
-
-                  //find the matching dEdx in the map
-                  if (track_index_to_dEdx.count(track_index)) {
+            // Find track associated to this reco particle
+            if( recoPart.tracks_begin == recoPart.tracks_end ){
+                // Case of no track (e.g. neutral particles)
+                jet_dEdx.push_back(dummy);
+            }
+            else{
+                // Case of single track (e.g. charged particles)
+                int track_index = _recoParticlesIndices.at(recoPart.tracks_begin);
+                
+                // Find the matching dEdx in the map
+                if (track_index_to_dEdx.count(track_index)) {
                     jet_dEdx.push_back(track_index_to_dEdx[track_index]);
-                  }
+                 }
+                 else{ jet_dEdx.push_back(dummy); }
             }
           }
           dedx_constituents.push_back(jet_dEdx); 
@@ -108,19 +120,5 @@ rv::RVec<rv::RVec<float>> get_dEdx_error(const rv::RVec<rv::RVec<edm4hep::RecDqd
   }
   return values;
 }
-
-// Return a new collection (same type) with D0 signs flipped.
-ROOT::VecOps::RVec<edm4hep::TrackState>
-flipD0_copy(const ROOT::VecOps::RVec<edm4hep::TrackState>& tracks) {
-  ROOT::VecOps::RVec<edm4hep::TrackState> out;
-  out.reserve(tracks.size());
-  for (const auto &t : tracks) {
-    edm4hep::TrackState tt = t;   // make a copy
-    tt.D0 = -tt.D0;               // flip sign
-    out.push_back(std::move(tt));
-  }
-  return out;
-}
-
 
 }
