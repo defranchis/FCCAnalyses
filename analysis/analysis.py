@@ -52,6 +52,10 @@ ROOT.gInterpreter.Declare("""
 analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_particleid.cxx')
 ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
 
+# load custom analyzer for dE/dx tools
+analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_dEdx.cxx')
+ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
+
 # helper function for deriving the gen-level event type.
 # note: for now, only valid with qqbar simulations,
 #       where the event type is between 1 (d dbar) and 5 (b bbar) (see PDG numbering scheme).
@@ -1056,6 +1060,25 @@ class RDFanalysis():
             .Define("JetsConstituents_trackChi2Normalized", "JetConstituentsUtils::get_chi2Normalized(JetsConstituents, EFlowTrack, Reco2TrackLinks)")
         )
 
+        # dE/dx values
+        dfout = (
+            dfout
+            .Define("dEdxPadsValue" , "dEdxPads.dQdx.value")
+            .Define("dEdxPadsError" , "dEdxPads.dQdx.error")
+            .Define("dEdxWiresValue" , "dEdxWires.dQdx.value")
+            .Define("dEdxWiresError" , "dEdxPads.dQdx.error")
+
+            .Define("jet_constituents_dEdx_pads_objs", "dEdxTools::build_constituents_dEdx()(RecoParticles, Reco2TrackLinks.index, dEdxPads, _dEdxPads_track.index, jetconstituents_ee_genkt)")
+            .Define("JetsConstituents_dEdx_pads_type", "dEdxTools::get_dEdx_type(jet_constituents_dEdx_pads_objs)")
+            .Define("JetsConstituents_dEdx_pads_value", "dEdxTools::get_dEdx_value(jet_constituents_dEdx_pads_objs)")
+            .Define("JetsConstituents_dEdx_pads_error", "dEdxTools::get_dEdx_error(jet_constituents_dEdx_pads_objs)")
+
+            .Define("jet_constituents_dEdx_wires_objs", "dEdxTools::build_constituents_dEdx()(RecoParticles, Reco2TrackLinks.index, dEdxWires, _dEdxWires_track.index, jetconstituents_ee_genkt)")
+            .Define("JetsConstituents_dEdx_wires_type", "dEdxTools::get_dEdx_type(jet_constituents_dEdx_wires_objs)")
+            .Define("JetsConstituents_dEdx_wires_value", "dEdxTools::get_dEdx_value(jet_constituents_dEdx_wires_objs)")
+            .Define("JetsConstituents_dEdx_wires_error", "dEdxTools::get_dEdx_error(jet_constituents_dEdx_wires_objs)")
+        )
+
         # number of hits in tracking detectors
         if det=='fcc':
             dfout = (
@@ -1301,6 +1324,13 @@ class RDFanalysis():
             'JetsConstituents_nTrackHits_VDET',
             'JetsConstituents_nTrackHits_ITC',
             'JetsConstituents_nTrackHits_TPC',
+
+            'JetsConstituents_dEdx_pads_type',
+            'JetsConstituents_dEdx_pads_value',
+            'JetsConstituents_dEdx_pads_error',
+            'JetsConstituents_dEdx_wires_type',
+            'JetsConstituents_dEdx_wires_value',
+            'JetsConstituents_dEdx_wires_error',
 
             'JetsConstituents_d0_wrt0',
             'JetsConstituents_z0_wrt0',

@@ -138,6 +138,13 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_nTrackHits_ITC = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_nTrackHits_TPC = 0;
 
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dEdx_pads_type = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dEdx_pads_value = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dEdx_pads_error = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dEdx_wires_type = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dEdx_wires_value = 0;
+  ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_dEdx_wires_error = 0;
+
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_d0_wrt0 = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_z0_wrt0 = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float> > *JetsConstituents_phi0_wrt0 = 0;
@@ -268,6 +275,13 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("JetsConstituents_nTrackHits_VDET", &JetsConstituents_nTrackHits_VDET);
   ev->SetBranchAddress("JetsConstituents_nTrackHits_ITC", &JetsConstituents_nTrackHits_ITC);
   ev->SetBranchAddress("JetsConstituents_nTrackHits_TPC", &JetsConstituents_nTrackHits_TPC);
+
+  ev->SetBranchAddress("JetsConstituents_dEdx_pads_type", &JetsConstituents_dEdx_pads_type);
+  ev->SetBranchAddress("JetsConstituents_dEdx_pads_value", &JetsConstituents_dEdx_pads_value);
+  ev->SetBranchAddress("JetsConstituents_dEdx_pads_error", &JetsConstituents_dEdx_pads_error);
+  ev->SetBranchAddress("JetsConstituents_dEdx_wires_type", &JetsConstituents_dEdx_wires_type);
+  ev->SetBranchAddress("JetsConstituents_dEdx_wires_value", &JetsConstituents_dEdx_wires_value);
+  ev->SetBranchAddress("JetsConstituents_dEdx_wires_error", &JetsConstituents_dEdx_wires_error);
 
   ev->SetBranchAddress("JetsConstituents_d0_wrt0", &JetsConstituents_d0_wrt0);
   ev->SetBranchAddress("JetsConstituents_z0_wrt0", &JetsConstituents_z0_wrt0);
@@ -413,6 +427,13 @@ int main(int argc, char* argv[]) {
   float pfcand_nTrackHits_VDET[1000] = {0.};
   float pfcand_nTrackHits_ITC[1000] = {0.};
   float pfcand_nTrackHits_TPC[1000] = {0.};
+
+  float pfcand_dEdx_pads_type[1000] = {0.};
+  float pfcand_dEdx_pads_value[1000] = {0.};
+  float pfcand_dEdx_pads_error[1000] = {0.};
+  float pfcand_dEdx_wires_type[1000] = {0.};
+  float pfcand_dEdx_wires_value[1000] = {0.};
+  float pfcand_dEdx_wires_error[1000] = {0.};
 
   float pfcand_d0_wrt0[1000] = {0.};
   float pfcand_z0_wrt0[1000] = {0.};
@@ -566,6 +587,13 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("pfcand_nTrackHits_VDET", pfcand_nTrackHits_VDET, "pfcand_nTrackHits_VDET[nconst]/F");
   ntuple->Branch("pfcand_nTrackHits_ITC", pfcand_nTrackHits_ITC, "pfcand_nTrackHits_ITC[nconst]/F");
   ntuple->Branch("pfcand_nTrackHits_TPC", pfcand_nTrackHits_TPC, "pfcand_nTrackHits_TPC[nconst]/F");
+
+  ntuple->Branch("pfcand_dEdx_pads_type", pfcand_dEdx_pads_type, "pfcand_dEdx_pads_type[nconst]/F");
+  ntuple->Branch("pfcand_dEdx_pads_value", pfcand_dEdx_pads_value, "pfcand_dEdx_pads_value[nconst]/F");
+  ntuple->Branch("pfcand_dEdx_pads_error", pfcand_dEdx_pads_error, "pfcand_dEdx_pads_error[nconst]/F");
+  ntuple->Branch("pfcand_dEdx_wires_type", pfcand_dEdx_wires_type, "pfcand_dEdx_wires_type[nconst]/F");
+  ntuple->Branch("pfcand_dEdx_wires_value", pfcand_dEdx_wires_value, "pfcand_dEdx_wires_value[nconst]/F");
+  ntuple->Branch("pfcand_dEdx_wires_error", pfcand_dEdx_wires_error, "pfcand_dEdx_wires_error[nconst]/F");
 
   ntuple->Branch("pfcand_d0_wrt0", pfcand_d0_wrt0, "pfcand_d0_wrt0[nconst]/F");
   ntuple->Branch("pfcand_z0_wrt0", pfcand_z0_wrt0, "pfcand_z0_wrt0[nconst]/F");
@@ -761,6 +789,13 @@ int main(int argc, char* argv[]) {
         pfcand_nTrackHits_VDET[k] = (float)(JetsConstituents_nTrackHits_VDET->at(j))[k];
         pfcand_nTrackHits_ITC[k] = (float)(JetsConstituents_nTrackHits_ITC->at(j))[k];
         pfcand_nTrackHits_TPC[k] = (float)(JetsConstituents_nTrackHits_TPC->at(j))[k];
+
+        pfcand_dEdx_pads_type[k] = (JetsConstituents_dEdx_pads_type->at(j))[k];
+        pfcand_dEdx_pads_value[k] = (JetsConstituents_dEdx_pads_value->at(j))[k];
+        pfcand_dEdx_pads_error[k] = (JetsConstituents_dEdx_pads_error->at(j))[k];
+        pfcand_dEdx_wires_type[k] = (JetsConstituents_dEdx_wires_type->at(j))[k];
+        pfcand_dEdx_wires_value[k] = (JetsConstituents_dEdx_wires_value->at(j))[k];
+        pfcand_dEdx_wires_error[k] = (JetsConstituents_dEdx_wires_error->at(j))[k];
 
         pfcand_d0_wrt0[k] = (JetsConstituents_d0_wrt0->at(j))[k];
         pfcand_z0_wrt0[k] = (JetsConstituents_z0_wrt0->at(j))[k];
