@@ -15,12 +15,6 @@ if __name__=='__main__':
     outputdir = 'output_plots'
 
     variables = [
-      'recojet_pt',
-      'recojet_eta',
-      'recojet_theta',
-      'recojet_phi',
-      'nconst',
-
       'pfcand_pt',
       'pfcand_charge',
 
@@ -47,12 +41,12 @@ if __name__=='__main__':
     print(f'Read {len(events)} entries.')
 
     # make kinematic mask (optional)
-    #kinematic_mask = np.ones(len(events)).astype(bool)
-    kinematic_mask = (
-        (events['recojet_pt'].to_numpy()>10)
-        & (np.abs(events['recojet_eta'].to_numpy())<0.9)
-        & (events['nconst'].to_numpy()>5)
-    ).astype(bool)
+    kinematic_mask = np.ones(len(events)).astype(bool)
+    #kinematic_mask = (
+    #    (events['recojet_pt'].to_numpy()>10)
+    #    & (np.abs(events['recojet_eta'].to_numpy())<0.9)
+    #    & (events['nconst'].to_numpy()>5)
+    #).astype(bool)
     print(f'Made kinematic mask with {np.sum(kinematic_mask)} / {len(kinematic_mask)} entries passing.')
 
     # make charge mask (optional)

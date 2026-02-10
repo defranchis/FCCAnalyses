@@ -68,6 +68,10 @@ ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
 analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_dEdx.cxx')
 ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
 
+# load custom analyzer with dE/dx tools
+analyzer_path = os.path.join(os.path.dirname(__file__), 'analyzers', 'analyzer_recotomctools.cxx')
+ROOT.gInterpreter.Declare(f'#include "{analyzer_path}"')
+
 # helper function for deriving the gen-level event type.
 # note: for now, only valid with qqbar simulations,
 #       where the event type is between 1 (d dbar) and 5 (b bbar) (see PDG numbering scheme).
@@ -538,6 +542,22 @@ class RDFanalysis():
 
         )
 
+        # store the PDG ID of every jet constituent
+        # (or at least every particle for which it is available, see more details in the helper function)
+        if dtype=='sim':
+            dfout = (
+                dfout
+                .Define("TrackToMCMap", "RecoToMCTools::makeTrackToMCMapping(EFlowTrack, _trackMCLink_to, _trackMCLink_from)")
+                .Define("JetsConstituents_pdgId", "RecoToMCTools::get_pdgid(JetsConstituents, EFlowTrack, Particle, Reco2TrackLinks, TrackToMCMap)")
+            )
+
+        else:
+            # set dummies (maybe later find out how to avoid the need for this)
+            dfout = (
+                dfout
+                .Define("JetsConstituents_pdgId", "RecoToMCTools::get_pdgidDummy(JetsConstituents)")
+            )
+
         # rest of the analysis
         dfout = (
             dfout
@@ -840,6 +860,9 @@ class RDFanalysis():
 
         # jet-constituent-level variables
         branchList += [
+
+            'JetsConstituents_pdgId',
+
             'JetsConstituents_e', 'JetsConstituents_pt',
             'JetsConstituents_px', 'JetsConstituents_py', 'JetsConstituents_pz',
             'JetsConstituents_theta', 'JetsConstituents_phi',
