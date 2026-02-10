@@ -50,26 +50,27 @@ if __name__=='__main__':
       'recojet_nkscandidates',
       'recojet_nlambdacandidates',
 
-      'sv_xrel',
-      'sv_yrel',
-      'sv_zrel',
-      'sv_thetarel',
-      'sv_phirel',
-      'sv_p',
-      'sv_prel',
-      'sv_chi2',
-      'sv_chi2Normalized',
-      'sv_ndof',
-      'sv_nTracks',
-      'sv_mass',
-      'sv_dxy',
-      'sv_dxyz',
-      'sv_cosPointing',
+      #'sv_xrel',
+      #'sv_yrel',
+      #'sv_zrel',
+      #'sv_thetarel',
+      #'sv_phirel',
+      #'sv_p',
+      #'sv_prel',
+      #'sv_chi2',
+      #'sv_chi2Normalized',
+      #'sv_ndof',
+      #'sv_nTracks',
+      #'sv_mass',
+      #'sv_dxy',
+      #'sv_dxyz',
+      #'sv_cosPointing',
+      'sv_correctedMass',
 
-      'v0cand_pdgId',
-      'v0cand_mass',
+      #'v0cand_pdgId',
+      #'v0cand_mass',
 
-      #'pfcand_pt',
+      'pfcand_pt',
       #'pfcand_e',
       #'pfcand_ptrel_log',
       #'pfcand_erel_log',
@@ -95,7 +96,14 @@ if __name__=='__main__':
       #'pfcand_longitudinalJetDistance',
         
       #'pfcand_dxydxy',
-      #'pfcand_dzdz'      
+      #'pfcand_dzdz',
+
+      'pfcand_dEdx_pads_type',
+      'pfcand_dEdx_pads_value',
+      'pfcand_dEdx_pads_error',
+      'pfcand_dEdx_wires_type',
+      'pfcand_dEdx_wires_value',
+      'pfcand_dEdx_wires_error',      
     ]
 
     # make output dir if needed
@@ -141,20 +149,25 @@ if __name__=='__main__':
             # strategies for flattening per-constituent data
             if variable.startswith('pfcand_'):
 
+                strategy = 'leading' # choose from "flatten" or "leading"
+
                 # approach 1: take all constituents
-                #this_data = ak.flatten(this_data)
+                if strategy=='flatten': this_data = ak.flatten(this_data)
 
                 # approach 2: take leading constituent
                 # note: constituents do not seem to be pt-ordered by default!
-                if len(this_data)==0: this_data = ak.Array([])
-                else:
-                    len_mask = np.nonzero(ak.num(this_data))[0].to_numpy().astype(bool)
-                    this_data = this_data[len_mask]
-                    pt = events['pfcand_pt'][(kinematic_mask) & (category_masks[category])]
-                    pt = pt[len_mask]
-                    ids = ak.argmax(pt, axis=1).to_numpy()
-                    ids = np.array(list(ids))
-                    this_data = this_data[np.arange(len(this_data)), ids]
+                elif strategy=='leading':
+                    if len(this_data)==0: this_data = ak.Array([])
+                    else:
+                        len_mask = np.nonzero(ak.num(this_data))[0].to_numpy().astype(bool)
+                        this_data = this_data[len_mask]
+                        pt = events['pfcand_pt'][(kinematic_mask) & (category_masks[category])]
+                        pt = pt[len_mask]
+                        ids = ak.argmax(pt, axis=1).to_numpy()
+                        ids = np.array(list(ids))
+                        this_data = this_data[np.arange(len(this_data)), ids]
+
+                else: raise Exception(f'Strategy {strategy} not recognized.')
 
             # strategries for flattening secondary vertex data
             if variable.startswith('sv_'):
@@ -177,9 +190,17 @@ if __name__=='__main__':
             data[category] = this_data
 
         # optional: ignore dummy values
+        # note: to clean up in upstream code; some dummies are set to -9 and others to -1...
         for category in categories.keys():
             this_data = data[category]
-            mask = (np.abs(this_data+9)>1e-3).astype(bool)
+            mask = (np.abs(this_data+9)>1e-12).astype(bool)
+            mask = ((mask) & (np.abs(this_data+1)>1e-12).astype(bool))
+            data[category] = this_data[mask]
+
+        # special case: ignore failed measurements for dEdx
+        for category in categories.keys():
+            this_data = data[category]
+            mask = (this_data > 0.1).astype(bool)
             data[category] = this_data[mask]
 
         # group categories in single array
