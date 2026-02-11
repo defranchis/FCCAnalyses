@@ -32,7 +32,7 @@ def plot(sig=None, bkg=None, data=None,
          docms=True, extracmstext=None, lumiheader=None,
          yaxtitle=None, dolegend=False,
          secondary_bin_label_height=0.7,
-         ratios=None):
+         ratios=None, ratio_yaxtitles=None):
     '''
     Make prediction vs data histogram plot
     Input arguments:
@@ -67,7 +67,7 @@ def plot(sig=None, bkg=None, data=None,
         data_hist = np.copy(data[data_key][0])
         data_staterrors = np.copy(data[data_key][1])
         data_label = labeldict.get(data_key, 'Data')
-        data_markersize = 2
+        data_markersize = 4
 
     # make lists for sig and bkg histograms
     # and corresponding settings
@@ -331,13 +331,15 @@ def plot(sig=None, bkg=None, data=None,
         ax.set_xticks(xtick_pos, labels=xtick_labels)
 
     # some plot aesthetics
+    ax.tick_params(axis='both', which='both', labelsize=15)
     ax.minorticks_on()
     if logscale: ax.set_yscale('log')
     if docms:
         cmstext = r'$\bf{ALEPH}$'
-        if extracmstext is not None: cmstext += r' $\it{' + f' {extracmstext}' + r'}$'
+        if extracmstext is not None:
+            for part in extracmstext.split(' '): cmstext += r' $\it{' + f' {part}' + r'}$'
         ax.text(0.02, 0.98, cmstext,
-                ha='left', va='top', fontsize=15, transform=ax.transAxes)
+                ha='left', va='top', fontsize=20, transform=ax.transAxes)
         # modify the axis range to accommodate the CMS text
         if logscale:
             yscale = ax.get_ylim()[1]/ax.get_ylim()[0]
@@ -347,7 +349,7 @@ def plot(sig=None, bkg=None, data=None,
             ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1] + yscale*0.2)
     if lumiheader is not None:
         ax.text(1., 1., lumiheader,
-                ha='right', va='bottom', fontsize=15, transform=ax.transAxes)
+                ha='right', va='bottom', fontsize=20, transform=ax.transAxes)
     
     # set x-axis title
     xaxtitle = None
@@ -361,10 +363,10 @@ def plot(sig=None, bkg=None, data=None,
         if xaxtitle is not None and len(xaxtitle)>0:
             if unit is not None and len(unit)>0:
                 xaxtitle += f' [{unit}]'
-            ax.set_xlabel(xaxtitle, fontsize=15)
+            ax.set_xlabel(xaxtitle, fontsize=20)
     
     # set y-axis title
-    if yaxtitle is not None: ax.set_ylabel(yaxtitle, fontsize=15)
+    if yaxtitle is not None: ax.set_ylabel(yaxtitle, fontsize=20)
     
     # make legend
     if dolegend:
@@ -500,9 +502,16 @@ def plot(sig=None, bkg=None, data=None,
                 for xval in np.arange(0, bin_edges[-1]+1, step=variable.primary.nbins):
                     ax.axvline(x=xval, color='grey', linestyle='dashed')
 
+            # get correct y-axis title
+            yaxtitle = 'Ratio'
+            if ratio_yaxtitles is not None:
+                if len(ratios) != len(ratio_yaxtitles): raise Exception('Incompatible lists.')
+                yaxtitle = ratio_yaxtitles[ratio_idx]
+
             # some plot aesthetics
             ax.set_ylim((0.5, 1.5))
-            ax.set_ylabel('Ratio', fontsize=15)
+            ax.tick_params(axis='both', which='both', labelsize=15)
+            if yaxtitle is not None: ax.set_ylabel(yaxtitle, fontsize=20)
             ax.axhline(y=1, color='grey', linestyle='dashed')
 
             # some plot aesthetics: remove the title and labels
@@ -512,7 +521,7 @@ def plot(sig=None, bkg=None, data=None,
 
         # add title and labels to the lowest pad
         if xaxtitle is not None and len(xaxtitle)>0:
-            axs[-1].set_xlabel(xaxtitle, fontsize=15)
+            axs[-1].set_xlabel(xaxtitle, fontsize=20)
         if isinstance(variable, DoubleHistogramVariable):
             axs[-1].set_xticks(xtick_pos, labels=xtick_labels)
 

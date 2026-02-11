@@ -424,6 +424,9 @@ def plot_hists_default(hists_combined, variables, outputdir,
         labeldict = {}
         for p in sim_processes:
             labeldict[p] = p
+        labeldict['bb'] = r'$b\overline{b}$'
+        labeldict['cc'] = r'$c\bar{c}$'
+        labeldict['light'] = r'$u\overline{u}$, $d\overline{d}$, $s\overline{s}$'
 
     # set histogram styles
     if styledict is None:
@@ -487,11 +490,14 @@ def plot_hists_default(hists_combined, variables, outputdir,
 
             # define ratios to plot
             ratios = []
-            if datatag is not None: ratios.append([datatag, stacklist])
+            ratio_yaxtitles = []
+            if datatag is not None:
+                ratios.append([datatag, stacklist])
+                ratio_yaxtitles.append('Data / MC')
 
             # modify label dict to include the yield per process
             this_labeldict = labeldict.copy()
-            print_yield = True # maybe later add as argument
+            print_yield = False # maybe later add as argument
             if print_yield:
                 for process_key, hist in hists_sim_nominal.items():
                     old_label = labeldict.get(process_key, None)
@@ -500,8 +506,23 @@ def plot_hists_default(hists_combined, variables, outputdir,
                     new_label = old_label + ' ({:.2e})'.format(process_yield)
                     this_labeldict[process_key] = new_label
 
-            # do plotting
+            # set y-axis title
             yaxtitle = 'Events'
+            include_binwidth = True # maybe later add as argument
+            if include_binwidth:
+                if variable.unit is not None and len(variable.unit)>0:
+                    bins = variable.bins
+                    binwidths = bins[1:] - bins[:-1]
+                    unique_binwidths = list(set(binwidths))
+                    if len(unique_binwidths)==1:
+                        binwidth = unique_binwidths[0]
+                        binwidthtxt = '{:.2f}'.format(binwidth)
+                        if binwidth.is_integer(): binwidthtxt = str(int(binwidth))
+                        yaxtitle += f' / {binwidthtxt} {variable.unit}'
+                    else: yaxtitle += ' / Bin'
+                else: yaxtitle += ' / Bin'
+
+            # do plotting
             if normalize: yaxtitle += ' (normalized)'
             fig, axs = plot(bkg=hists_sim_nominal,
                        data=data,
@@ -518,25 +539,26 @@ def plot_hists_default(hists_combined, variables, outputdir,
                        lumiheader=lumiheader,
                        yaxtitle=yaxtitle,
                        dolegend=False,
-                       ratios=ratios)
+                       ratios=ratios,
+                       ratio_yaxtitles=ratio_yaxtitles)
 
             # some more plot aesthetics
             axs[0].set_ylim((0, axs[0].get_ylim()[1]*1.4))
-            axs[0].legend(loc='upper right', fontsize=12)
-            if len(regions.keys())>1:
-                axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
-                    transform=axs[0].transAxes)
-            if event_selection_name is not None:
-                label = event_selection_name
-                if select_processes is not None and len(select_processes)>0:
-                    label += ' (for {})'.format(', '.join(select_processes))
-                axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
-                  transform=axs[0].transAxes)
+            axs[0].legend(loc='upper right', fontsize=15)
+            #if len(regions.keys())>1:
+            #    axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
+            #        transform=axs[0].transAxes)
+            #if event_selection_name is not None:
+            #    label = event_selection_name
+            #    if select_processes is not None and len(select_processes)>0:
+            #        label += ' (for {})'.format(', '.join(select_processes))
+            #    axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
+            #      transform=axs[0].transAxes)
             if normalizesim:
                 axs[0].text(0.05, 0.8, 'Simulation normalized to data', ha='left', va='top', fontsize=12,
                   transform=axs[0].transAxes)
             # data ratio pad
-            if datatag is not None: axs[1].set_ylim((0, 2))
+            #if datatag is not None: axs[1].set_ylim((0, 2))
 
             # save the figure
             fig.tight_layout()
@@ -567,28 +589,29 @@ def plot_hists_default(hists_combined, variables, outputdir,
                        lumiheader=lumiheader,
                        yaxtitle=yaxtitle,
                        dolegend=False,
-                       ratios=ratios)
+                       ratios=ratios,
+                       ratio_yaxtitles=ratio_yaxtitles)
 
                 # some more plot aesthetics
                 if np.any(histarray > 0):
                     if not normalize: ymin = np.min(histarray[np.nonzero(histarray)])
                     else: ymin = axs[0].get_ylim()[0]
                     axs[0].set_ylim((ymin, axs[0].get_ylim()[1]**1.4))
-                axs[0].legend(loc='upper right', fontsize=12)
-                if len(regions.keys())>1:
-                    axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
-                        transform=axs[0].transAxes)
-                if event_selection_name is not None:
-                    label = event_selection_name
-                    if select_processes is not None and len(select_processes)>0:
-                        label += ' (for {})'.format(', '.join(select_processes))
-                    axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
-                      transform=axs[0].transAxes)
+                axs[0].legend(loc='upper right', fontsize=15)
+                #if len(regions.keys())>1:
+                #    axs[0].text(0.05, 0.9, region_name, ha='left', va='top', fontsize=12,
+                #        transform=axs[0].transAxes)
+                #if event_selection_name is not None:
+                #    label = event_selection_name
+                #    if select_processes is not None and len(select_processes)>0:
+                #        label += ' (for {})'.format(', '.join(select_processes))
+                #    axs[0].text(0.05, 0.85, label, ha='left', va='top', fontsize=12,
+                #      transform=axs[0].transAxes)
                 if normalizesim:
                     axs[0].text(0.05, 0.8, 'Simulation normalized to data', ha='left', va='top', fontsize=12,
                       transform=axs[0].transAxes)
                 # data ratio pad
-                if datatag is not None: axs[1].set_ylim((0, 2))
+                #if datatag is not None: axs[1].set_ylim((0, 2))
 
                 # save the figure
                 fig.tight_layout()
@@ -826,7 +849,7 @@ if __name__=='__main__':
             raise Exception(msg)
 
     # plot aesthetics settings
-    extracmstext = 'Resurrected'
+    extracmstext = 'Archived Data'
     lumiheaderparts = []
     if args.year is not None:
         lumiheaderparts.append(args.year)
