@@ -16,6 +16,7 @@ if __name__=='__main__':
 
     variables = [
       'pfcand_pt',
+      'pfcand_pz',
       'pfcand_charge',
 
       'pfcand_dEdx_pads_type',
@@ -63,7 +64,7 @@ if __name__=='__main__':
 
         # get data
         values = events[f'pfcand_dEdx_{system}_value'][total_mask]
-        pt = events['pfcand_pt'][total_mask]
+        p = np.sqrt( np.square(events['pfcand_pt'][total_mask]) + np.square(events['pfcand_pz'][total_mask]) )
             
         # strategies for flattening per-constituent data
         strategy = 'flatten' # choose from "flatten" or "leading"
@@ -71,7 +72,7 @@ if __name__=='__main__':
         # approach 1: take all constituents
         if strategy=='flatten':
             values = ak.flatten(values)
-            pt = ak.flatten(pt)
+            p = ak.flatten(p)
 
         # approach 2: take leading constituent
         # note: constituents do not seem to be pt-ordered by default!
@@ -80,17 +81,17 @@ if __name__=='__main__':
             else:
                 len_mask = np.nonzero(ak.num(values))[0].to_numpy().astype(bool)
                 values = values[len_mask]
-                pt = pt[len_mask]
-                ids = ak.argmax(pt, axis=1).to_numpy()
+                p = p[len_mask]
+                ids = ak.argmax(p, axis=1).to_numpy()
                 ids = np.array(list(ids))
                 values = values[np.arange(len(values)), ids]
-                pt = pt[np.arange(len(pt)), ids]
+                p = p[np.arange(len(p)), ids]
 
         else: raise Exception(f'Strategy {strategy} not recognized.')
 
         # parsing
         values = values.to_numpy()
-        pt = pt.to_numpy()
+        p = p.to_numpy()
         if np.isnan(values).any():
             msg = 'WARNING: replacing NaN by 0...'
             print(msg)
@@ -99,11 +100,11 @@ if __name__=='__main__':
         # optional: ignore dummy values
         mask = (values > 0.1).astype(bool)
         values = values[mask]
-        pt = pt[mask]
+        p = p[mask]
 
         # make figure
         fig, ax = plt.subplots()
-        ax.scatter(pt, values, s=1, color='blue', alpha=0.1)
+        ax.scatter(p, values, s=1, color='blue', alpha=0.1)
 
         # plot aesthetics
         ax.set_ylabel('$dE/dx$', fontsize=12)
@@ -125,11 +126,11 @@ if __name__=='__main__':
         fig, ax = plt.subplots()
         xbins = np.logspace(-1, 1, num=50, base=10)
         ybins = np.linspace(0, 10, num=50)
-        ax.hist2d(pt, values, bins=(xbins, ybins), density=True, norm=mpl.colors.LogNorm())
+        ax.hist2d(p, values, bins=(xbins, ybins), density=True, norm=mpl.colors.LogNorm())
 
         # plot aesthetics
         ax.set_ylabel('$dE/dx$', fontsize=12)
-        ax.set_xlabel('$p_{T}$', fontsize=12)
+        ax.set_xlabel('$p$', fontsize=12)
         ax.set_xscale('log')
         ax.set_ylim((0, 10))
         ax.set_xlim((0.1, 10))
