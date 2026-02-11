@@ -89,6 +89,11 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<int>* Jets_nKsCandidates = 0;
   ROOT::VecOps::RVec<int>* Jets_nLambdaCandidates = 0;
 
+  // event properties about jet clustering
+  float Event_dmerge2 = 0.;
+  float Event_dmerge3 = 0.;
+  float Event_dmerge4 = 0.;
+
   // secondary vertices properties
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_xrel = 0;
   ROOT::VecOps::RVec<ROOT::VecOps::RVec<float>> *SecondaryVertices_yrel = 0;
@@ -227,6 +232,11 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Jets_nV0Candidates", &Jets_nV0Candidates);
   ev->SetBranchAddress("Jets_nKsCandidates", &Jets_nKsCandidates);
   ev->SetBranchAddress("Jets_nLambdaCandidates", &Jets_nLambdaCandidates);
+
+  // event properties about jet clustering
+  ev->SetBranchAddress("Event_dmerge2", &Event_dmerge2);
+  ev->SetBranchAddress("Event_dmerge3", &Event_dmerge3);
+  ev->SetBranchAddress("Event_dmerge4", &Event_dmerge4);
 
   // secondary vertices properties
   ev->SetBranchAddress("SecondaryVertices_xrel", &SecondaryVertices_xrel);
@@ -380,6 +390,11 @@ int main(int argc, char* argv[]) {
   int recojet_nv0candidates = 0;
   int recojet_nkscandidates = 0;
   int recojet_nlambdacandidates = 0;
+
+  // event variables about jet clustering
+  float event_dmerge2 = 0.;
+  float event_dmerge3 = 0.;
+  float event_dmerge4 = 0.;
 
   // secondary vertices variables
   float sv_xrel[1000] = {0.};
@@ -542,6 +557,11 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("recojet_nkscandidates", &recojet_nkscandidates, "recojet_nkscandidates/I");
   ntuple->Branch("recojet_nlambdacandidates", &recojet_nlambdacandidates, "recojet_nlambdacandidates/I");
 
+  // event variables about jet clustering
+  ntuple->Branch("event_dmerge2", &event_dmerge2, "event_dmerge2/F");
+  ntuple->Branch("event_dmerge3", &event_dmerge3, "event_dmerge3/F");
+  ntuple->Branch("event_dmerge4", &event_dmerge4, "event_dmerge4/F");  
+
   // secondary vertices variables
   ntuple->Branch("sv_xrel", sv_xrel, "sv_xrel[recojet_nsv]/F");
   ntuple->Branch("sv_yrel", sv_yrel, "sv_yrel[recojet_nsv]/F");
@@ -677,6 +697,9 @@ int main(int argc, char* argv[]) {
     event_nsecondarytracks = (int)Event_nSecondaryTracks;
     event_nsv = (int)Event_nSV;
     event_nv0candidates = (int)Event_nV0Candidates;
+    event_dmerge2 = (float)Event_dmerge2;
+    event_dmerge3 = (float)Event_dmerge3;
+    event_dmerge4 = (float)Event_dmerge4;
 
     // do some printouts to track progress
     if(i % 10000 == 0) {
