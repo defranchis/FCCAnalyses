@@ -3,7 +3,7 @@ import sys
 import json
 import ROOT
 
-analyzers_dir = '../../../analyzers'
+analyzers_dir = '../../analyzers'
 
 # load custom analyzer for particle ID retrieval
 analyzer_path = os.path.join(os.path.dirname(__file__), analyzers_dir, 'analyzer_particleid.cxx')

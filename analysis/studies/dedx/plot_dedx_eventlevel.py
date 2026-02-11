@@ -125,7 +125,7 @@ if __name__=='__main__':
         fig.savefig(outputfile)
 
         # make 1D histograms in slices of momentum
-        pbins = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 10, 15, 20, 30]
+        pbins = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 10, 20, 30]
         for pidx in range(len(pbins)-1):
             plow = pbins[pidx]
             phigh = pbins[pidx+1]
