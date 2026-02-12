@@ -90,6 +90,7 @@ int main(int argc, char* argv[]) {
   ROOT::VecOps::RVec<int>* Jets_nLambdaCandidates = 0;
 
   // event properties about jet clustering
+  float Event_dmerge1 = 0.;
   float Event_dmerge2 = 0.;
   float Event_dmerge3 = 0.;
   float Event_dmerge4 = 0.;
@@ -234,6 +235,7 @@ int main(int argc, char* argv[]) {
   ev->SetBranchAddress("Jets_nLambdaCandidates", &Jets_nLambdaCandidates);
 
   // event properties about jet clustering
+  ev->SetBranchAddress("Event_dmerge1", &Event_dmerge1);
   ev->SetBranchAddress("Event_dmerge2", &Event_dmerge2);
   ev->SetBranchAddress("Event_dmerge3", &Event_dmerge3);
   ev->SetBranchAddress("Event_dmerge4", &Event_dmerge4);
@@ -392,6 +394,7 @@ int main(int argc, char* argv[]) {
   int recojet_nlambdacandidates = 0;
 
   // event variables about jet clustering
+  float event_dmerge1 = 0.;
   float event_dmerge2 = 0.;
   float event_dmerge3 = 0.;
   float event_dmerge4 = 0.;
@@ -558,6 +561,7 @@ int main(int argc, char* argv[]) {
   ntuple->Branch("recojet_nlambdacandidates", &recojet_nlambdacandidates, "recojet_nlambdacandidates/I");
 
   // event variables about jet clustering
+  ntuple->Branch("event_dmerge1", &event_dmerge1, "event_dmerge1/F");
   ntuple->Branch("event_dmerge2", &event_dmerge2, "event_dmerge2/F");
   ntuple->Branch("event_dmerge3", &event_dmerge3, "event_dmerge3/F");
   ntuple->Branch("event_dmerge4", &event_dmerge4, "event_dmerge4/F");  
@@ -697,6 +701,7 @@ int main(int argc, char* argv[]) {
     event_nsecondarytracks = (int)Event_nSecondaryTracks;
     event_nsv = (int)Event_nSV;
     event_nv0candidates = (int)Event_nV0Candidates;
+    event_dmerge1 = (float)Event_dmerge1;
     event_dmerge2 = (float)Event_dmerge2;
     event_dmerge3 = (float)Event_dmerge3;
     event_dmerge4 = (float)Event_dmerge4;

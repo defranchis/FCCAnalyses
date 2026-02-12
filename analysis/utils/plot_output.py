@@ -61,7 +61,7 @@ if __name__=='__main__':
       #'sv_chi2Normalized',
       #'sv_ndof',
       #'sv_nTracks',
-      #'sv_mass',
+      'sv_mass',
       #'sv_dxy',
       #'sv_dxyz',
       #'sv_cosPointing',
@@ -98,12 +98,12 @@ if __name__=='__main__':
       #'pfcand_dxydxy',
       #'pfcand_dzdz',
 
-      'pfcand_dEdx_pads_type',
-      'pfcand_dEdx_pads_value',
-      'pfcand_dEdx_pads_error',
-      'pfcand_dEdx_wires_type',
-      'pfcand_dEdx_wires_value',
-      'pfcand_dEdx_wires_error',      
+      #'pfcand_dEdx_pads_type',
+      #'pfcand_dEdx_pads_value',
+      #'pfcand_dEdx_pads_error',
+      #'pfcand_dEdx_wires_type',
+      #'pfcand_dEdx_wires_value',
+      #'pfcand_dEdx_wires_error',      
     ]
 
     # make output dir if needed

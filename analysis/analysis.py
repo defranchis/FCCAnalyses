@@ -427,6 +427,7 @@ class RDFanalysis():
             .Define("jets_ee_genkt", "JetClusteringUtils::get_pseudoJets(FCCAnalysesJets_ee_genkt)")
 
             # get merging parameters out of the struct
+            .Define("Event_dmerge1", "JetClusteringUtils::get_exclusive_dmerge(FCCAnalysesJets_ee_genkt, 1)")
             .Define("Event_dmerge2", "JetClusteringUtils::get_exclusive_dmerge(FCCAnalysesJets_ee_genkt, 2)")
             .Define("Event_dmerge3", "JetClusteringUtils::get_exclusive_dmerge(FCCAnalysesJets_ee_genkt, 3)")
             .Define("Event_dmerge4", "JetClusteringUtils::get_exclusive_dmerge(FCCAnalysesJets_ee_genkt, 4)")
@@ -824,6 +825,7 @@ class RDFanalysis():
 
         # event-level variables about jet clustering
         branchList += [
+            'Event_dmerge1',
             'Event_dmerge2',
             'Event_dmerge3',
             'Event_dmerge4',
