@@ -25,6 +25,8 @@ if __name__ == '__main__':
       help='Output directory')
     parser.add_argument('--run-ntuplizer', default=False, action='store_true',
       help='Run per-jet ntuplizer stage (default: run only per-event stage)')
+    parser.add_argument('--redirect-stdout', default=False, action='store_true',
+      help='Redirect stdout and stderr from the terminal to txt files.')
     parser.add_argument('--do-clean', default=False, action='store_true',
       help='Remove intermediate output after running the ntuplizing stage.')
     parser.add_argument('-r', '--runmode', default='local', choices=['local', 'condor'])
@@ -76,8 +78,8 @@ if __name__ == '__main__':
         if args.run_ntuplizer:
             cmd += ' --run-ntuplizer'
             cmd += ' --no-compile'
-        if args.do_clean:
-            cmd += ' --do-clean'
+        if args.redirect_stdout: cmd += ' --redirect_stdout'
+        if args.do_clean: cmd += ' --do-clean'
         cmds.append(cmd)
 
     # run or submit commands

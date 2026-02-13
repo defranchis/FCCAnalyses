@@ -31,10 +31,12 @@ def read_samplelist(samplelist):
 def run_ntuplizer(cmd_stagentuple_train, cmd_stagentuple_test, f_stdout, f_stderr):
     '''Internal helper function to run the ntuplizer commands'''
     start_time = time.time()
-    subprocess.check_call(cmd_stagentuple_train, shell = True, stdout=f_stdout, stderr=f_stderr)
-    subprocess.check_call(cmd_stagentuple_test, shell = True, stdout=f_stdout, stderr=f_stderr)
+    subprocess.check_call(cmd_stagentuple_train, shell=True, stdout=f_stdout, stderr=f_stderr)
+    subprocess.check_call(cmd_stagentuple_test, shell=True, stdout=f_stdout, stderr=f_stderr)
     end_time = time.time()
-    f_stdout.write("Ntuplizing stage: {:.3f}s.\n".format(end_time - end_time))
+    msg = 'Ntuplizing stage runtime: {:.3f}s.'.format(end_time - end_time)
+    if f_stdout is None: print(msg)
+    else: f_stdout.write(msg+'\n')
 
 
 if __name__ == '__main__':
@@ -56,6 +58,8 @@ if __name__ == '__main__':
       help='Fraction of events to put in training ntuple (default: 0.9)'
           +' (rest will go in testing ntuple)')
       # todo: find out if shuffling would be needed here.
+    parser.add_argument('--redirect-stdout', default=False, action='store_true',
+      help='Redirect stdout and stderr from the terminal to txt files.')
     parser.add_argument('--no-compile', default=False, action='store_true',
       help='Do not recompile makentuples on the fly (useful in job submission)')
     parser.add_argument('--do-clean', default=False, action='store_true',
@@ -100,18 +104,22 @@ if __name__ == '__main__':
     # create files storing stdout and stderr
     stdoutpath = args.outputfile.replace('.root', '_stdout.txt')
     stderrpath = args.outputfile.replace('.root', '_stderr.txt')
-    stdout = open(stdoutpath, 'w')
-    stderr = open(stderrpath, 'w')
+    stdout = None
+    stderr = None
+    if args.redirect_stdout:
+        stdout = open(stdoutpath, 'w')
+        stderr = open(stderrpath, 'w')
 
     # run stage 1
-    print(f'Now running stage 1...')
-    print(cmd_stage1)
+    msg = f'Now running stage 1:\n{cmd_stage1}'
+    if stdout is None: print(msg)
+    else: stdout.write(msg+'\n')
     start_time = time.time()
     subprocess.check_call(cmd_stage1, shell=True, stdout=stdout, stderr=stderr)
     end_time = time.time()
-    msg = "Stage 1 time: {:.3f}s.\n".format(end_time - start_time)
-    stdout.write(msg)
-    print(msg)
+    msg = 'Stage 1 runtime: {:.3f}s.'.format(end_time - start_time)
+    if stdout is None: print(msg)
+    else: stdout.write(msg+'\n')
 
     # run stage 2
     if args.run_ntuplizer:
@@ -120,9 +128,9 @@ if __name__ == '__main__':
                               + ' {} {} '.format(0, args.training_frac))
         cmd_stagentuple_test = (cmd_stagentuple + ' ' + args.outputfile.replace('.root', '_test.root')
                               + ' {} {} '.format(args.training_frac, 1))
-        print(f'Now running stage 2...')
-        print(cmd_stagentuple_train)
-        print(cmd_stagentuple_test)
+        msg = f'Now running stage 2:\n{cmd_stagentuple_train}\n{cmd_stagentuple_test}'
+        if stdout is None: print(msg)
+        else: stdout.write(msg+'\n')
         thread = mp.Process(target=run_ntuplizer, args=(cmd_stagentuple_train, cmd_stagentuple_test, stdout, stderr))
         thread.start()
         threads.append(thread)
@@ -134,10 +142,10 @@ if __name__ == '__main__':
             print('Removing output from stage 1 for cleaning...')
             os.system(f'rm {tempfile}')
 
-    stdout.close()
-    stderr.close()
+    if stdout is not None: stdout.close()
+    if stderr is not None: stderr.close()
 
     # do cleaning: remove stdout and stderr log files
     if args.do_clean:
-        os.system(f'rm {stdoutpath}')
-        os.system(f'rm {stderrpath}')
+        if stdout is not None: os.system(f'rm {stdoutpath}')
+        if stderr is not None: os.system(f'rm {stderrpath}')

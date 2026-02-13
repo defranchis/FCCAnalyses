@@ -4,8 +4,11 @@ This is a special branch of FCCAnalyses, intended to prepare ntuples for Particl
 
 ### How to set up
 Note: these instructions are valid for `lxplus`, not necessarily for other environments.
-1. Clone this repository (and make sure to switch to this branch).
-2. Run the builtin setup script:
+1. Clone this repository (and make sure to switch to this branch). For example (but other ways are equally fine):
+```
+git clone https://github.com/LukaLambrecht/FCCAnalyses.git -b aleph_ntuples
+```
+3. Run the builtin setup script:
 ```
 source ./setup.sh
 ```
@@ -17,11 +20,11 @@ cmake .. -DCMAKE_INSTALL_PREFIX=../install
 make install
 cd ..
 ```
-(Note: this step is not needed if no modifications are made to the FCCAnalyses framework,
+Note: this step is not needed if no modifications are made to the FCCAnalyses framework,
 in which case the library is taken from some remote location;
 use this step if you want to use the local and potentially modified framework.
-Probably you will need to re-run this step every time you make a modification,
-but this remains to be double-checked).
+You will need to re-run the `make install` step every time you make a modification to the framework,
+and the `cmake [...]` step in rarer cases when something changes in the background (e.g. ROOT version change on lxplus).
 
 ### How to run
 Go into the `analysis` subfolder.
