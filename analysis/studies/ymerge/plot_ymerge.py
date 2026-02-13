@@ -15,9 +15,15 @@ if __name__=='__main__':
     outputdir = 'output_plots'
 
     variables = [
+      'Event_dmerge1',
       'Event_dmerge2',
       'Event_dmerge3',
       'Event_dmerge4',
+    ]
+
+    selection_variables = [
+        'Jets_pt', 'Jets_pz', 'Jets_theta',
+        'recoEventType'
     ]
 
     # make output dir if needed
@@ -25,7 +31,7 @@ if __name__=='__main__':
 
     # read input files
     batches = []
-    branches_to_read = variables
+    branches_to_read = variables + selection_variables
     for idx, inputfile in enumerate(inputfiles):
         print(f'Reading file {idx+1} / {len(inputfiles)}', end='\r')
         readstr = ':'.join([inputfile, treename])
@@ -34,16 +40,25 @@ if __name__=='__main__':
     events = ak.concatenate(batches)
     print(f'Read {len(events)} entries.')
 
-    # make kinematic mask (optional)
-    kinematic_mask = np.ones(len(events)).astype(bool)
-    print(f'Made kinematic mask with {np.sum(kinematic_mask)} / {len(kinematic_mask)} entries passing.')
+    # do baseline event selection (optional)
+    baseline_mask = np.ones(len(events)).astype(bool)
+    jets_mask = (
+        (np.sqrt(np.square(events['Jets_pt']) + np.square(events['Jets_pz'])) > 10)
+        & (np.abs(np.cos(events['Jets_theta'])) < 0.65)
+    )
+    events_mask = (
+        (ak.any(events['recoEventType']==16, axis=1))
+        & (ak.sum(jets_mask, axis=1)==2)
+    )
+    baseline_mask = events_mask
+    print(f'Made baseline mask with {np.sum(baseline_mask)} / {len(baseline_mask)} entries passing.')
 
     # loop over dmerge variables
     data = {}
     for variable in variables:
     
             # get data
-            values = events[variable][kinematic_mask]
+            values = events[variable][baseline_mask]
             
             # parsing
             values = values.to_numpy()
