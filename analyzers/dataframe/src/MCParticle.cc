@@ -126,7 +126,7 @@ sel_lightQuarks_fromele::sel_lightQuarks_fromele(bool arg_chargeconjugate) : m_c
       if ( p.PDG < 6  && std::abs(in[mother_pdgIds[i]].PDG) == 11) result.emplace_back(p);
     }
   }
-  std::cout<<"loop finished"<<std::endl;
+  //std::cout<<"loop finished"<<std::endl;
   return result;
   }
 
