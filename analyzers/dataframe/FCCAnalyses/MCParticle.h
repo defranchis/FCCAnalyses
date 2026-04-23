@@ -73,6 +73,20 @@ namespace MCParticle{
     ROOT::VecOps::RVec<edm4hep::MCParticleData>  operator() (ROOT::VecOps::RVec<edm4hep::MCParticleData> in);
   };
 
+    struct sel_lightQuarks_fromele {
+    sel_lightQuarks_fromele(bool arg_chargeconjugate);
+    bool m_chargeconjugate = true;
+      ROOT::VecOps::RVec<edm4hep::MCParticleData>  operator() (ROOT::VecOps::RVec<edm4hep::MCParticleData> in,const ROOT::VecOps::RVec<int>& mother_pdgIds);
+  };
+
+  
+  
+  
+
+
+  
+  
+
   
   
   /// get MC history tree for a given MCParticle index
@@ -263,7 +277,16 @@ namespace MCParticle{
     ROOT::VecOps::RVec<edm4hep::MCParticleData> operator()(
         const ROOT::VecOps::RVec<edm4hep::MCParticleData>& leptons,
         const ROOT::VecOps::RVec<int>& mother_pdgIds);
-};
+
+  };
+  struct sel_gentausfromele {
+    sel_gentausfromele();
+    ROOT::VecOps::RVec<edm4hep::MCParticleData> operator()(
+        const ROOT::VecOps::RVec<edm4hep::MCParticleData>& taus,
+        const ROOT::VecOps::RVec<int>& mother_pdgIds);
+
+ };
+
 
   ROOT::VecOps::RVec<int> get_leptons_origin(const ROOT::VecOps::RVec<edm4hep::MCParticleData> &particles,
                                              const ROOT::VecOps::RVec<edm4hep::MCParticleData> &in,
@@ -275,4 +298,5 @@ namespace MCParticle{
 }//end NS MCParticle
 
 }//end NS FCCAnalyses
+
 #endif

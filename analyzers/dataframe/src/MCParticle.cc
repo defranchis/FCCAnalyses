@@ -70,7 +70,24 @@ ROOT::VecOps::RVec<edm4hep::MCParticleData> sel_genlepsfromW::operator()(
     return result;
 }
 
+sel_gentausfromele::sel_gentausfromele() {}
 
+ROOT::VecOps::RVec<edm4hep::MCParticleData> sel_gentausfromele::operator()(
+    const ROOT::VecOps::RVec<edm4hep::MCParticleData>& taus,
+    const ROOT::VecOps::RVec<int>& mother_pdgIds)
+{
+    ROOT::VecOps::RVec<edm4hep::MCParticleData> result;
+    result.reserve(taus.size());
+    for (size_t i = 0; i < taus.size(); ++i) {
+        int mother_pdg = mother_pdgIds[i];
+        if (std::abs(mother_pdg) == 11) {
+            result.emplace_back(taus[i]);
+        }
+    }
+    return result;
+}
+
+  
 sel_lightQuarks::sel_lightQuarks(bool arg_chargeconjugate) : m_chargeconjugate( arg_chargeconjugate )  {};
 ROOT::VecOps::RVec<edm4hep::MCParticleData>  sel_lightQuarks::operator() (ROOT::VecOps::RVec<edm4hep::MCParticleData> in) {
   ROOT::VecOps::RVec<edm4hep::MCParticleData> result;
@@ -86,22 +103,60 @@ ROOT::VecOps::RVec<edm4hep::MCParticleData>  sel_lightQuarks::operator() (ROOT::
   }
   return result;
 }  
+
+
+sel_lightQuarks_fromele::sel_lightQuarks_fromele(bool arg_chargeconjugate) : m_chargeconjugate( arg_chargeconjugate )  {};
+  ROOT::VecOps::RVec<edm4hep::MCParticleData>  sel_lightQuarks_fromele::operator() (ROOT::VecOps::RVec<edm4hep::MCParticleData> in, const ROOT::VecOps::RVec<int>& mother_pdgIds){
+  ROOT::VecOps::RVec<edm4hep::MCParticleData> result;
   
+  result.reserve(in.size());
+
+  for (size_t i = 0; i < in.size(); ++i) {
+    auto & p = in[i];
+    if (std::abs( p.PDG ) >5) continue;      
+    if ( m_chargeconjugate ) {
+      //      int mother_pdg = in[mother_pdgIds[i]].PDG;
+      float momentum = std::sqrt(   std::pow(p.momentum.x,2)
+				    + std::pow(p.momentum.y,2)
+				    + std::pow(p.momentum.z,2) );
+      std::cout<<" particle \t"<<p.PDG <<"\t with momentum \t"<<momentum<<"\t and status \t"<<p.generatorStatus<<"\t has mother \t"<< in[mother_pdgIds[i]].PDG<<std::endl;
+      if (std::abs(in[mother_pdgIds[i]].PDG) == 11)  result.emplace_back(p);
+    }
+    else {
+      if ( p.PDG < 6  && std::abs(in[mother_pdgIds[i]].PDG) == 11) result.emplace_back(p);
+    }
+  }
+  std::cout<<"loop finished"<<std::endl;
+  return result;
+  }
+
 
 
 get_decay::get_decay(int arg_mother, int arg_daughters, bool arg_inf){m_mother=arg_mother; m_daughters=arg_daughters; m_inf=arg_inf;};
 bool get_decay::operator() (ROOT::VecOps::RVec<edm4hep::MCParticleData> in,  ROOT::VecOps::RVec<int> ind){
-
   bool result=false;
   for (size_t i = 0; i < in.size(); ++i) {
     if (in[i].PDG!=m_mother)continue;
+    
+    //std::cout<<"found your particle"<< std::abs(in[ind.at(j)].PDG) <<m_daughters<<std::endl;
     int ndaughters=0;
-    for (unsigned j = in.at(i).daughters_begin; j != in.at(i).daughters_end; ++j) {
-      if (std::abs(in[ind.at(j)].PDG)==m_daughters && m_inf==false)ndaughters+=1;
-      else if (std::abs(in[ind.at(j)].PDG)<=m_daughters && m_inf==true)ndaughters+=1;
+    for (unsigned j = in.at(i).daughters_begin; j != in.at(i).daughters_end; ++j) {	  
+      if (std::abs(in[ind.at(j)].PDG)<=m_daughters)ndaughters+=1;
+      //if (std::abs(in[ind.at(j)].PDG)==m_daughters && m_inf==false)ndaughters+=1;
+      //else if (std::abs(in[ind.at(j)].PDG)<=m_daughters && m_inf==true)ndaughters+=1;
+      float mom_momentum = std::sqrt(   std::pow(in[ind.at(j)].momentum.x,2)
+				    + std::pow(in[ind.at(j)].momentum.y,2)
+				    + std::pow(in[ind.at(j)].momentum.z,2) );
+
+      // float momentum = std::sqrt(   std::pow(in[ind.at(j)].momentum.x,2)	    + std::pow(in[ind.at(j)].momentum.y,2)				    + std::pow(in[ind.at(j)].momentum.z,2) );
+
+      std::cout<<"found a quark with mother electron\t"<<in[j].PDG <<"\t mother momentum \t"<<mom_momentum<<std::endl;
     }
+    
+    //    std::cout<<"number of quark doters from electrons"<<ndaughters<<std::endl;
     //if (ndaughters>1){
     if (ndaughters>=1){
+      std::cout<<"number of quark doters from electrons"<<ndaughters<<std::endl;
       result=true;
       return result;
     }
@@ -208,13 +263,18 @@ ROOT::VecOps::RVec<int> get_tree::operator() (ROOT::VecOps::RVec<edm4hep::MCPart
   std::cout << "Thomas logic"<<std::endl;
 
   for (size_t i = 0; i < in.size(); ++i) {
-    // all the other cout
-    std::cout << i  << " status " << in[i].generatorStatus << " pdg " << in[i].PDG << " p beg "<< in.at(i).parents_begin << " p end " <<in.at(i).parents_end << "  mc size " << in.size() << "  ind size "<<ind.size() << std::endl;
+    if (std::abs(in[i].PDG) == m_index) continue;
     for (unsigned j = in.at(i).parents_begin; j != in.at(i).parents_end; ++j) {
-      std::cout << "   ==index " << j <<" parents " << ind.at(j) << std::endl;
+      if (std::abs(in[j].PDG) != m_index) continue;
+      float momentum = std::sqrt(   std::pow(in[i].momentum.x,2)
+				    + std::pow(in[i].momentum.y,2)
+				    + std::pow(in[i].momentum.z,2) );
+      std::cout<<" try: particle \t"<<in[i].PDG <<"\t with momentum \t"<<momentum<<"\t and status \t"<<in[i].generatorStatus<<"\t has mother \t"<< in[ind.at(j)].PDG<< "\t and m_index\t"<<j<<std::endl;
+
+      //      std::cout << "index " << j<< "\t pdg\t"<< in[j].PDG<<" \t parents " << ind.at(j) <<"\t pdg of this particle \t" <<in[ind.at(j)].PDG<<std::endl;
     }
   }
-  //std::cout << "END Thomas logic"<<std::endl;
+  //  std::cout << "END Thomas logic"<<std::endl;
 
   /*  for (size_t i = 0; i < in.size(); ++i) {
     auto & p = in[i];
