@@ -505,7 +505,9 @@ def run_local(args, analysis, infile_list):
         if os.path.isabs(args.output):
             LOGGER.warning('Provided output path is absolute, "outputDir" '
                            'from analysis script will be ignored!')
-        outfile_path = os.path.join(output_dir, args.output)
+            outfile_path = args.output
+        else:
+            outfile_path = os.path.join(output_dir, args.output)
     else:
         outfile_path = args.output
     LOGGER.info('Output file path:\n%s', outfile_path)
@@ -631,9 +633,14 @@ def run_fccanalysis(args, analysis_module):
 
     for process_name in process_list:
         LOGGER.info('Started processing sample "%s" ...', process_name)
+        try:
+            process_input_dir = process_list[process_name]['input_dir']
+        except KeyError:
+            process_input_dir = None
         file_list, event_list = get_process_info(process_name,
                                                  prod_tag,
-                                                 input_dir)
+                                                 input_dir,
+                                                 process_input_dir)
 
         if len(file_list) <= 0:
             LOGGER.error('No files to process!\nAborting...')

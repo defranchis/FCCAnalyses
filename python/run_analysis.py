@@ -14,7 +14,7 @@ import datetime
 import numpy as np
 
 import ROOT  # type: ignore
-from anascript import get_element, get_element_dict
+from anascript import get_element, get_element_dict, get_attribute
 from process import get_process_info, get_process_dict
 from frame import generate_graph
 
@@ -280,13 +280,26 @@ def initialize(args, rdf_module, anapath: str):
         LOGGER.info('No multithreading enabled. Running in single thread...')
 
     # custom header files
-    include_paths = get_element(rdf_module, "includePaths")
+    include_paths = get_attribute(rdf_module, "includePaths", [])
     if include_paths:
-        ROOT.gInterpreter.ProcessLine(".O3")
         basepath = os.path.dirname(os.path.abspath(anapath)) + "/"
+        # Check if the include paths exist
+        for path in include_paths:
+            if not os.path.isfile(os.path.join(basepath, path)):
+                LOGGER.error('Include header file "%s" not found!'
+                             '\nAborting...', path)
+                sys.exit(3)
+
+        ROOT.gInterpreter.ProcessLine(".O2")
         for path in include_paths:
             LOGGER.info('Loading %s...', path)
-            ROOT.gInterpreter.Declare(f'#include "{basepath}/{path}"')
+            success = ROOT.gInterpreter.Declare(
+                f'#include "{os.path.join(basepath, path)}"'
+            )
+            if not success:
+                LOGGER.error('Error occurred when JIT compiling "%s" include '
+                             'header file!\nAborting...', path)
+                sys.exit(3)
 
     # check if analyses plugins need to be loaded before anything
     # still in use?
@@ -514,7 +527,7 @@ def run_local(rdf_module, infile_list, args):
     start_time = time.time()
     inn, outn = run_rdf(rdf_module, file_list, outfile_path, args)
     elapsed_time = time.time() - start_time
-    
+
     # replace nevents_local by inn = the amount of processed events
 
     info_msg = f"{' SUMMARY ':=^80}\n"
@@ -618,10 +631,15 @@ def run_stages(args, rdf_module, anapath):
     process_list = get_element(rdf_module, 'processList')
 
     for process_name in process_list:
+        try:
+            process_input_dir = process_list[process_name]['inputDir']
+        except KeyError:
+            process_input_dir = None
         file_list, event_list = get_process_info(
             process_name,
             get_element(rdf_module, "prodTag"),
-            get_element(rdf_module, "inputDir"))
+            get_element(rdf_module, "inputDir"),
+            process_input_dir)
 
         if len(file_list) <= 0:
             LOGGER.error('No files to process!\nAborting...')
@@ -718,10 +736,15 @@ def run_histmaker(args, rdf_module, anapath):
     # number of events processed per process, in a potential previous step
     events_processed_dict = {}
     for process in process_list:
+        try:
+            process_input_dir = process_list[process]['inputDir']
+        except KeyError:
+            process_input_dir = None
         file_list, event_list = get_process_info(
             process,
             get_element(rdf_module, "prodTag"),
-            get_element(rdf_module, "inputDir"))
+            get_element(rdf_module, "inputDir"),
+            process_input_dir)
         if len(file_list) == 0:
             LOGGER.error('No files to process!\nAborting...')
             sys.exit(3)
