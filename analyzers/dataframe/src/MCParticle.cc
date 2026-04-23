@@ -63,7 +63,6 @@ ROOT::VecOps::RVec<edm4hep::MCParticleData> sel_genlepsfromW::operator()(
     result.reserve(leptons.size());
     for (size_t i = 0; i < leptons.size(); ++i) {
         int mother_pdg = mother_pdgIds[i];
-	//	std::cout<<"mother of the lepton is\t"<<mother_pdg<<std::endl;
         if (std::abs(mother_pdg) == 24) {
             result.emplace_back(leptons[i]);
         }
@@ -89,11 +88,9 @@ ROOT::VecOps::RVec<edm4hep::MCParticleData> sel_gentausfromele::operator()(
 }
 
   
-
 sel_lightQuarks::sel_lightQuarks(bool arg_chargeconjugate) : m_chargeconjugate( arg_chargeconjugate )  {};
 ROOT::VecOps::RVec<edm4hep::MCParticleData>  sel_lightQuarks::operator() (ROOT::VecOps::RVec<edm4hep::MCParticleData> in) {
   ROOT::VecOps::RVec<edm4hep::MCParticleData> result;
-  
   result.reserve(in.size());
   for (size_t i = 0; i < in.size(); ++i) {
     auto & p = in[i];
@@ -101,11 +98,12 @@ ROOT::VecOps::RVec<edm4hep::MCParticleData>  sel_lightQuarks::operator() (ROOT::
       if (std::abs( p.PDG ) < 6)  result.emplace_back(p);
     }
     else {
-        if ( p.PDG < 6  ) result.emplace_back(p);
+        if ( p.PDG < 6) result.emplace_back(p);
     }
   }
   return result;
 }  
+
 
 sel_lightQuarks_fromele::sel_lightQuarks_fromele(bool arg_chargeconjugate) : m_chargeconjugate( arg_chargeconjugate )  {};
   ROOT::VecOps::RVec<edm4hep::MCParticleData>  sel_lightQuarks_fromele::operator() (ROOT::VecOps::RVec<edm4hep::MCParticleData> in, const ROOT::VecOps::RVec<int>& mother_pdgIds){

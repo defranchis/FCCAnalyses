@@ -6,7 +6,8 @@ namespace JetTaggingUtils {
 
 ROOT::VecOps::RVec<int>
 get_flavour(ROOT::VecOps::RVec<fastjet::PseudoJet> in,
-            ROOT::VecOps::RVec<edm4hep::MCParticleData> MCin) {
+            ROOT::VecOps::RVec<edm4hep::MCParticleData> MCin,
+            float max_angle) {
   ROOT::VecOps::RVec<int> result(in.size(), 0);
 
   int loopcount = 0;
@@ -38,7 +39,7 @@ get_flavour(ROOT::VecOps::RVec<fastjet::PseudoJet> in,
       Float_t norm = sqrt(lenSq1 * lenSq2);
       Float_t angle = acos(dot / norm);
 
-      if (angle <= 0.3) {
+      if (angle <= max_angle) {
         if (result[j] == 21 or result[j] == 0) {
           // if no match before, or matched to gluon, match to
           // this particle (favour quarks over gluons)
