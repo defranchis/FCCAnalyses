@@ -119,7 +119,7 @@ sel_lightQuarks_fromele::sel_lightQuarks_fromele(bool arg_chargeconjugate) : m_c
       float momentum = std::sqrt(   std::pow(p.momentum.x,2)
 				    + std::pow(p.momentum.y,2)
 				    + std::pow(p.momentum.z,2) );
-      std::cout<<" particle \t"<<p.PDG <<"\t with momentum \t"<<momentum<<"\t and status \t"<<p.generatorStatus<<"\t has mother \t"<< in[mother_pdgIds[i]].PDG<<std::endl;
+      //std::cout<<" particle \t"<<p.PDG <<"\t with momentum \t"<<momentum<<"\t and status \t"<<p.generatorStatus<<"\t has mother \t"<< in[mother_pdgIds[i]].PDG<<std::endl;
       if (std::abs(in[mother_pdgIds[i]].PDG) == 11)  result.emplace_back(p);
     }
     else {
