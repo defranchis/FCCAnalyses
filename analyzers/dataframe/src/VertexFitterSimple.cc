@@ -490,9 +490,16 @@ get_PrimaryTracks(ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
 
   for (Int_t i = 0; i < Ntr; i++) {
     edm4hep::TrackState t = tracks[i];
-    TVectorD par = VertexingUtils::get_trackParam(t);
+    // same unit convention as VertexFitter_Tk (Units_mm = true), so the
+    // selection fit and the final PV fit see the identical beamspot constraint.
+    // Deliberate divergence from the luka_FCCAnalyses reference, which calls
+    // get_trackParam/get_trackCov with the Units_mm=false default here: with
+    // cm-native tracks its selection-fit beamspot constraint is off by x1000,
+    // i.e. effectively absent. With Units_mm=true on cm-native input the fit
+    // (and its covariance) is numerically in cm, not mm.
+    TVectorD par = VertexingUtils::get_trackParam(t, true);
     trkPar[i] = new TVectorD(par);
-    TMatrixDSym Cov = VertexingUtils::get_trackCov(t);
+    TMatrixDSym Cov = VertexingUtils::get_trackCov(t, true);
     trkCov[i] = new TMatrixDSym(Cov);
   }
 
