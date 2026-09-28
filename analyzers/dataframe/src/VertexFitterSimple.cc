@@ -153,6 +153,27 @@ class VertexFitFast : public TrkUtil {
 };
 // -----------------------------------------------------------------------
 
+namespace {
+// Track momentum at the vertex as computed by Delphes VertexMore (mm, 2 T), without its memory leak
+TVector3 momentumAtVertex(VertexFit &fit, Int_t i) {
+  Double_t Bz = 2.;
+  Double_t fa = -Bz * TrkUtil::cSpeed() * 1.0e-3;
+  TVectorD par = fit.GetNewPar(i);
+  Double_t ph0 = par(1);
+  Double_t lm = par(4);
+  if (fit.IsCharged(i)) {
+    Double_t C = par(2);
+    Double_t Q = TMath::Sign(1., C * fa);
+    Double_t a = fa * Q;
+    Double_t pt = TMath::Abs(a / (2. * C));
+    Double_t s = fit.GetPhase(i);
+    return TVector3(pt * TMath::Cos(s + ph0), pt * TMath::Sin(s + ph0), pt * lm);
+  }
+  Double_t pt = par(2);
+  return TVector3(pt * TMath::Cos(ph0), pt * TMath::Sin(ph0), pt * lm);
+}
+} // namespace
+
 namespace FCCAnalyses {
 
 namespace VertexFitterSimple {
@@ -403,7 +424,6 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
     }
     VertexFit theVertexFit_2(Ntr, trkPar_2, trkCov_2);
     theVertexFit_2.GetVtx();
-    VertexMore theVertexMore(&theVertexFit_2, Units_mm);
 
     for (Int_t i = 0; i < Ntr; i++) {
       TVectorD updated_par = theVertexFit.GetNewPar(i);
@@ -411,7 +431,7 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
           VertexingUtils::Delphes2Edm4hep_TrackParam(updated_par, Units_mm);
       updated_track_parameters.push_back(updated_par_edm4hep);
       // Momenta from the rescaled second fit — no further Bz correction needed
-      TVector3 ptrack_at_vertex = theVertexMore.GetMomentum(i);
+      TVector3 ptrack_at_vertex = momentumAtVertex(theVertexFit_2, i);
       updated_track_momentum_at_vertex.push_back(ptrack_at_vertex);
     }
 
@@ -424,13 +444,12 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
 
   } else {
     // Tracks already in mm — single fit, correct Bz post hoc
-    VertexMore theVertexMore(&theVertexFit, Units_mm);
     for (Int_t i = 0; i < Ntr; i++) {
       TVectorD updated_par = theVertexFit.GetNewPar(i);
       TVectorD updated_par_edm4hep =
           VertexingUtils::Delphes2Edm4hep_TrackParam(updated_par, Units_mm);
       updated_track_parameters.push_back(updated_par_edm4hep);
-      TVector3 ptrack_at_vertex = theVertexMore.GetMomentum(i) * (solenoidBz / 2.0);
+      TVector3 ptrack_at_vertex = momentumAtVertex(theVertexFit, i) * (solenoidBz / 2.0);
       updated_track_momentum_at_vertex.push_back(ptrack_at_vertex);
     }
   }
