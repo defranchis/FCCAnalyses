@@ -36,8 +36,8 @@ namespace VertexingUtils{
   /// Structure to keep useful track information that is related to the vertex
   struct FCCAnalysesVertex{
     edm4hep::VertexData vertex;
-    int ntracks;
-    int mc_ind; ///index in the MC vertex collection if any
+    int ntracks = 0;
+    int mc_ind = -1; /// index in the MC vertex collection if any
     ROOT::VecOps::RVec<int> reco_ind;      // indices of the tracks fitted to that vertex, in the collection of all tracks
     ROOT::VecOps::RVec<float> reco_chi2;
     ROOT::VecOps::RVec< TVector3 >  updated_track_momentum_at_vertex;
@@ -129,10 +129,13 @@ namespace VertexingUtils{
    *  CAUTION: m1 -> mass of first track, m2 -> mass of second track
    *  by default both pions
    */
+  /// returns -1 for vertices with more than two tracks
   double get_invM_pairs( FCCAnalysesVertex vertex,
 			 double m1 = 0.13957039,
 			 double m2 = 0.13957039) ;
 
+  /// Vector version of get_invM_pairs;
+  /// -1 for vertices with more than two tracks
   ROOT::VecOps::RVec<double> get_invM_pairs( ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
 					     double m1 = 0.13957039,
 					     double m2 = 0.13957039 ) ;  
@@ -160,6 +163,21 @@ namespace VertexingUtils{
    *  assuming the track to be a pion
    */
   double get_trackE( edm4hep::TrackState track ) ;
+
+  /** returns the transverse radii [mm] of the points where the transverse
+   *  circles of two tracks cross, in the frame of the track parameters (that of
+   *  the vertex position of VertexFitterSimple::VertexFitter_Tk): candidate
+   *  start radii of a two-track vertex fit (see
+   *  VertexFitterSimple::VertexFitter_2Tk_seeded)
+   *  2 entries (ascending) -> the circles cross
+   *  1 entry -> the circles touch or do not cross: midpoint of the two closest
+   *  points of the circles
+   *  0 entries -> undefined (concentric circles, omega = 0, non-finite
+   *  parameters)
+   */
+  ROOT::VecOps::RVec<double>
+  get_circleCrossingRadii(edm4hep::TrackState track1,
+                          edm4hep::TrackState track2);
 
   ///////////////////////////////////////////////////
   /// V0 Reconstruction
@@ -212,11 +230,17 @@ namespace VertexingUtils{
   ROOT::VecOps::RVec<double> get_phi_SV( ROOT::VecOps::RVec<FCCAnalysesVertex> vertices );
 
   /// Return polar angle (theta) of all reconstructed vertices wrt jets (or V0.vtx)
+  /** nSV_jet must have one entry per jet, summing to the number of vertices;
+   *  otherwise a warning is printed and an empty vector is returned
+   */
   ROOT::VecOps::RVec<double> get_relTheta_SV( ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
 					      ROOT::VecOps::RVec<int> nSV_jet,
 					      ROOT::VecOps::RVec<fastjet::PseudoJet> jets );
 
   /// Return azimuthal angle (phi) of all reconstructed vertices wrt jets (or V0.vtx)
+  /** nSV_jet must have one entry per jet, summing to the number of vertices;
+   *  otherwise a warning is printed and an empty vector is returned
+   */
   ROOT::VecOps::RVec<double> get_relPhi_SV( ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
 					    ROOT::VecOps::RVec<int> nSV_jet,
 					    ROOT::VecOps::RVec<fastjet::PseudoJet> jets );

@@ -3,6 +3,8 @@
 
 #include "TrkUtil.h" // from delphes
 
+#include <iostream>
+
 namespace FCCAnalyses {
 
 namespace VertexingUtils {
@@ -466,6 +468,8 @@ double get_invM_pairs(FCCAnalysesVertex vertex, double m1, double m2) {
   TLorentzVector p4_vtx;
   double m[2] = {m1, m2};
   int nTr = p_tracks.size();
+  if (nTr > 2)
+    return -1; // not defined for more than two tracks
 
   for (unsigned int i = 0; i < nTr; i++) {
     TLorentzVector p4_tr;
@@ -492,6 +496,10 @@ get_invM_pairs(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices, double m1,
     TLorentzVector p4_vtx;
     double m[2] = {m1, m2};
     int nTr = p_tracks.size();
+    if (nTr > 2) {
+      result.push_back(-1); // not defined for more than two tracks
+      continue;
+    }
 
     for (unsigned int i = 0; i < nTr; i++) {
       TLorentzVector p4_tr;
@@ -613,6 +621,56 @@ double get_trackE(edm4hep::TrackState track) {
   p4.SetXYZM(p[0], p[1], p[2], m_pi);
 
   result = p4.E();
+  return result;
+}
+
+ROOT::VecOps::RVec<double> get_circleCrossingRadii(edm4hep::TrackState track1,
+                                                   edm4hep::TrackState track2) {
+  ROOT::VecOps::RVec<double> result;
+
+  // transverse circles in the Delphes parametrisation, in mm as in
+  // VertexFitter_Tk: centre -(D + 1/(2C)) * (sin phi0, -cos phi0),
+  // radius 1/(2|C|)
+  double xc[2], yc[2], rc[2];
+  edm4hep::TrackState tracks[2] = {track1, track2};
+  for (int k = 0; k < 2; k++) {
+    TVectorD par = get_trackParam(tracks[k], true);
+    double D = par[0], phi0 = par[1], C = par[2];
+    xc[k] = -(D + 0.5 / C) * std::sin(phi0);
+    yc[k] = (D + 0.5 / C) * std::cos(phi0);
+    rc[k] = 0.5 / std::abs(C);
+  }
+  double dx = xc[1] - xc[0], dy = yc[1] - yc[0];
+  double d = std::hypot(dx, dy);
+  if (!std::isfinite(d) || !std::isfinite(rc[0]) || !std::isfinite(rc[1]) ||
+      !(d > 0.))
+    return result;
+  double ux = dx / d, uy = dy / d; // unit vector from centre 0 to centre 1
+
+  double X, Y;
+  if (d >= rc[0] + rc[1]) { // separate circles: closest points face each other
+    double t = rc[0] + 0.5 * (d - rc[0] - rc[1]);
+    X = xc[0] + t * ux;
+    Y = yc[0] + t * uy;
+  } else if (d <= std::abs(rc[0] - rc[1])) { // one circle inside the other
+    double s = (rc[0] > rc[1]) ? 1. : -1.;
+    X = 0.5 * (xc[0] + xc[1] + s * (rc[0] + rc[1]) * ux);
+    Y = 0.5 * (yc[0] + yc[1] + s * (rc[0] + rc[1]) * uy);
+  } else { // crossing circles
+    double a = (rc[0] * rc[0] - rc[1] * rc[1] + d * d) / (2. * d);
+    double h2 = rc[0] * rc[0] - a * a;
+    X = xc[0] + a * ux;
+    Y = yc[0] + a * uy;
+    if (h2 > 0) {
+      double h = std::sqrt(h2);
+      double r1 = std::hypot(X - h * uy, Y + h * ux);
+      double r2 = std::hypot(X + h * uy, Y - h * ux);
+      result.push_back(std::min(r1, r2));
+      result.push_back(std::max(r1, r2));
+      return result;
+    }
+  }
+  result.push_back(std::hypot(X, Y));
   return result;
 }
 
@@ -810,7 +868,7 @@ get_pointingangle_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
     edm4hep::Vector3f r_vtx = ivtx.vertex.position; // in mm
     edm4hep::Vector3f r_PV = PV.vertex.position;    // in mm
 
-    TVector3 r_vtx_PV(r_vtx[0] - r_vtx[0], r_vtx[1] - r_PV[1],
+    TVector3 r_vtx_PV(r_vtx[0] - r_PV[0], r_vtx[1] - r_PV[1],
                       r_vtx[2] - r_PV[2]);
 
     double pDOTr = p_sum.Dot(r_vtx_PV);
@@ -924,6 +982,24 @@ get_dR_SV_obj(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
   return result;
 }
 
+// nSV_jet needs one entry per jet, summing to the number of vertices;
+// otherwise print a warning (on stderr) and return false
+static bool check_nSV_jet(const char *caller,
+                          const ROOT::VecOps::RVec<FCCAnalysesVertex> &vertices,
+                          const ROOT::VecOps::RVec<int> &nSV_jet,
+                          const ROOT::VecOps::RVec<fastjet::PseudoJet> &jets) {
+  const int nSV_sum = ROOT::VecOps::Sum(nSV_jet);
+  if (nSV_jet.size() == jets.size() &&
+      nSV_sum == static_cast<int>(vertices.size()))
+    return true;
+  std::cerr << "VertexingUtils::" << caller
+            << ": inconsistent inputs, returning an empty vector -- nSV_jet: "
+            << nSV_jet.size() << " entries summing to " << nSV_sum
+            << ", jets: " << jets.size() << ", vertices: " << vertices.size()
+            << std::endl;
+  return false;
+}
+
 // vector of polar angle (theta) of all reconstructed vertices wrt jet axis
 // (SV.vtx or V0.vtx)
 ROOT::VecOps::RVec<double>
@@ -932,6 +1008,11 @@ get_relTheta_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
                 ROOT::VecOps::RVec<fastjet::PseudoJet> jets) {
   ROOT::VecOps::RVec<double> result;
 
+  // no vertices (e.g. no jets) is consistent: return quietly
+  if (!check_nSV_jet("get_relTheta_SV", vertices, nSV_jet, jets) ||
+      vertices.empty())
+    return result;
+
   unsigned int j = 0;
   int nSV = nSV_jet[0];
   for (unsigned int i = 0; i < vertices.size(); i++) {
@@ -939,7 +1020,7 @@ get_relTheta_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
     TVector3 xyz(ivtx.vertex.position[0], ivtx.vertex.position[1],
                  ivtx.vertex.position[2]);
 
-    if (i >= nSV) {
+    while (i >= nSV) {
       j++;
       nSV += nSV_jet[j];
     }
@@ -959,6 +1040,11 @@ get_relPhi_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
               ROOT::VecOps::RVec<fastjet::PseudoJet> jets) {
   ROOT::VecOps::RVec<double> result;
 
+  // no vertices (e.g. no jets) is consistent: return quietly
+  if (!check_nSV_jet("get_relPhi_SV", vertices, nSV_jet, jets) ||
+      vertices.empty())
+    return result;
+
   unsigned int j = 0;
   int nSV = nSV_jet[0];
   for (unsigned int i = 0; i < vertices.size(); i++) {
@@ -966,7 +1052,7 @@ get_relPhi_SV(ROOT::VecOps::RVec<FCCAnalysesVertex> vertices,
     TVector3 xyz(ivtx.vertex.position[0], ivtx.vertex.position[1],
                  ivtx.vertex.position[2]);
 
-    if (i >= nSV) {
+    while (i >= nSV) {
       j++;
       nSV += nSV_jet[j];
     }
@@ -1346,7 +1432,7 @@ ROOT::VecOps::RVec<ROOT::VecOps::RVec<double>> get_pointingangle_SV(
 
       edm4hep::Vector3f r_vtx = ivtx.vertex.position; // in mm
 
-      TVector3 r_vtx_PV(r_vtx[0] - r_vtx[0], r_vtx[1] - r_PV[1],
+      TVector3 r_vtx_PV(r_vtx[0] - r_PV[0], r_vtx[1] - r_PV[1],
                         r_vtx[2] - r_PV[2]);
 
       double pDOTr = p_sum.Dot(r_vtx_PV);
